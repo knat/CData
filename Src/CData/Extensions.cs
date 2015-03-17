@@ -192,7 +192,7 @@ namespace CData {
         }
         internal static bool TryInvParse(this string s, out byte[] result) {
             if (s.Length == 0) {
-                result = EmptyBytes;
+                result = _emptyBytes;
                 return true;
             }
             try {
@@ -204,7 +204,7 @@ namespace CData {
                 return false;
             }
         }
-        internal static readonly byte[] EmptyBytes = new byte[0];
+        private static readonly byte[] _emptyBytes = new byte[0];
         internal static string ToInvString(this byte[] value) {
             if (value.Length == 0) return string.Empty;
             return Convert.ToBase64String(value);
@@ -289,14 +289,17 @@ namespace CData {
             return list == null ? 0 : list.Count;
         }
         //
-        internal static bool IsClass(this TypeKind kind) {
-            return kind == TypeKind.Class;
+        internal static bool IsObject(this TypeKind kind) {
+            return kind == TypeKind.Object;
         }
         internal static bool IsList(this TypeKind kind) {
             return kind == TypeKind.List;
         }
-        internal static bool IsSet(this TypeKind kind) {
-            return kind == TypeKind.Set;
+        internal static bool IsAtomSet(this TypeKind kind) {
+            return kind == TypeKind.AtomSet;
+        }
+        internal static bool IsObjectSet(this TypeKind kind) {
+            return kind == TypeKind.ObjectSet;
         }
         internal static bool IsMap(this TypeKind kind) {
             return kind == TypeKind.Map;
@@ -306,7 +309,16 @@ namespace CData {
         }
         //
         //
-        internal static ConstructorInfo GetParameterlessConstructor(TypeInfo ti) {
+        //internal static ConstructorInfo GetIEqualityComparerOfStringConstructor(TypeInfo ti) {
+        //    foreach (var ci in ti.DeclaredConstructors) {
+        //        var ps = ci.GetParameters();
+        //        if (ps.Length == 1 && ps[0].ParameterType == IEqualityComparerOfStringType) {
+        //            return ci;
+        //        }
+        //    }
+        //    return null;
+        //}
+        internal static ConstructorInfo TryGetParameterlessConstructor(TypeInfo ti) {
             foreach (var ci in ti.DeclaredConstructors) {
                 if (ci.GetParameters().Length == 0) {
                     return ci;
@@ -314,16 +326,12 @@ namespace CData {
             }
             return null;
         }
-        internal static ConstructorInfo GetIEqualityComparerOfStringConstructor(TypeInfo ti) {
-            foreach (var ci in ti.DeclaredConstructors) {
-                var ps = ci.GetParameters();
-                if (ps.Length == 1 && ps[0].ParameterType == IEqualityComparerOfStringType) {
-                    return ci;
-                }
-            }
-            return null;
+        internal static ConstructorInfo GetParameterlessConstructor(TypeInfo ti) {
+            var r = TryGetParameterlessConstructor(ti);
+            if (r != null) return r;
+            throw new ArgumentException("Cannot get parameterless constructor: " + ti.FullName);
         }
-        internal static PropertyInfo GetClrProperty(TypeInfo ti, string name) {
+        internal static PropertyInfo TryGetPropertyInHierarchy(TypeInfo ti, string name) {
             while (true) {
                 var pi = ti.GetDeclaredProperty(name);
                 if (pi != null) {
@@ -336,7 +344,17 @@ namespace CData {
                 ti = baseType.GetTypeInfo();
             }
         }
-        internal static FieldInfo GetClrField(TypeInfo ti, string name) {
+        internal static PropertyInfo GetPropertyInHierarchy(TypeInfo ti, string name) {
+            var r = TryGetPropertyInHierarchy(ti, name);
+            if (r != null) return r;
+            throw new ArgumentException("Cannot get property: " + name);
+        }
+        internal static PropertyInfo GetProperty(TypeInfo ti, string name) {
+            var r = ti.GetDeclaredProperty(name);
+            if (r != null) return r;
+            throw new ArgumentException("Cannot get property: " + name);
+        }
+        internal static FieldInfo TryGetFieldInHierarchy(TypeInfo ti, string name) {
             while (true) {
                 var fi = ti.GetDeclaredField(name);
                 if (fi != null) {
@@ -349,23 +367,68 @@ namespace CData {
                 ti = baseType.GetTypeInfo();
             }
         }
-        internal static MethodInfo GetClrMethod(TypeInfo ti, string name, Type para1Type, Type para2Type) {
-            foreach (var mi in ti.GetDeclaredMethods(name)) {
-                var ps = mi.GetParameters();
-                if (ps.Length == 2 && ps[0].ParameterType == para1Type && ps[1].ParameterType == para2Type) {
+        internal static FieldInfo GetFieldInHierarchy(TypeInfo ti, string name) {
+            var r = TryGetFieldInHierarchy(ti, name);
+            if (r != null) return r;
+            throw new ArgumentException("Cannot get field: " + name);
+        }
+        internal static FieldInfo GetField(TypeInfo ti, string name) {
+            var r = ti.GetDeclaredField(name);
+            if (r != null) return r;
+            throw new ArgumentException("Cannot get field: " + name);
+        }
+        internal static MethodInfo TryGetMethodInHierarchy(TypeInfo ti, string name) {
+            while (true) {
+                var mi = ti.GetDeclaredMethod(name);
+                if (mi != null) {
                     return mi;
                 }
+                var baseType = ti.BaseType;
+                if (baseType == null) {
+                    return null;
+                }
+                ti = baseType.GetTypeInfo();
             }
-            return null;
         }
-        internal static readonly Type IEqualityComparerType = typeof(IEqualityComparer<>);
-        internal static readonly Type IEqualityComparerOfStringType = typeof(IEqualityComparer<string>);
-        internal static readonly Type ListType = typeof(List<>);
-        internal static readonly Type HashSetType = typeof(HashSet<>);
-        internal static readonly Type DictionaryType = typeof(Dictionary<,>);
-        internal static readonly Type BoolRefType = typeof(bool).MakeByRefType();
+        internal static MethodInfo GetMethodInHierarchy(TypeInfo ti, string name) {
+            var r = TryGetMethodInHierarchy(ti, name);
+            if (r != null) return r;
+            throw new ArgumentException("Cannot get method: " + name);
+        }
+        internal static MethodInfo GetMethod(TypeInfo ti, string name) {
+            var r = ti.GetDeclaredMethod(name);
+            if (r != null) return r;
+            throw new ArgumentException("Cannot get method: " + name);
+        }
+
+        //internal static MethodInfo GetClrMethod(TypeInfo ti, string name, Type para1Type, Type para2Type) {
+        //    foreach (var mi in ti.GetDeclaredMethods(name)) {
+        //        var ps = mi.GetParameters();
+        //        if (ps.Length == 2 && ps[0].ParameterType == para1Type && ps[1].ParameterType == para2Type) {
+        //            return mi;
+        //        }
+        //    }
+        //    return null;
+        //}
+        //internal static MethodInfo GetClrMethod(TypeInfo ti, string name, Type declaredParaType) {
+        //    foreach (var mi in ti.GetDeclaredMethods(name)) {
+        //        var ps = mi.GetParameters();
+        //        if (ps.Length == 1){// && ps[0].ParameterType == para1Type && ps[1].ParameterType == para2Type) {
+        //            var paraType=ps[0].ParameterType;
+        //            paraType.IsArray
+        //            return mi;
+        //        }
+        //    }
+        //    return null;
+        //}
+        //internal static readonly Type IEqualityComparerType = typeof(IEqualityComparer<>);
+        //internal static readonly Type IEqualityComparerOfStringType = typeof(IEqualityComparer<string>);
+        //internal static readonly Type ListType = typeof(List<>);
+        //internal static readonly Type HashSetType = typeof(HashSet<>);
+        //internal static readonly Type DictionaryType = typeof(Dictionary<,>);
+        //internal static readonly Type BoolRefType = typeof(bool).MakeByRefType();
         internal static readonly Type DiagContextType = typeof(DiagContext);
-        internal static readonly object BoolTrueValue = true;
+        //internal static readonly object BoolTrueValue = true;
 
     }
 }

@@ -50,7 +50,7 @@ namespace CData {
         IntegerValue,// +-123
         DecimalValue,// +-123.45
         RealValue,// +-123.45Ee+-12
-        DollarOpenBracket,// $[
+        HashOpenBracket,// #[
     }
     internal sealed class Lexer {
         [ThreadStatic]
@@ -513,13 +513,13 @@ namespace CData {
                 //        return CreateTokenAndAdvanceChar(ch);
                 //    }
                 //}
-                else if (ch == '$') {
+                else if (ch == '#') {
                     var nextch = GetNextChar();
                     if (nextch == '[') {
                         state = CreateState(StateKind.None);
                         AdvanceChar();
                         AdvanceChar();
-                        return CreateToken(TokenKind.DollarOpenBracket, state);
+                        return CreateToken(TokenKind.HashOpenBracket, state);
                     }
                     else {
                         return CreateTokenAndAdvanceChar(ch);

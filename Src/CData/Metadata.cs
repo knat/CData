@@ -6,14 +6,13 @@ using System.Text;
 
 namespace CData {
     public abstract class ProgramMetadata {
-        //
-        private volatile Dictionary<FullName, ClassTypeMetadata> _classTypeMap;
-        protected abstract Dictionary<FullName, ClassTypeMetadata> GetClassTypeMap();
-        public ClassTypeMetadata TryGetClassType(FullName fullName) {
-            ClassTypeMetadata info;
+        private volatile Dictionary<FullName, ObjectTypeMetadata> _classTypeMap;
+        protected abstract Dictionary<FullName, ObjectTypeMetadata> GetClassTypeMap();
+        public ObjectTypeMetadata TryGetClassType(FullName fullName) {
+            ObjectTypeMetadata md;
             var map = _classTypeMap ?? (_classTypeMap = GetClassTypeMap());
-            if (map.TryGetValue(fullName, out info)) {
-                return info;
+            if (map.TryGetValue(fullName, out md)) {
+                return md;
             }
             return null;
         }
@@ -21,9 +20,10 @@ namespace CData {
 
     public enum TypeKind : byte {
         None = 0,
-        Class,
+        Object,
         List,
-        Set,
+        AtomSet,
+        ObjectSet,
         Map,
         //DO NOT CHANGE THE ORDER
         String,
@@ -46,20 +46,17 @@ namespace CData {
         DateTimeOffset,
     }
     public abstract class TypeMetadata {
-        protected TypeMetadata(TypeKind kind, bool isNullable, string displayName, Type clrType) {
+        protected TypeMetadata(TypeKind kind, bool isNullable, Type clrType) {
             Kind = kind;
             IsNullable = isNullable;
-            DisplayName = displayName;
             ClrType = clrType;
         }
         public readonly TypeKind Kind;
         public readonly bool IsNullable;
-        public readonly string DisplayName;
         public readonly Type ClrType;
-
-        public bool IsClass {
+        public bool IsObject {
             get {
-                return Kind == TypeKind.Class;
+                return Kind == TypeKind.Object;
             }
         }
         public bool IsList {
@@ -67,9 +64,19 @@ namespace CData {
                 return Kind == TypeKind.List;
             }
         }
+        public bool IsAtomSet {
+            get {
+                return Kind == TypeKind.AtomSet;
+            }
+        }
+        public bool IsObjectSet {
+            get {
+                return Kind == TypeKind.ObjectSet;
+            }
+        }
         public bool IsSet {
             get {
-                return Kind == TypeKind.Set;
+                return Kind == TypeKind.AtomSet || Kind == TypeKind.ObjectSet;
             }
         }
         public bool IsMap {
@@ -84,172 +91,126 @@ namespace CData {
         }
     }
     public sealed class AtomTypeMetadata : TypeMetadata {
-        public AtomTypeMetadata(TypeKind kind, bool isNullable, string displayName, Type clrType)
-            : base(kind, isNullable, displayName, isNullable ? _nullableClrTypeMap[kind] : _clrTypeMap[kind]) {
+        public static AtomTypeMetadata Get(TypeKind kind, bool isNullable) {
+            return isNullable ? _nullableMap[kind] : _map[kind];
         }
-        private static readonly Dictionary<TypeKind, Type> _clrTypeMap = new Dictionary<TypeKind, Type> {
-            { TypeKind.String, typeof(string) },
-            { TypeKind.IgnoreCaseString, typeof(string) },
-            { TypeKind.Decimal, typeof(decimal) },
-            { TypeKind.Int64, typeof(long) },
-            { TypeKind.Int32, typeof(int) },
-            { TypeKind.Int16, typeof(short) },
-            { TypeKind.SByte, typeof(sbyte) },
-            { TypeKind.UInt64, typeof(ulong) },
-            { TypeKind.UInt32, typeof(uint) },
-            { TypeKind.UInt16, typeof(ushort) },
-            { TypeKind.Byte, typeof(byte) },
-            { TypeKind.Double, typeof(double) },
-            { TypeKind.Single, typeof(float) },
-            { TypeKind.Boolean, typeof(bool) },
-            { TypeKind.Binary, typeof(BinaryValue) },
-            { TypeKind.Guid, typeof(Guid) },
-            { TypeKind.TimeSpan, typeof(TimeSpan) },
-            { TypeKind.DateTimeOffset, typeof(DateTimeOffset) },
+        private AtomTypeMetadata(TypeKind kind, bool isNullable, Type clrType)
+            : base(kind, isNullable, clrType) {
+        }
+        private static readonly Dictionary<TypeKind, AtomTypeMetadata> _map = new Dictionary<TypeKind, AtomTypeMetadata> {
+            { TypeKind.String, new AtomTypeMetadata(TypeKind.String , false, typeof(string)) },
+            { TypeKind.IgnoreCaseString, new AtomTypeMetadata(TypeKind.IgnoreCaseString , false, typeof(IgnoreCaseString)) },
+            { TypeKind.Decimal, new AtomTypeMetadata(TypeKind.Decimal , false, typeof(decimal)) },
+            { TypeKind.Int64, new AtomTypeMetadata(TypeKind.Int64 , false, typeof(long)) },
+            { TypeKind.Int32, new AtomTypeMetadata(TypeKind.Int32 , false, typeof(int)) },
+            { TypeKind.Int16, new AtomTypeMetadata(TypeKind.Int16 , false, typeof(short)) },
+            { TypeKind.SByte, new AtomTypeMetadata(TypeKind.SByte , false, typeof(sbyte)) },
+            { TypeKind.UInt64, new AtomTypeMetadata(TypeKind.UInt64 , false, typeof(ulong)) },
+            { TypeKind.UInt32, new AtomTypeMetadata(TypeKind.UInt32 , false, typeof(uint)) },
+            { TypeKind.UInt16, new AtomTypeMetadata(TypeKind.UInt16 , false, typeof(ushort)) },
+            { TypeKind.Byte, new AtomTypeMetadata(TypeKind.Byte , false, typeof(byte)) },
+            { TypeKind.Double, new AtomTypeMetadata(TypeKind.Double , false, typeof(double)) },
+            { TypeKind.Single, new AtomTypeMetadata(TypeKind.Single , false, typeof(float)) },
+            { TypeKind.Boolean, new AtomTypeMetadata(TypeKind.Boolean , false, typeof(bool)) },
+            { TypeKind.Binary, new AtomTypeMetadata(TypeKind.Binary , false, typeof(BinaryValue)) },
+            { TypeKind.Guid, new AtomTypeMetadata(TypeKind.Guid , false, typeof(Guid)) },
+            { TypeKind.TimeSpan, new AtomTypeMetadata(TypeKind.TimeSpan , false, typeof(TimeSpan)) },
+            { TypeKind.DateTimeOffset, new AtomTypeMetadata(TypeKind.DateTimeOffset , false, typeof(DateTimeOffset)) },
         };
-        private static readonly Dictionary<TypeKind, Type> _nullableClrTypeMap = new Dictionary<TypeKind, Type> {
-            { TypeKind.String, typeof(string) },
-            { TypeKind.IgnoreCaseString, typeof(string) },
-            { TypeKind.Decimal, typeof(decimal?) },
-            { TypeKind.Int64, typeof(long?) },
-            { TypeKind.Int32, typeof(int?) },
-            { TypeKind.Int16, typeof(short?) },
-            { TypeKind.SByte, typeof(sbyte?) },
-            { TypeKind.UInt64, typeof(ulong?) },
-            { TypeKind.UInt32, typeof(uint?) },
-            { TypeKind.UInt16, typeof(ushort?) },
-            { TypeKind.Byte, typeof(byte?) },
-            { TypeKind.Double, typeof(double?) },
-            { TypeKind.Single, typeof(float?) },
-            { TypeKind.Boolean, typeof(bool?) },
-            { TypeKind.Binary, typeof(BinaryValue) },
-            { TypeKind.Guid, typeof(Guid?) },
-            { TypeKind.TimeSpan, typeof(TimeSpan?) },
-            { TypeKind.DateTimeOffset, typeof(DateTimeOffset?) },
+        private static readonly Dictionary<TypeKind, AtomTypeMetadata> _nullableMap = new Dictionary<TypeKind, AtomTypeMetadata> {
+            { TypeKind.String, new AtomTypeMetadata(TypeKind.String , true, typeof(string)) },
+            { TypeKind.IgnoreCaseString, new AtomTypeMetadata(TypeKind.IgnoreCaseString , true, typeof(IgnoreCaseString)) },
+            { TypeKind.Decimal, new AtomTypeMetadata(TypeKind.Decimal , true, typeof(decimal?)) },
+            { TypeKind.Int64, new AtomTypeMetadata(TypeKind.Int64 , true, typeof(long?)) },
+            { TypeKind.Int32, new AtomTypeMetadata(TypeKind.Int32 , true, typeof(int?)) },
+            { TypeKind.Int16, new AtomTypeMetadata(TypeKind.Int16 , true, typeof(short?)) },
+            { TypeKind.SByte, new AtomTypeMetadata(TypeKind.SByte , true, typeof(sbyte?)) },
+            { TypeKind.UInt64, new AtomTypeMetadata(TypeKind.UInt64 , true, typeof(ulong?)) },
+            { TypeKind.UInt32, new AtomTypeMetadata(TypeKind.UInt32 , true, typeof(uint?)) },
+            { TypeKind.UInt16, new AtomTypeMetadata(TypeKind.UInt16 , true, typeof(ushort?)) },
+            { TypeKind.Byte, new AtomTypeMetadata(TypeKind.Byte , true, typeof(byte?)) },
+            { TypeKind.Double, new AtomTypeMetadata(TypeKind.Double , true, typeof(double?)) },
+            { TypeKind.Single, new AtomTypeMetadata(TypeKind.Single , true, typeof(float?)) },
+            { TypeKind.Boolean, new AtomTypeMetadata(TypeKind.Boolean , true, typeof(bool?)) },
+            { TypeKind.Binary, new AtomTypeMetadata(TypeKind.Binary , true, typeof(BinaryValue)) },
+            { TypeKind.Guid, new AtomTypeMetadata(TypeKind.Guid , true, typeof(Guid?)) },
+            { TypeKind.TimeSpan, new AtomTypeMetadata(TypeKind.TimeSpan , true, typeof(TimeSpan?)) },
+            { TypeKind.DateTimeOffset, new AtomTypeMetadata(TypeKind.DateTimeOffset , true, typeof(DateTimeOffset?)) },
         };
     }
-    [Flags]
-    public enum CollectionTypeFlags {
-        None = 0,
-        NeedIgnoreCaseComparer = 1,
-        ClrMap = 2,
-    }
-    public abstract class CollectionTypeMetadata : TypeMetadata {
-        protected CollectionTypeMetadata(TypeKind kind, bool isNullable, string displayName, Type clrType,
-            CollectionTypeFlags flags)
-            : base(kind, isNullable, displayName, clrType) {
-            Flags = flags;
+    public sealed class CollectionTypeMetadata : TypeMetadata {
+        public CollectionTypeMetadata(TypeKind kind, bool isNullable, Type clrType,
+            AtomTypeMetadata keyType, TypeMetadata itemType)
+            : base(kind, isNullable, clrType) {
+            KeyType = keyType;
+            ItemType = itemType;
             var ti = clrType.GetTypeInfo();
-            if (NeedIgnoreCaseComparer) {
-                ClrConstructor = Extensions.GetIEqualityComparerOfStringConstructor(ti);
+            ClrConstructor = Extensions.GetParameterlessConstructor(ti);
+            ClrAddMethod = Extensions.GetMethodInHierarchy(ti, "Add");
+            if (IsMap) {
+                ClrContainsKeyMethod = Extensions.GetMethodInHierarchy(ti, "ContainsKey");
             }
-            else {
-                ClrConstructor = Extensions.GetParameterlessConstructor(ti);
-            }
-            if (IsClrMap) {
-                ClrContainsKeyMethod = ti.GetDeclaredMethod("ContainsKey");
-            }
-            ClrAddMethod = ti.GetDeclaredMethod("Add");
         }
-        public readonly CollectionTypeFlags Flags;
+        public readonly AtomTypeMetadata KeyType;//opt
+        public readonly TypeMetadata ItemType;
         public readonly ConstructorInfo ClrConstructor;
-        public readonly MethodInfo ClrContainsKeyMethod;//for clr map
         public readonly MethodInfo ClrAddMethod;
-        public bool NeedIgnoreCaseComparer {
-            get {
-                return (Flags & CollectionTypeFlags.NeedIgnoreCaseComparer) != 0;
-            }
-        }
-        public bool IsClrMap {
-            get {
-                return (Flags & CollectionTypeFlags.ClrMap) != 0;
-            }
-        }
+        public readonly MethodInfo ClrContainsKeyMethod;//for map
         public object CreateInstance() {
-            if (NeedIgnoreCaseComparer) {
-                return ClrConstructor.Invoke(new object[] { StringComparer.OrdinalIgnoreCase });
-            }
             return ClrConstructor.Invoke(null);
         }
-        public bool InvokeAddMethod(object obj, object key, object value) {
-            if ((bool)ClrContainsKeyMethod.Invoke(obj, new object[] { key })) {
-                return false;
-            }
-            ClrAddMethod.Invoke(obj, new object[] { key, value });
-            return true;
-        }
-    }
-    public abstract class ItemCollectionTypeMetadata : CollectionTypeMetadata {
-        protected ItemCollectionTypeMetadata(TypeKind kind, bool isNullable, string displayName, Type clrType,
-            CollectionTypeFlags flags, TypeMetadata itemType)
-            : base(kind, isNullable, displayName, clrType, flags) {
-            ItemType = itemType;
-        }
-        public readonly TypeMetadata ItemType;
-    }
-    public sealed class ListTypeMetadata : ItemCollectionTypeMetadata {
-        public ListTypeMetadata(bool isNullable, string displayName, TypeMetadata itemType)
-            : base(TypeKind.List, isNullable, displayName, Extensions.ListType.MakeGenericType(itemType.ClrType), CollectionTypeFlags.None, itemType) {
-        }
-        public void InvokeAddMethod(object obj, object item) {
+        public void InvokeAdd(object obj, object item) {
             ClrAddMethod.Invoke(obj, new object[] { item });
         }
-    }
-    public sealed class SetTypeMetadata : ItemCollectionTypeMetadata {
-        public SetTypeMetadata(bool isNullable, string displayName, TypeMetadata itemType, AtomTypeMetadata classKeyType)
-            : base(TypeKind.Set, isNullable, displayName,
-            classKeyType == null ? Extensions.HashSetType.MakeGenericType(itemType.ClrType) :
-                Extensions.DictionaryType.MakeGenericType(classKeyType.ClrType, itemType.ClrType),
-            ((itemType.Kind == TypeKind.IgnoreCaseString || (classKeyType != null && classKeyType.Kind == TypeKind.IgnoreCaseString)) ? CollectionTypeFlags.NeedIgnoreCaseComparer : CollectionTypeFlags.None) |
-                (classKeyType != null ? CollectionTypeFlags.ClrMap : CollectionTypeFlags.None),
-            itemType) {
-            ClassKeyType = classKeyType;
-        }
-        public readonly AtomTypeMetadata ClassKeyType;//opt
-        public bool InvokeAddMethod(object obj, object item) {
+        public bool InvokeBoolAdd(object obj, object item) {
             return (bool)ClrAddMethod.Invoke(obj, new object[] { item });
         }
-    }
-    public sealed class MapTypeMetadata : CollectionTypeMetadata {
-        public MapTypeMetadata(bool isNullable, string displayName, AtomTypeMetadata keyType, TypeMetadata valueType)
-            : base(TypeKind.Map, isNullable, displayName,
-            Extensions.DictionaryType.MakeGenericType(keyType.ClrType, valueType.ClrType),
-            CollectionTypeFlags.ClrMap | ((keyType.Kind == TypeKind.IgnoreCaseString) ? CollectionTypeFlags.NeedIgnoreCaseComparer : CollectionTypeFlags.None)) {
-            KeyType = keyType;
-            ValueType = valueType;
+        public bool InvokeContainsKey(object obj, object key) {
+            return (bool)ClrContainsKeyMethod.Invoke(obj, new object[] { key });
         }
-        public readonly AtomTypeMetadata KeyType;
-        public readonly TypeMetadata ValueType;
+        public void InvokeAdd(object obj, object key, object value) {
+            ClrAddMethod.Invoke(obj, new object[] { key, value });
+        }
     }
-    public sealed class ClassTypeMetadata : TypeMetadata {
-        public ClassTypeMetadata(bool isNullable, string displayName, Type clrType, ProgramMetadata program,
-            ClassTypeMetadata baseClass, PropertyMetadata[] properties)
-            : base(TypeKind.Class, isNullable, displayName, clrType) {
-            Program = program;
+    public sealed class ObjectTypeMetadata : TypeMetadata {
+        public ObjectTypeMetadata(bool isNullable, Type clrType,
+            ObjectTypeMetadata baseClass, string displayName, bool isAbstract, string onLoadingName, string onLoadedName,
+            PropertyMetadata[] properties, ProgramMetadata program)
+            : base(TypeKind.Object, isNullable, clrType) {
             BaseClass = baseClass;
+            IsAbstract = isAbstract;
+            DisplayName = displayName;
             _properties = properties;
+            Program = program;
             var ti = clrType.GetTypeInfo();
-            if (!(IsAbstract = ti.IsAbstract)) {
-                if ((ClrConstructor = Extensions.GetParameterlessConstructor(ti)) == null) {
-                    throw new InvalidOperationException("Parameterless constructor required for class: " + ti.FullName);
-                }
+            if (!isAbstract) {
+                ClrConstructor = Extensions.GetParameterlessConstructor(ti);
             }
-            ClrOnLoadingMethod = Extensions.GetClrMethod(ti, "OnLoading", Extensions.BoolRefType, Extensions.DiagContextType);
-            ClrOnLoadedMethod = Extensions.GetClrMethod(ti, "OnLoaded", Extensions.BoolRefType, Extensions.DiagContextType);
+            if (baseClass == null) {
+                ClrTextSpanProperty = Extensions.GetPropertyInHierarchy(ti, "__TextSpan");
+            }
+            if (onLoadingName != null) {
+                ClrOnLoadingMethod = Extensions.GetMethod(ti, onLoadingName);
+            }
+            if (onLoadedName != null) {
+                ClrOnLoadedMethod = Extensions.GetMethod(ti, onLoadedName);
+            }
             if (properties != null) {
                 foreach (var prop in properties) {
                     prop.GetClrPropertyOrField(ti);
                 }
             }
         }
-        public readonly ProgramMetadata Program;
-        public readonly ClassTypeMetadata BaseClass;
+        public readonly ObjectTypeMetadata BaseClass;
         public readonly bool IsAbstract;
+        public readonly string DisplayName;
         private readonly PropertyMetadata[] _properties;
+        public readonly ProgramMetadata Program;
         public readonly ConstructorInfo ClrConstructor;//for non abstract class
+        public readonly PropertyInfo ClrTextSpanProperty;//for top class
         public readonly MethodInfo ClrOnLoadingMethod;//opt
         public readonly MethodInfo ClrOnLoadedMethod;//opt
-        public bool IsEqualToOrDeriveFrom(ClassTypeMetadata other) {
+        public bool IsEqualToOrDeriveFrom(ObjectTypeMetadata other) {
             if (other == null) throw new ArgumentNullException("other");
             for (var info = this; info != null; info = info.BaseClass) {
                 if (info == other) {
@@ -258,6 +219,19 @@ namespace CData {
             }
             return false;
         }
+        //public PropertyMetadata GetProperty(string name) {
+        //    if (_properties != null) {
+        //        foreach (var prop in _properties) {
+        //            if (prop.Name == name) {
+        //                return prop;
+        //            }
+        //        }
+        //    }
+        //    if (BaseClass != null) {
+        //        return BaseClass.GetProperty(name);
+        //    }
+        //    return null;
+        //}
         public void GetAllProperties(ref List<PropertyMetadata> propList) {
             if (BaseClass != null) {
                 BaseClass.GetAllProperties(ref propList);
@@ -274,23 +248,28 @@ namespace CData {
         public object CreateInstance() {
             return ClrConstructor.Invoke(null);
         }
-        public bool InvokeOnLoadMethod(bool isLoading, object obj, DiagContext context) {
+        public void SetTextSpan(object obj, TextSpan value) {
             if (BaseClass != null) {
-                if (!BaseClass.InvokeOnLoadMethod(isLoading, obj, context)) {
+                BaseClass.SetTextSpan(obj, value);
+            }
+            else {
+                ClrTextSpanProperty.SetValue(obj, value);
+            }
+        }
+        public bool InvokeOnLoad(bool isLoading, object obj, DiagContext context) {
+            if (BaseClass != null) {
+                if (!BaseClass.InvokeOnLoad(isLoading, obj, context)) {
                     return false;
                 }
             }
             var mi = isLoading ? ClrOnLoadingMethod : ClrOnLoadedMethod;
             if (mi != null) {
-                var paras = new object[2] { Extensions.BoolTrueValue, context };
-                mi.Invoke(obj, paras);
-                if (!(bool)paras[0]) {
+                if (!(bool)mi.Invoke(obj, new object[] { context })) {
                     return false;
                 }
             }
             return true;
         }
-
     }
     public sealed class PropertyMetadata {
         public PropertyMetadata(string name, TypeMetadata type, string clrName, bool isClrProperty) {
@@ -307,14 +286,18 @@ namespace CData {
         public FieldInfo ClrField { get; private set; }
         internal void GetClrPropertyOrField(TypeInfo ti) {
             if (IsClrProperty) {
-                if ((ClrProperty = Extensions.GetClrProperty(ti, ClrName)) == null) {
-                    throw new InvalidOperationException("Cannot get CLR property: " + ClrName);
-                }
+                ClrProperty = Extensions.GetPropertyInHierarchy(ti, ClrName);
             }
             else {
-                if ((ClrField = Extensions.GetClrField(ti, ClrName)) == null) {
-                    throw new InvalidOperationException("Cannot get CLR field: " + ClrName);
-                }
+                ClrField = Extensions.GetFieldInHierarchy(ti, ClrName);
+            }
+        }
+        public object GetValue(object obj) {
+            if (IsClrProperty) {
+                return ClrProperty.GetValue(obj);
+            }
+            else {
+                return ClrField.GetValue(obj);
             }
         }
         public void SetValue(object obj, object value) {
@@ -336,7 +319,7 @@ namespace CData {
     abstract partial class Class1 : Class0 {
         public int Id { get; protected set; }
 
-        partial void OnLoading(ref bool success, DiagContext context);
+        //bool OnLoading( DiagContext context);
         partial void OnLoaded(ref bool success, DiagContext context);
 
         //partial void OnLoading() {

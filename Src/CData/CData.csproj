@@ -38,12 +38,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BinaryValue.cs" />
+    <Compile Include="IgnoreCaseString.cs" />
     <Compile Include="Metadata.cs" />
     <Compile Include="Diagnostics.cs" />
     <Compile Include="Extensions.cs" />
     <Compile Include="FullName.cs" />
     <Compile Include="Lexer.cs" />
-    <Compile Include="Nodes.cs" />
+    <Compile Include="ObjectSet.cs" />
     <Compile Include="Parser.cs" />
     <Compile Include="SavingContext.cs" />
     <Compile Include="TextSpan.cs" />

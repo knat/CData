@@ -3,6 +3,67 @@ using System.Collections.Generic;
 using System.IO;
 
 namespace CData {
+    internal struct NameNode : IEquatable<NameNode> {
+        public NameNode(string value, TextSpan textSpan) {
+            Value = value;
+            TextSpan = textSpan;
+        }
+        public readonly string Value;
+        public readonly TextSpan TextSpan;
+        public bool IsValid {
+            get {
+                return Value != null;
+            }
+        }
+        public override string ToString() {
+            return Value;
+        }
+        public bool Equals(NameNode other) {
+            return Value == other.Value;
+        }
+        public override bool Equals(object obj) {
+            return obj is NameNode && Equals((NameNode)obj);
+        }
+        public override int GetHashCode() {
+            return Value != null ? Value.GetHashCode() : 0;
+        }
+        public static bool operator ==(NameNode left, NameNode right) {
+            return left.Equals(right);
+        }
+        public static bool operator !=(NameNode left, NameNode right) {
+            return !left.Equals(right);
+        }
+    }
+    internal enum AtomValueKind : byte {
+        None = 0,
+        String,
+        Boolean,
+        Null,
+        Integer,
+        Decimal,
+        Real,
+    }
+    internal struct AtomValueNode {
+        public AtomValueNode(AtomValueKind kind, string value, TextSpan textSpan) {
+            Kind = kind;
+            Value = value;
+            TextSpan = textSpan;
+        }
+        public readonly AtomValueKind Kind;
+        public readonly string Value;
+        public readonly TextSpan TextSpan;
+        public bool IsValid {
+            get {
+                return Kind != AtomValueKind.None;
+            }
+        }
+        public bool IsNull {
+            get {
+                return Kind == AtomValueKind.Null;
+            }
+        }
+    }
+
     internal abstract class ParserBase {
         protected virtual void Set(string filePath, TextReader reader, DiagContext context) {
             if (filePath == null) throw new ArgumentNullException("filePath");
@@ -51,7 +112,7 @@ namespace CData {
             Throw();
         }
         protected void ErrorDiagAndThrow(DiagMsg diagMsg) {
-            ErrorDiagAndThrow(diagMsg, GetToken().ToTextSpan(_filePath));
+            ErrorDiagAndThrow(diagMsg, GetTextSpan());
         }
         //
         private static bool IsTrivalToken(TokenKind tokenKind) {
@@ -74,6 +135,9 @@ namespace CData {
                     }
                 }
             }
+        }
+        protected TextSpan GetTextSpan() {
+            return GetToken().ToTextSpan(_filePath);
         }
         protected void ConsumeToken() {
             _token = null;
@@ -191,9 +255,9 @@ namespace CData {
             return false;
         }
         public bool AtomValue(out AtomValueNode result, AtomValueKind expectedKind = AtomValueKind.None) {
-            var kind = AtomValueKind.None;
             var token = GetToken();
             var tokenValue = token.Value;
+            var kind = AtomValueKind.None;
             switch (token.TokenKind) {
                 case TokenKind.StringValue:
                 case TokenKind.VerbatimStringValue:
@@ -319,7 +383,7 @@ namespace CData {
             ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidUriReference, alias), aliasNode.TextSpan);
             return null;
         }
-        private bool ClassValue(ClassTypeMetadata declaredClassTypeMd, out object result) {
+        private bool ObjectValue(ObjectTypeMetadata declaredObjectTypeMd, out object result) {
             NameNode aliasNode;
             if (Name(out aliasNode)) {
                 TokenExpected(':');
@@ -327,23 +391,24 @@ namespace CData {
                 var hasUriAliasingList = UriAliasingList();
                 TokenExpected('{');
                 var fullName = new FullName(GetUri(aliasNode), nameNode.Value);
-                var classTypeMd = declaredClassTypeMd.Program.TryGetClassType(fullName);
-                if (classTypeMd == null) {
+                var objectTypeMd = declaredObjectTypeMd.Program.TryGetClassType(fullName);
+                if (objectTypeMd == null) {
                     ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidClassReference, fullName.ToString()), nameNode.TextSpan);
                 }
-                if (!classTypeMd.IsEqualToOrDeriveFrom(declaredClassTypeMd)) {
-                    ErrorDiagAndThrow(new DiagMsg(DiagCode.ClassNotEqualToOrDeriveFrom, classTypeMd.DisplayName, declaredClassTypeMd.DisplayName),
+                if (!objectTypeMd.IsEqualToOrDeriveFrom(declaredObjectTypeMd)) {
+                    ErrorDiagAndThrow(new DiagMsg(DiagCode.ClassNotEqualToOrDeriveFrom, objectTypeMd.DisplayName, declaredObjectTypeMd.DisplayName),
                         nameNode.TextSpan);
                 }
-                if (classTypeMd.IsAbstract) {
-                    ErrorDiagAndThrow(new DiagMsg(DiagCode.ClassIsAbstract, classTypeMd.DisplayName), nameNode.TextSpan);
+                if (objectTypeMd.IsAbstract) {
+                    ErrorDiagAndThrow(new DiagMsg(DiagCode.ClassIsAbstract, objectTypeMd.DisplayName), nameNode.TextSpan);
                 }
-                var obj = classTypeMd.CreateInstance();
-                if (!classTypeMd.InvokeOnLoadMethod(true, obj, _context)) {
+                var obj = objectTypeMd.CreateInstance();
+                if (!objectTypeMd.InvokeOnLoad(true, obj, _context)) {
                     Throw();
                 }
+                objectTypeMd.SetTextSpan(obj, nameNode.TextSpan);
                 List<PropertyMetadata> propMdList = null;
-                classTypeMd.GetAllProperties(ref propMdList);
+                objectTypeMd.GetAllProperties(ref propMdList);
                 while (true) {
                     NameNode propNameNode;
                     if (Name(out propNameNode)) {
@@ -373,7 +438,7 @@ namespace CData {
                             }
                             Throw();
                         }
-                        if (!classTypeMd.InvokeOnLoadMethod(false, obj, _context)) {
+                        if (!objectTypeMd.InvokeOnLoad(false, obj, _context)) {
                             Throw();
                         }
                         if (hasUriAliasingList) {
@@ -396,78 +461,97 @@ namespace CData {
             return null;
         }
         private bool Value(TypeMetadata typeMd, out object result) {
-            result = null;
             var typeKind = typeMd.Kind;
-            AtomValueNode atomValueNode;
-            if (AtomValue(out atomValueNode)) {
-                if (atomValueNode.IsNull) {
+            AtomValueNode avNode;
+            if (AtomValue(out avNode)) {
+                if (avNode.IsNull) {
                     if (!typeMd.IsNullable) {
-                        ErrorDiagAndThrow(new DiagMsg(DiagCode.TypeIsNotNullable, typeMd.DisplayName), atomValueNode.TextSpan);
+                        ErrorDiagAndThrow(new DiagMsg(DiagCode.NullNotAllowed), avNode.TextSpan);
                     }
+                    result = null;
                     return true;
                 }
                 if (!typeKind.IsAtom()) {
-                    ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), atomValueNode.TextSpan);
+                    ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), avNode.TextSpan);
                 }
-                result = ParseAtomValue(typeKind, atomValueNode);
+                result = ParseAtomValue(typeKind, avNode);
                 return true;
             }
             else {
                 TextSpan ts;
                 if (Token('[', out ts)) {
                     var isList = typeKind.IsList();
-                    var isSet = typeKind.IsSet();
+                    var isSet = typeKind.IsAtomSet() || typeKind.IsObjectSet();
                     if (!isList && !isSet) {
                         ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), ts);
                     }
-                    var itemTypeMd = ((ItemCollectionTypeMetadata)typeMd).ItemType;
-                    var setTypeMd = isSet ? (SetTypeMetadata)typeMd : null;
-                    object collValue = null;
+                    var collTypeMd = (CollectionTypeMetadata)typeMd;
+                    var collObj = collTypeMd.CreateInstance();
+                    var itemTypeMd = collTypeMd.ItemType;
                     while (true) {
-                        object itemValue;
-                        if (Value(itemTypeMd, out itemValue)) {
-                            if (collValue == null) {
-
-                            }
+                        object itemObj;
+                        if (isSet) {
+                            ts = GetTextSpan();
+                        }
+                        if (Value(itemTypeMd, out itemObj)) {
                             if (isSet) {
-
+                                if (!collTypeMd.InvokeBoolAdd(collObj, itemObj)) {
+                                    ErrorDiagAndThrow(new DiagMsg(DiagCode.DuplicateSetItem), ts);
+                                }
                             }
                             else {
-
+                                collTypeMd.InvokeAdd(collObj, itemObj);
                             }
-
                         }
                         else {
                             TokenExpected(']');
-
+                            result = collObj;
                             return true;
                         }
                     }
-
-
                 }
-                else if (Token((int)TokenKind.DollarOpenBracket, out ts)) {
+                else if (Token((int)TokenKind.HashOpenBracket, out ts)) {
                     if (!typeKind.IsMap()) {
                         ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), ts);
                     }
-
-                    TokenExpected(']');
+                    var collTypeMd = (CollectionTypeMetadata)typeMd;
+                    var collObj = collTypeMd.CreateInstance();
+                    var keyTypeMd = collTypeMd.KeyType;
+                    var itemTypeMd = collTypeMd.ItemType;
+                    while (true) {
+                        object keyObj;
+                        ts = GetTextSpan();
+                        if (Value(keyTypeMd, out keyObj)) {
+                            if (collTypeMd.InvokeContainsKey(collObj, keyObj)) {
+                                ErrorDiagAndThrow(new DiagMsg(DiagCode.DuplicateMapKey), ts);
+                            }
+                            TokenExpected('=');
+                            collTypeMd.InvokeAdd(collObj, keyObj, ValueExpected(itemTypeMd));
+                        }
+                        else {
+                            TokenExpected(']');
+                            result = collObj;
+                            return true;
+                        }
+                    }
                 }
                 else if (PeekToken((int)TokenKind.Name, (int)TokenKind.VerbatimName)) {
-                    if (!typeKind.IsClass()) {
+                    if (!typeKind.IsObject()) {
                         ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()));
                     }
-                    return ClassValue((ClassTypeMetadata)typeMd, out result);
+                    return ObjectValue((ObjectTypeMetadata)typeMd, out result);
                 }
             }
+            result = null;
             return false;
         }
-        private object ParseAtomValue(TypeKind typeKind, AtomValueNode atomValueNode) {
-            var s = atomValueNode.Value;
+        private object ParseAtomValue(TypeKind typeKind, AtomValueNode avNode) {
+            var s = avNode.Value;
             switch (typeKind) {
                 case TypeKind.String:
-                case TypeKind.IgnoreCaseString:
                     return s;
+                case TypeKind.IgnoreCaseString:
+                    return new IgnoreCaseString(s);
                 case TypeKind.Decimal: {
                         decimal r;
                         if (s.TryInvParse(out r)) {
@@ -584,192 +668,9 @@ namespace CData {
                 default:
                     throw new InvalidOperationException("Invalid type kind: " + typeKind.ToString());
             }
-            ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidAtomValue, s, typeKind.ToString()), atomValueNode.TextSpan);
+            ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidAtomValue, s, typeKind.ToString()), avNode.TextSpan);
             return null;
         }
-
-        //public TextSpan ClassEndExpected(bool hasUriAliasingList) {
-        //    TextSpan endTs;
-        //    TokenExpected('}', out endTs);
-        //    if (hasUriAliasingList) {
-        //        _uriAliasingListStack.Pop();
-        //    }
-        //    return endTs;
-        //}
-
-        //public bool PropertyName(out NameNode name) {
-        //    if (Name(out name)) {
-        //        TokenExpected('=');
-        //        return true;
-        //    }
-        //    return false;
-        //}
-        //public bool ListOrSetValueBegin(out TextSpan textSpan) {
-        //    return Token('[', out textSpan);
-        //}
-
-
-
-        //private bool ParsingUnit(string filePath, TextReader reader, DiagContext context, out ElementNode result) {
-        //    Set(filePath, reader, context);
-        //    _uriAliasingListStack.Clear();
-        //    try {
-        //        if (Element(out result)) {
-        //            EndOfFileExpected();
-        //            return true;
-        //        }
-        //        else {
-        //            ErrorDiagAndThrow("Element expected.");
-        //        }
-        //    }
-        //    catch (ParsingException) {
-        //    }
-        //    finally {
-        //        Clear();
-        //    }
-        //    result = default(ElementNode);
-        //    return false;
-        //}
-        //private bool UriAliasing(List<UriAliasingNode> list, out UriAliasingNode result) {
-        //    NameNode alias;
-        //    if (Name(out alias)) {
-        //        if (alias.Value == "sys") {
-        //            ErrorDiagAndThrow(new DiagMsg(DiagCode.AliasSysIsReserved), alias.TextSpan);
-        //        }
-        //        if (list.CountOrZero() > 0) {
-        //            foreach (var item in list) {
-        //                if (item.Alias == alias) {
-        //                    ErrorDiagAndThrow(new DiagMsg(DiagCode.DuplicateUriAlias, alias.ToString()), alias.TextSpan);
-        //                }
-        //            }
-        //        }
-        //        TokenExpected('=');
-        //        result = new UriAliasingNode(alias, StringValueExpected());
-        //        return true;
-        //    }
-        //    result = default(UriAliasingNode);
-        //    return false;
-        //}
-        //protected override bool QualifiableName(out QualifiableNameNode result) {
-        //    NameNode name;
-        //    if (Name(out name)) {
-        //        if (Token(':')) {
-        //            result = new QualifiableNameNode(name, NameExpected());
-        //        }
-        //        else {
-        //            result = new QualifiableNameNode(default(NameNode), name);
-        //        }
-        //        if (_getFullName) {
-        //            GetFullName(ref result);
-        //        }
-        //        return true;
-        //    }
-        //    result = default(QualifiableNameNode);
-        //    return false;
-        //}
-        //private void GetFullName(ref QualifiableNameNode qName) {
-        //    string uri = null;
-        //    if (qName.Alias.IsValid) {
-        //        uri = GetUri(qName.Alias);
-        //    }
-        //    qName.FullName = new FullName(uri, qName.Name.Value);
-        //}
-        //private string GetUri(NameNode alias) {
-        //    if (alias.Value == "sys") {
-        //        return Extensions.SystemUri;
-        //    }
-        //    foreach (var uaList in _uriAliasingListStack) {
-        //        foreach (var ua in uaList) {
-        //            if (ua.Alias == alias) {
-        //                return ua.Uri.Value;
-        //            }
-        //        }
-        //    }
-        //    ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidUriReference, alias.ToString()), alias.TextSpan);
-        //    return null;
-        //}
-        //private bool Element(out ElementNode result) {
-        //    QualifiableNameNode qName;
-        //    _getFullName = false;
-        //    var hasQName = QualifiableName(out qName);
-        //    _getFullName = true;
-        //    if (hasQName) {
-        //        var hasUriAliasingList = UriAliasingList();
-        //        GetFullName(ref qName);
-        //        var elementValue = default(ElementValueNode);
-        //        TextSpan equalsTextSpan;
-        //        if (Token('=', out equalsTextSpan)) {
-        //            if (!ElementValue(equalsTextSpan, out elementValue)) {
-        //                ErrorDiagAndThrow("Element value expected.");
-        //            }
-        //        }
-        //        if (hasUriAliasingList) {
-        //            _uriAliasingListStack.Pop();
-        //        }
-        //        result = new ElementNode(qName, elementValue);
-        //        return true;
-        //    }
-        //    result = default(ElementNode);
-        //    return false;
-        //}
-        //private bool ElementValue(TextSpan equalsTextSpan, out ElementValueNode result) {
-        //    QualifiableNameNode typeQName;
-        //    var hasTypeQName = TypeIndicator(out typeQName);
-        //    ComplexValueNode complexValue;
-        //    var simpleValue = default(SimpleValueNode);
-        //    if (!ComplexValue(equalsTextSpan, typeQName, out complexValue)) {
-        //        if (!SimpleValue(typeQName, out simpleValue)) {
-        //            if (hasTypeQName) {
-        //                ErrorDiagAndThrow("Complex value or simple value expetced.");
-        //            }
-        //            result = default(ElementValueNode);
-        //            return false;
-        //        }
-        //    }
-        //    result = new ElementValueNode(complexValue, simpleValue);
-        //    return true;
-        //}
-        //private bool ComplexValue(TextSpan equalsTextSpan, QualifiableNameNode typeQName, out ComplexValueNode result) {
-        //    NodeList<AttributeNode> attributeList;
-        //    List('[', ']', _attributeGetter, "Attribute or ] expected.", out attributeList);
-        //    NodeList<ElementNode> elementList = null;
-        //    var simpleChild = default(SimpleValueNode);
-        //    if (Token('$')) {
-        //        simpleChild = SimpleValueExpected();
-        //    }
-        //    else {
-        //        List('{', '}', _elementGetter, "Element or } expected.", out elementList);
-        //    }
-        //    var semicolonTextSpan = default(TextSpan);
-        //    if (attributeList == null && elementList == null && !simpleChild.IsValid) {
-        //        if (!Token(';', out semicolonTextSpan)) {
-        //            result = default(ComplexValueNode);
-        //            return false;
-        //        }
-        //    }
-        //    result = new ComplexValueNode(equalsTextSpan, typeQName, attributeList, elementList, simpleChild, semicolonTextSpan);
-        //    return true;
-        //}
-        //private bool Attribute(List<AttributeNode> list, out AttributeNode result) {
-        //    NameNode name;
-        //    if (Name(out name)) {
-        //        if (list.CountOrZero() > 0) {
-        //            foreach (var item in list) {
-        //                if (item.NameNode == name) {
-        //                    ErrorDiagAndThrow(new DiagMsg(DiagCode.DuplicateAttributeName, name.ToString()), name.TextSpan);
-        //                }
-        //            }
-        //        }
-        //        var value = default(SimpleValueNode);
-        //        if (Token('=')) {
-        //            value = SimpleValueExpected();
-        //        }
-        //        result = new AttributeNode(name, value);
-        //        return true;
-        //    }
-        //    result = default(AttributeNode);
-        //    return false;
-        //}
 
     }
 }

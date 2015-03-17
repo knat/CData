@@ -23,34 +23,30 @@ namespace CData {
                 _value = value;
             }
         }
-        private static bool ValueEquals(byte[] x, byte[] y) {
-            if (x == y) {
-                return true;
-            }
-            var xLength = x.Length;
-            if (xLength != y.Length) {
-                return false;
-            }
-            for (var i = 0; i < xLength; ++i) {
-                if (x[i] != y[i]) {
-                    return false;
-                }
-            }
-            return true;
-        }
         public bool Equals(BinaryValue other) {
             if ((object)this == (object)other) return true;
-            if ((object)other == null) return false;
-            return ValueEquals(_value, other._value);
+            var xv = _value;
+            if ((object)other == null) return xv == null;
+            var yv = other._value;
+            if (xv == yv) return true;
+            if (xv == null || yv == null) return false;
+            var xLength = xv.Length;
+            if (xLength != yv.Length) return false;
+            for (var i = 0; i < xLength; ++i) {
+                if (xv[i] != yv[i]) return false;
+            }
+            return true;
         }
         public override bool Equals(object obj) {
             return Equals(obj as BinaryValue);
         }
         public override int GetHashCode() {
+            var v = _value;
+            if (v == null) return 0;
             var hash = 17;
-            var count = Math.Min(_value.Length, 7);
+            var count = Math.Min(v.Length, 7);
             for (var i = 0; i < count; ++i) {
-                hash = Extensions.AggregateHash(hash, _value[i]);
+                hash = Extensions.AggregateHash(hash, v[i]);
             }
             return hash;
         }
@@ -62,10 +58,6 @@ namespace CData {
         }
         public static bool operator !=(BinaryValue left, BinaryValue right) {
             return !(left == right);
-        }
-        public override string ToString() {
-            if (_value == null) return null;
-            return _value.ToInvString();
         }
     }
 }

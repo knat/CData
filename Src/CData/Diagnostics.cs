@@ -13,11 +13,12 @@ namespace CData {
         ClassIsAbstract,
         InvalidPropertyName,
         PropertyMissing,
+        NullNotAllowed,
         ValueExpected,
         SpecificValueExpected,
         InvalidAtomValue,
-
-        TypeIsNotNullable,
+        DuplicateSetItem,
+        DuplicateMapKey,
 
 
 
@@ -105,15 +106,18 @@ namespace CData {
                     return "Invalid property name '{0}'.".InvFormat(_msgArgs);
                 case DiagCode.PropertyMissing:
                     return "Property '{0}' missing.".InvFormat(_msgArgs);
+                case DiagCode.NullNotAllowed:
+                    return "Null not allowed.";
                 case DiagCode.ValueExpected:
                     return "Value expetced.";
                 case DiagCode.SpecificValueExpected:
                     return "'{0}' value expetced.".InvFormat(_msgArgs);
                 case DiagCode.InvalidAtomValue:
                     return "Invalid atom value '{0}' of type '{1}'.".InvFormat(_msgArgs);
-
-                case DiagCode.TypeIsNotNullable:
-                    return "Type '{0}' is not nullable.".InvFormat(_msgArgs);
+                case DiagCode.DuplicateSetItem:
+                    return "Duplicate set item.";
+                case DiagCode.DuplicateMapKey:
+                    return "Duplicate map key.";
 
 
 
