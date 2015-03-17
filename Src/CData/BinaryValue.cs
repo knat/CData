@@ -2,9 +2,8 @@
 
 namespace CData {
     public sealed class BinaryValue : IEquatable<BinaryValue> {
-        public BinaryValue() { }
         public BinaryValue(byte[] value) {
-            _value = value;
+            Value = value;
         }
         public static implicit operator BinaryValue(byte[] value) {
             if (value == null) return null;
@@ -20,16 +19,18 @@ namespace CData {
                 return _value;
             }
             set {
+                if (value == null) {
+                    throw new ArgumentNullException("value");
+                }
                 _value = value;
             }
         }
         public bool Equals(BinaryValue other) {
             if ((object)this == (object)other) return true;
+            if ((object)other == null) return false;
             var xv = _value;
-            if ((object)other == null) return xv == null;
             var yv = other._value;
             if (xv == yv) return true;
-            if (xv == null || yv == null) return false;
             var xLength = xv.Length;
             if (xLength != yv.Length) return false;
             for (var i = 0; i < xLength; ++i) {
@@ -42,7 +43,6 @@ namespace CData {
         }
         public override int GetHashCode() {
             var v = _value;
-            if (v == null) return 0;
             var hash = 17;
             var count = Math.Min(v.Length, 7);
             for (var i = 0; i < count; ++i) {

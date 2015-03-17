@@ -288,6 +288,7 @@ namespace CData {
         internal static int CountOrZero<T>(this List<T> list) {
             return list == null ? 0 : list.Count;
         }
+
         //
         internal static bool IsObject(this TypeKind kind) {
             return kind == TypeKind.Object;
@@ -429,6 +430,5 @@ namespace CData {
         //internal static readonly Type BoolRefType = typeof(bool).MakeByRefType();
         internal static readonly Type DiagContextType = typeof(DiagContext);
         //internal static readonly object BoolTrueValue = true;
-
     }
 }

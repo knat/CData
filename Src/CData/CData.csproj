@@ -44,9 +44,11 @@
     <Compile Include="Extensions.cs" />
     <Compile Include="FullName.cs" />
     <Compile Include="Lexer.cs" />
+    <Compile Include="Nodes.cs" />
     <Compile Include="ObjectSet.cs" />
     <Compile Include="Parser.cs" />
     <Compile Include="SavingContext.cs" />
+    <Compile Include="Serializer.cs" />
     <Compile Include="TextSpan.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

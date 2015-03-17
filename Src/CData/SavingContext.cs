@@ -78,12 +78,6 @@ namespace CData {
         }
         private List<AliasUri> _aliasUriList;
         public string AddUri(string uri) {
-            if (string.IsNullOrEmpty(uri)) {
-                return null;
-            }
-            if (uri == Extensions.SystemUri) {
-                return "sys";
-            }
             if (_aliasUriList != null) {
                 foreach (var au in _aliasUriList) {
                     if (au.Uri == uri) {
@@ -99,19 +93,15 @@ namespace CData {
             return alias;
         }
         public void Append(FullName fullName) {
-            var alias = AddUri(fullName.Uri);
-            if (alias != null) {
-                Append(alias);
-                StringBuilder.Append(':');
-            }
-            Append(fullName.Name);
+            Append(AddUri(fullName.Uri));
+            var sb = StringBuilder;
+            sb.Append(':');
+            sb.Append(fullName.Name);
         }
-        public void InsertRootElement(string alias, string name) {
+        public void InsertRootObjectHead(string alias, string name) {
             var sb = Extensions.AcquireStringBuilder();
-            if (alias != null) {
-                sb.Append(alias);
-                sb.Append(':');
-            }
+            sb.Append(alias);
+            sb.Append(':');
             sb.Append(name);
             var auCount = _aliasUriList.CountOrZero();
             if (auCount > 0) {

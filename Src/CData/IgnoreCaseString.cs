@@ -2,9 +2,8 @@
 
 namespace CData {
     public sealed class IgnoreCaseString : IEquatable<IgnoreCaseString>, IComparable<IgnoreCaseString> {
-        public IgnoreCaseString() { }
         public IgnoreCaseString(string value) {
-            _value = value;
+            Value = value;
         }
         public static implicit operator IgnoreCaseString(string value) {
             if (value == null) return null;
@@ -20,21 +19,23 @@ namespace CData {
                 return _value;
             }
             set {
+                if (value == null) {
+                    throw new ArgumentNullException("value");
+                }
                 _value = value;
             }
         }
         private static readonly StringComparer _stringComparer = StringComparer.OrdinalIgnoreCase;
         public bool Equals(IgnoreCaseString other) {
             if ((object)this == (object)other) return true;
-            return _stringComparer.Equals(_value, (object)other == null ? null : other._value);
+            if ((object)other == null) return false;
+            return _stringComparer.Equals(_value, other._value);
         }
         public override bool Equals(object obj) {
             return Equals(obj as IgnoreCaseString);
         }
         public override int GetHashCode() {
-            var v = _value;
-            if (v == null) return 0;
-            return _stringComparer.GetHashCode(v);
+            return _stringComparer.GetHashCode(_value);
         }
         public static bool operator ==(IgnoreCaseString left, IgnoreCaseString right) {
             if ((object)left == null) {
@@ -47,7 +48,8 @@ namespace CData {
         }
         public int CompareTo(IgnoreCaseString other) {
             if ((object)this == (object)other) return 0;
-            return _stringComparer.Compare(_value, (object)other == null ? null : other._value);
+            if ((object)other == null) return 1;
+            return _stringComparer.Compare(_value, other._value);
         }
         public override string ToString() {
             return _value;
