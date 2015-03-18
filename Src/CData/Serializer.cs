@@ -1,28 +1,27 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using System.IO;
 using System.Text;
+using System.Collections;
 
 namespace CData {
     public static class Serializer {
-        public static bool TryLoad(string filePath, TextReader reader, DiagContext context, ObjectMetadata objectMetadata, out object result) {
-            return Parser.Parse(filePath, reader, context, objectMetadata, out result);
+        public static bool TryLoad(string filePath, TextReader reader, DiagContext context, ObjectTypeMetadata objectTypeMetadata, out object result) {
+            return Parser.Parse(filePath, reader, context, objectTypeMetadata, out result);
         }
-        public static void Save(object obj, ObjectMetadata objectMetadata, TextWriter writer, string indentString = "\t", string newLineString = "\n") {
+        public static void Save(object obj, ObjectTypeMetadata objectTypeMetadata, TextWriter writer, string indentString = "\t", string newLineString = "\n") {
             if (writer == null) throw new ArgumentNullException("writer");
             var sb = new StringBuilder(1024 * 2);
-            Save(obj, objectMetadata, sb, indentString, newLineString);
+            Save(obj, objectTypeMetadata, sb, indentString, newLineString);
             writer.Write(sb.ToString());
         }
-        public static void Save(object obj, ObjectMetadata objectMetadata, StringBuilder stringBuilder, string indentString = "\t", string newLineString = "\n") {
+        public static void Save(object obj, ObjectTypeMetadata objectTypeMetadata, StringBuilder stringBuilder, string indentString = "\t", string newLineString = "\n") {
             if (obj == null) throw new ArgumentNullException("obj");
-            if (objectMetadata == null) throw new ArgumentNullException("objectMetadata");
+            if (objectTypeMetadata == null) throw new ArgumentNullException("objectTypeMetadata");
             if (stringBuilder == null) throw new ArgumentNullException("stringBuilder");
-            SaveObject(true, obj, objectMetadata, new SavingContext(stringBuilder, indentString, newLineString));
+            SaveObject(true, obj, objectTypeMetadata, new SavingContext(stringBuilder, indentString, newLineString));
         }
-        private static void SaveObject(bool isRoot, object obj, ObjectMetadata objectMd, SavingContext context) {
+        private static void SaveObject(bool isRoot, object obj, ObjectTypeMetadata objectMd, SavingContext context) {
             string rootAlias = null;
             if (isRoot) {
                 rootAlias = context.AddUri(objectMd.FullName.Uri);
@@ -32,19 +31,19 @@ namespace CData {
             }
             var sb = context.StringBuilder;
             sb.Append(" {");
+            context.AppendLine();
+            context.PushIndent();
             List<PropertyMetadata> propMdList = null;
             objectMd.GetAllProperties(ref propMdList);
             if (propMdList != null) {
-                context.AppendLine();
-                context.PushIndent();
                 foreach (var propMd in propMdList) {
                     context.Append(propMd.Name);
                     sb.Append(" = ");
                     SaveValue(propMd.GetValue(obj), propMd.Type, context);
                     context.AppendLine();
                 }
-                context.PopIndent();
             }
+            context.PopIndent();
             context.Append('}');
             if (isRoot) {
                 context.InsertRootObjectHead(rootAlias, objectMd.FullName.Name);
@@ -57,47 +56,43 @@ namespace CData {
             else {
                 var typeKind = typeMd.Kind;
                 if (typeKind.IsAtom()) {
-                    context.Append(string.Empty);
+                    context.Append(null);
                     SaveAtom(value, typeKind, context.StringBuilder);
                 }
                 else if (typeKind.IsObject()) {
-                    SaveObject(false, value, (ObjectMetadata)typeMd, context);
+                    SaveObject(false, value, (ObjectTypeMetadata)typeMd, context);
                 }
                 else if (typeKind.IsMap()) {
-                    var collMd = (CollectionMetadata)typeMd;
-                    var keys = collMd.GetMapKeys(value);
-                    var count = keys.Length;
+                    var collMd = (CollectionTypeMetadata)typeMd;
+                    var keyMd = collMd.KeyType;
+                    var itemMd = collMd.ItemType;
+                    IEnumerator valueEnumerator = null;
                     context.Append("#[");
-                    if (count > 0) {
-                        var values = collMd.GetMapValues(value);
-                        var keyMd = collMd.KeyType;
-                        var itemMd = collMd.ItemType;
-                        context.AppendLine();
-                        context.PushIndent();
-                        for (var i = 0; i < count; ++i) {
-                            SaveValue(keys[i], keyMd, context);
-                            context.StringBuilder.Append(" = ");
-                            SaveValue(values[i], keyMd, context);
-                            context.AppendLine();
+                    context.AppendLine();
+                    context.PushIndent();
+                    foreach (var key in collMd.GetMapKeys(value)) {
+                        SaveValue(key, keyMd, context);
+                        context.StringBuilder.Append(" = ");
+                        if (valueEnumerator == null) {
+                            valueEnumerator = collMd.GetMapValues(value).GetEnumerator();
                         }
-                        context.PopIndent();
+                        valueEnumerator.MoveNext();
+                        SaveValue(valueEnumerator.Current, itemMd, context);
+                        context.AppendLine();
                     }
+                    context.PopIndent();
                     context.Append(']');
                 }
                 else {
-                    var items = ((IEnumerable<object>)value).ToArray();
-                    var count = items.Length;
+                    var itemMd = ((CollectionTypeMetadata)typeMd).ItemType;
                     context.Append('[');
-                    if (count > 0) {
-                        var itemMd = ((CollectionMetadata)typeMd).ItemType;
+                    context.AppendLine();
+                    context.PushIndent();
+                    foreach (var item in (IEnumerable)value) {
+                        SaveValue(item, itemMd, context);
                         context.AppendLine();
-                        context.PushIndent();
-                        for (var i = 0; i < count; ++i) {
-                            SaveValue(items[i], itemMd, context);
-                            context.AppendLine();
-                        }
-                        context.PopIndent();
                     }
+                    context.PopIndent();
                     context.Append(']');
                 }
             }

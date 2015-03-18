@@ -38,8 +38,11 @@ namespace CData {
         }
         public void AppendIndents() {
             if (_atNewLine) {
-                for (var i = 0; i < _indentCount; ++i) {
-                    StringBuilder.Append(IndentString);
+                var count = _indentCount;
+                var sb = StringBuilder;
+                var s = IndentString;
+                for (var i = 0; i < count; ++i) {
+                    sb.Append(s);
                 }
                 _atNewLine = false;
             }
@@ -56,19 +59,21 @@ namespace CData {
             StringBuilder.Append(NewLineString);
             _atNewLine = true;
         }
-        public void AppendLine(string s) {
-            Append(s);
-            AppendLine();
-        }
-        public void AppendLine(char ch) {
-            Append(ch);
-            AppendLine();
-        }
+        //public void AppendLine(string s) {
+        //    Append(s);
+        //    AppendLine();
+        //}
+        //public void AppendLine(char ch) {
+        //    Append(ch);
+        //    AppendLine();
+        //}
     }
     internal sealed class SavingContext : IndentedStringBuilder {
         public SavingContext(StringBuilder stringBuilder, string indentString, string newLineString) :
             base(stringBuilder, indentString, newLineString) {
+            _aliasUriList = new List<AliasUri>();
         }
+        private readonly List<AliasUri> _aliasUriList;
         private struct AliasUri {
             public AliasUri(string alias, string uri) {
                 Alias = alias;
@@ -76,17 +81,11 @@ namespace CData {
             }
             public readonly string Alias, Uri;
         }
-        private List<AliasUri> _aliasUriList;
         public string AddUri(string uri) {
-            if (_aliasUriList != null) {
-                foreach (var au in _aliasUriList) {
-                    if (au.Uri == uri) {
-                        return au.Alias;
-                    }
+            foreach (var au in _aliasUriList) {
+                if (au.Uri == uri) {
+                    return au.Alias;
                 }
-            }
-            else {
-                _aliasUriList = new List<AliasUri>();
             }
             var alias = "a" + _aliasUriList.Count.ToInvString();
             _aliasUriList.Add(new AliasUri(alias, uri));
@@ -103,7 +102,7 @@ namespace CData {
             sb.Append(alias);
             sb.Append(':');
             sb.Append(name);
-            var auCount = _aliasUriList.CountOrZero();
+            var auCount = _aliasUriList.Count;
             if (auCount > 0) {
                 sb.Append(" <");
                 for (var i = 0; i < auCount; ++i) {

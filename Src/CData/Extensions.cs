@@ -1,11 +1,12 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Reflection;
 using System.Text;
 
 namespace CData {
-    public static class Extensions {
+    internal static class Extensions {
         internal const string SystemUri = "https://github.com/knat/CData";
         //
         //[System.Diagnostics.ConditionalAttribute("DEBUG")]
@@ -192,7 +193,7 @@ namespace CData {
         }
         internal static bool TryInvParse(this string s, out byte[] result) {
             if (s.Length == 0) {
-                result = _emptyBytes;
+                result = _emptyByteArray;
                 return true;
             }
             try {
@@ -204,7 +205,7 @@ namespace CData {
                 return false;
             }
         }
-        private static readonly byte[] _emptyBytes = new byte[0];
+        private static readonly byte[] _emptyByteArray = new byte[0];
         internal static string ToInvString(this byte[] value) {
             if (value.Length == 0) return string.Empty;
             return Convert.ToBase64String(value);

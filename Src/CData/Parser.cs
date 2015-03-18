@@ -251,12 +251,16 @@ namespace CData {
 
     }
     internal sealed class Parser : ParserBase {
-        internal static bool Parse(string filePath, TextReader reader, DiagContext context, ObjectMetadata objectMetadata, out object result) {
-            if (objectMetadata == null) throw new ArgumentNullException("objectMetadata");
-            return (_instance ?? (_instance = new Parser())).ParsingUnit(filePath, reader, context, objectMetadata, out result);
+        internal static bool Parse(string filePath, TextReader reader, DiagContext context, ObjectTypeMetadata objectTypeMetadata, out object result) {
+            if (objectTypeMetadata == null) throw new ArgumentNullException("objectTypeMetadata");
+            return (_instance ?? (_instance = new Parser())).ParsingUnit(filePath, reader, context, objectTypeMetadata, out result);
         }
         [ThreadStatic]
         private static Parser _instance;
+        private Parser() {
+            _uriAliasingListStack = new Stack<List<UriAliasingNode>>();
+        }
+        private readonly Stack<List<UriAliasingNode>> _uriAliasingListStack;
         protected override void Set(string filePath, TextReader reader, DiagContext context) {
             base.Set(filePath, reader, context);
             _uriAliasingListStack.Clear();
@@ -265,23 +269,20 @@ namespace CData {
             base.Clear();
             _uriAliasingListStack.Clear();
         }
-        private Parser() {
-            _uriAliasingListStack = new Stack<List<UriAliasingNode>>();
-        }
-        private readonly Stack<List<UriAliasingNode>> _uriAliasingListStack;
-        private bool ParsingUnit(string filePath, TextReader reader, DiagContext context, ObjectMetadata objectMetadata, out object result) {
+        private bool ParsingUnit(string filePath, TextReader reader, DiagContext context, ObjectTypeMetadata objectMd, out object result) {
             try {
                 Set(filePath, reader, context);
-                if (ObjectValue(objectMetadata, out result)) {
+                object obj;
+                if (ObjectValue(objectMd, out obj)) {
                     EndOfFileExpected();
+                    result = obj;
                     return true;
                 }
                 else {
                     ErrorDiagAndThrow("Object value expected.");
                 }
             }
-            catch (ParsingException) {
-            }
+            catch (ParsingException) { }
             finally {
                 Clear();
             }
@@ -340,7 +341,7 @@ namespace CData {
             ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidUriReference, alias), aliasNode.TextSpan);
             return null;
         }
-        private bool ObjectValue(ObjectMetadata declaredObjectMd, out object result) {
+        private bool ObjectValue(ObjectTypeMetadata declaredObjectMd, out object result) {
             NameNode aliasNode;
             if (Name(out aliasNode)) {
                 TokenExpected(':');
@@ -442,7 +443,7 @@ namespace CData {
                     if (!isList && !isSet) {
                         ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), ts);
                     }
-                    var collMd = (CollectionMetadata)typeMd;
+                    var collMd = (CollectionTypeMetadata)typeMd;
                     var collObj = collMd.CreateInstance();
                     var itemMd = collMd.ItemType;
                     while (true) {
@@ -471,7 +472,7 @@ namespace CData {
                     if (!typeKind.IsMap()) {
                         ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), ts);
                     }
-                    var collMd = (CollectionMetadata)typeMd;
+                    var collMd = (CollectionTypeMetadata)typeMd;
                     var collObj = collMd.CreateInstance();
                     var keyMd = collMd.KeyType;
                     var itemMd = collMd.ItemType;
@@ -496,7 +497,7 @@ namespace CData {
                     if (!typeKind.IsObject()) {
                         ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()));
                     }
-                    return ObjectValue((ObjectMetadata)typeMd, out result);
+                    return ObjectValue((ObjectTypeMetadata)typeMd, out result);
                 }
             }
             result = null;
