@@ -5,10 +5,10 @@ using System.Reflection;
 
 namespace CData {
     public abstract class ProgramMetadata {
-        private volatile Dictionary<FullName, ObjectTypeMetadata> _objectMap;
-        protected abstract Dictionary<FullName, ObjectTypeMetadata> GetObjectMap();
-        public ObjectTypeMetadata TryGetObject(FullName fullName) {
-            ObjectTypeMetadata obj;
+        private volatile Dictionary<FullName, ClassTypeMetadata> _objectMap;
+        protected abstract Dictionary<FullName, ClassTypeMetadata> GetObjectMap();
+        public ClassTypeMetadata TryGetObject(FullName fullName) {
+            ClassTypeMetadata obj;
             var map = _objectMap ?? (_objectMap = GetObjectMap());
             if (map.TryGetValue(fullName, out obj)) {
                 return obj;
@@ -19,7 +19,7 @@ namespace CData {
 
     public enum TypeKind : byte {
         None = 0,
-        Object,
+        Class,
         List,
         AtomSet,
         ObjectSet,
@@ -53,9 +53,9 @@ namespace CData {
         public readonly TypeKind Kind;
         public readonly bool IsNullable;
         public readonly Type ClrType;
-        public bool IsObject {
+        public bool IsClass {
             get {
-                return Kind == TypeKind.Object;
+                return Kind == TypeKind.Class;
             }
         }
         public bool IsList {
@@ -139,28 +139,30 @@ namespace CData {
     }
     public sealed class CollectionTypeMetadata : TypeMetadata {
         public CollectionTypeMetadata(TypeKind kind, bool isNullable, Type clrType,
-            AtomTypeMetadata keyType, TypeMetadata itemType)
+            TypeMetadata itemOrValueType, AtomTypeMetadata mapKeyType, object objectSetKeySelector)
             : base(kind, isNullable, clrType) {
-            KeyType = keyType;
-            ItemType = itemType;
+            ItemOrValueType = itemOrValueType;
+            MapKeyType = mapKeyType;
+            ObjectSetKeySelector = objectSetKeySelector;
             var ti = clrType.GetTypeInfo();
-            ClrConstructor = Extensions.GetParameterlessConstructor(ti);
+            ClrConstructor = Extensions.GetConstructor(ti, objectSetKeySelector == null ? 0 : 1);
             ClrAddMethod = Extensions.GetMethodInHierarchy(ti, "Add");
-            if (IsMap) {
+            if (kind == TypeKind.Map) {
                 ClrContainsKeyMethod = Extensions.GetMethodInHierarchy(ti, "ContainsKey");
                 ClrKeysProperty = Extensions.GetPropertyInHierarchy(ti, "Keys");
                 ClrValuesProperty = Extensions.GetPropertyInHierarchy(ti, "Values");
             }
         }
-        public readonly AtomTypeMetadata KeyType;//opt
-        public readonly TypeMetadata ItemType;
+        public readonly TypeMetadata ItemOrValueType;
+        public readonly AtomTypeMetadata MapKeyType;//opt
+        public readonly object ObjectSetKeySelector;//opt
         public readonly ConstructorInfo ClrConstructor;
         public readonly MethodInfo ClrAddMethod;
         public readonly MethodInfo ClrContainsKeyMethod;//for map
         public readonly PropertyInfo ClrKeysProperty;//for map
         public readonly PropertyInfo ClrValuesProperty;//for map
         public object CreateInstance() {
-            return ClrConstructor.Invoke(null);
+            return ClrConstructor.Invoke(ObjectSetKeySelector == null ? null : new object[] { ObjectSetKeySelector });
         }
         public void InvokeAdd(object obj, object item) {
             ClrAddMethod.Invoke(obj, new object[] { item });
@@ -181,11 +183,11 @@ namespace CData {
             return (IEnumerable)ClrValuesProperty.GetValue(obj);
         }
     }
-    public sealed class ObjectTypeMetadata : TypeMetadata {
-        public ObjectTypeMetadata(bool isNullable, Type clrType,
-            FullName fullName, bool isAbstract, ObjectTypeMetadata baseClass, PropertyMetadata[] properties,
+    public sealed class ClassTypeMetadata : TypeMetadata {
+        public ClassTypeMetadata(bool isNullable, Type clrType,
+            FullName fullName, bool isAbstract, ClassTypeMetadata baseClass, PropertyMetadata[] properties,
             string onLoadingName, string onLoadedName, ProgramMetadata program)
-            : base(TypeKind.Object, isNullable, clrType) {
+            : base(TypeKind.Class, isNullable, clrType) {
             FullName = fullName;
             IsAbstract = isAbstract;
             BaseClass = baseClass;
@@ -193,7 +195,7 @@ namespace CData {
             Program = program;
             var ti = clrType.GetTypeInfo();
             if (!isAbstract) {
-                ClrConstructor = Extensions.GetParameterlessConstructor(ti);
+                ClrConstructor = Extensions.GetConstructor(ti, 0);
             }
             if (baseClass == null) {
                 ClrTextSpanProperty = Extensions.GetPropertyInHierarchy(ti, "__TextSpan");
@@ -212,14 +214,14 @@ namespace CData {
         }
         public readonly FullName FullName;
         public readonly bool IsAbstract;
-        public readonly ObjectTypeMetadata BaseClass;
+        public readonly ClassTypeMetadata BaseClass;
         private readonly PropertyMetadata[] _properties;
         public readonly ProgramMetadata Program;
         public readonly ConstructorInfo ClrConstructor;//for non abstract class
         public readonly PropertyInfo ClrTextSpanProperty;//for top class
         public readonly MethodInfo ClrOnLoadingMethod;//opt
         public readonly MethodInfo ClrOnLoadedMethod;//opt
-        public bool IsEqualToOrDeriveFrom(ObjectTypeMetadata other) {
+        public bool IsEqualToOrDeriveFrom(ClassTypeMetadata other) {
             if (other == null) throw new ArgumentNullException("other");
             for (var info = this; info != null; info = info.BaseClass) {
                 if (info == other) {
@@ -228,19 +230,19 @@ namespace CData {
             }
             return false;
         }
-        //public PropertyMetadata GetProperty(string name) {
-        //    if (_properties != null) {
-        //        foreach (var prop in _properties) {
-        //            if (prop.Name == name) {
-        //                return prop;
-        //            }
-        //        }
-        //    }
-        //    if (BaseClass != null) {
-        //        return BaseClass.GetProperty(name);
-        //    }
-        //    return null;
-        //}
+        public PropertyMetadata GetProperty(string name) {
+            if (_properties != null) {
+                foreach (var prop in _properties) {
+                    if (prop.Name == name) {
+                        return prop;
+                    }
+                }
+            }
+            if (BaseClass != null) {
+                return BaseClass.GetProperty(name);
+            }
+            return null;
+        }
         public void GetAllProperties(ref List<PropertyMetadata> propList) {
             if (BaseClass != null) {
                 BaseClass.GetAllProperties(ref propList);
@@ -253,6 +255,17 @@ namespace CData {
                     propList.AddRange(_properties);
                 }
             }
+        }
+        public IEnumerable<PropertyMetadata> GetAllProperties() {
+            if (BaseClass == null) {
+                return _properties;
+            }
+            if (_properties == null) {
+                return BaseClass.GetAllProperties();
+            }
+            List<PropertyMetadata> propList = null;
+            GetAllProperties(ref propList);
+            return propList;
         }
         public object CreateInstance() {
             return ClrConstructor.Invoke(null);

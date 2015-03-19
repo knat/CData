@@ -23,12 +23,32 @@ namespace CData.Compiler {
         InvalidNameReference,
         InvalidClassNameReference,
         InvalidAtomNameReference,
+        InvalidPropertyNameReference,
         KeySelectorRequiredForObjectSet,
         KeySelectorNotAllowedForAtomSet,
-
         CircularReferenceNotAllowed,
+        BaseClassIsSealed,
+        ObjectSetKeyCannotBeNullable,
+        InvalidObjectSetKey,
+        ObjectSetKeyMustBeAtom,
+
+        //
+        InvalidContractNamespaceAttributeUri,
+        DuplicateContractNamespaceAttributeUri,
+        InvalidContractNamespaceAttributeCSharpNamespace,
+        ContractNamespaceAttributeRequired,
+        InvalidContractClassAttributeName,
+        DuplicateContractClassAttributeName,
+        InvalidContractPropertyAttributeName,
 
         
+
+
+
+
+
+        //
+        //
         InvalidElementNameReference,
 
         //facets

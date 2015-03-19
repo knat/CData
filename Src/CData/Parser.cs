@@ -251,9 +251,9 @@ namespace CData {
 
     }
     internal sealed class Parser : ParserBase {
-        internal static bool Parse(string filePath, TextReader reader, DiagContext context, ObjectTypeMetadata objectTypeMetadata, out object result) {
-            if (objectTypeMetadata == null) throw new ArgumentNullException("objectTypeMetadata");
-            return (_instance ?? (_instance = new Parser())).ParsingUnit(filePath, reader, context, objectTypeMetadata, out result);
+        internal static bool Parse(string filePath, TextReader reader, DiagContext context, ClassTypeMetadata classTypeMetadata, out object result) {
+            if (classTypeMetadata == null) throw new ArgumentNullException("classTypeMetadata");
+            return (_instance ?? (_instance = new Parser())).ParsingUnit(filePath, reader, context, classTypeMetadata, out result);
         }
         [ThreadStatic]
         private static Parser _instance;
@@ -269,11 +269,11 @@ namespace CData {
             base.Clear();
             _uriAliasingListStack.Clear();
         }
-        private bool ParsingUnit(string filePath, TextReader reader, DiagContext context, ObjectTypeMetadata objectMd, out object result) {
+        private bool ParsingUnit(string filePath, TextReader reader, DiagContext context, ClassTypeMetadata clsMd, out object result) {
             try {
                 Set(filePath, reader, context);
                 object obj;
-                if (ObjectValue(objectMd, out obj)) {
+                if (ObjectValue(clsMd, out obj)) {
                     EndOfFileExpected();
                     result = obj;
                     return true;
@@ -341,7 +341,7 @@ namespace CData {
             ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidUriReference, alias), aliasNode.TextSpan);
             return null;
         }
-        private bool ObjectValue(ObjectTypeMetadata declaredObjectMd, out object result) {
+        private bool ObjectValue(ClassTypeMetadata declaredClsMd, out object result) {
             NameNode aliasNode;
             if (Name(out aliasNode)) {
                 TokenExpected(':');
@@ -349,24 +349,24 @@ namespace CData {
                 var hasUriAliasingList = UriAliasingList();
                 TokenExpected('{');
                 var fullName = new FullName(GetUri(aliasNode), nameNode.Value);
-                var objectMd = declaredObjectMd.Program.TryGetObject(fullName);
-                if (objectMd == null) {
+                var clsMd = declaredClsMd.Program.TryGetObject(fullName);
+                if (clsMd == null) {
                     ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidClassReference, fullName.ToString()), nameNode.TextSpan);
                 }
-                if (!objectMd.IsEqualToOrDeriveFrom(declaredObjectMd)) {
-                    ErrorDiagAndThrow(new DiagMsg(DiagCode.ClassNotEqualToOrDeriveFrom, fullName.ToString(), declaredObjectMd.FullName.ToString()),
+                if (!clsMd.IsEqualToOrDeriveFrom(declaredClsMd)) {
+                    ErrorDiagAndThrow(new DiagMsg(DiagCode.ClassNotEqualToOrDeriveFrom, fullName.ToString(), declaredClsMd.FullName.ToString()),
                         nameNode.TextSpan);
                 }
-                if (objectMd.IsAbstract) {
+                if (clsMd.IsAbstract) {
                     ErrorDiagAndThrow(new DiagMsg(DiagCode.ClassIsAbstract, fullName.ToString()), nameNode.TextSpan);
                 }
-                var obj = objectMd.CreateInstance();
-                if (!objectMd.InvokeOnLoad(true, obj, _context)) {
+                var obj = clsMd.CreateInstance();
+                if (!clsMd.InvokeOnLoad(true, obj, _context)) {
                     Throw();
                 }
-                objectMd.SetTextSpan(obj, nameNode.TextSpan);
+                clsMd.SetTextSpan(obj, nameNode.TextSpan);
                 List<PropertyMetadata> propMdList = null;
-                objectMd.GetAllProperties(ref propMdList);
+                clsMd.GetAllProperties(ref propMdList);
                 while (true) {
                     NameNode propNameNode;
                     if (Name(out propNameNode)) {
@@ -396,7 +396,7 @@ namespace CData {
                             }
                             Throw();
                         }
-                        if (!objectMd.InvokeOnLoad(false, obj, _context)) {
+                        if (!clsMd.InvokeOnLoad(false, obj, _context)) {
                             Throw();
                         }
                         if (hasUriAliasingList) {
@@ -438,14 +438,14 @@ namespace CData {
             else {
                 TextSpan ts;
                 if (Token('[', out ts)) {
-                    var isList = typeKind.IsList();
-                    var isSet = typeKind.IsAtomSet() || typeKind.IsObjectSet();
+                    var isList = typeKind == TypeKind.List;
+                    var isSet = typeKind == TypeKind.AtomSet || typeKind == TypeKind.ObjectSet;
                     if (!isList && !isSet) {
                         ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), ts);
                     }
                     var collMd = (CollectionTypeMetadata)typeMd;
                     var collObj = collMd.CreateInstance();
-                    var itemMd = collMd.ItemType;
+                    var itemMd = collMd.ItemOrValueType;
                     while (true) {
                         object itemObj;
                         if (isSet) {
@@ -469,13 +469,13 @@ namespace CData {
                     }
                 }
                 else if (Token((int)TokenKind.HashOpenBracket, out ts)) {
-                    if (!typeKind.IsMap()) {
+                    if (typeKind != TypeKind.Map) {
                         ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), ts);
                     }
                     var collMd = (CollectionTypeMetadata)typeMd;
                     var collObj = collMd.CreateInstance();
-                    var keyMd = collMd.KeyType;
-                    var itemMd = collMd.ItemType;
+                    var keyMd = collMd.MapKeyType;
+                    var valueMd = collMd.ItemOrValueType;
                     while (true) {
                         object keyObj;
                         ts = GetTextSpan();
@@ -484,7 +484,7 @@ namespace CData {
                                 ErrorDiagAndThrow(new DiagMsg(DiagCode.DuplicateMapKey), ts);
                             }
                             TokenExpected('=');
-                            collMd.InvokeAdd(collObj, keyObj, ValueExpected(itemMd));
+                            collMd.InvokeAdd(collObj, keyObj, ValueExpected(valueMd));
                         }
                         else {
                             TokenExpected(']');
@@ -494,10 +494,10 @@ namespace CData {
                     }
                 }
                 else if (PeekToken((int)TokenKind.Name, (int)TokenKind.VerbatimName)) {
-                    if (!typeKind.IsObject()) {
+                    if (typeKind != TypeKind.Class) {
                         ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()));
                     }
-                    return ObjectValue((ObjectTypeMetadata)typeMd, out result);
+                    return ObjectValue((ClassTypeMetadata)typeMd, out result);
                 }
             }
             result = null;

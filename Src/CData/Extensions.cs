@@ -291,47 +291,25 @@ namespace CData {
         }
 
         //
-        internal static bool IsObject(this TypeKind kind) {
-            return kind == TypeKind.Object;
-        }
-        internal static bool IsList(this TypeKind kind) {
-            return kind == TypeKind.List;
-        }
-        internal static bool IsAtomSet(this TypeKind kind) {
-            return kind == TypeKind.AtomSet;
-        }
-        internal static bool IsObjectSet(this TypeKind kind) {
-            return kind == TypeKind.ObjectSet;
-        }
-        internal static bool IsMap(this TypeKind kind) {
-            return kind == TypeKind.Map;
-        }
+        internal const TypeKind AtomTypeStart = TypeKind.String;
+        internal const TypeKind AtomTypeEnd = TypeKind.DateTimeOffset;
         internal static bool IsAtom(this TypeKind kind) {
-            return kind >= TypeKind.String && kind <= TypeKind.DateTimeOffset;
+            return kind >= AtomTypeStart && kind <= AtomTypeEnd;
         }
         //
         //
-        //internal static ConstructorInfo GetIEqualityComparerOfStringConstructor(TypeInfo ti) {
-        //    foreach (var ci in ti.DeclaredConstructors) {
-        //        var ps = ci.GetParameters();
-        //        if (ps.Length == 1 && ps[0].ParameterType == IEqualityComparerOfStringType) {
-        //            return ci;
-        //        }
-        //    }
-        //    return null;
-        //}
-        internal static ConstructorInfo TryGetParameterlessConstructor(TypeInfo ti) {
+        internal static ConstructorInfo TryGetConstructor(TypeInfo ti, int paraCount) {
             foreach (var ci in ti.DeclaredConstructors) {
-                if (ci.GetParameters().Length == 0) {
+                if (ci.GetParameters().Length == paraCount) {
                     return ci;
                 }
             }
             return null;
         }
-        internal static ConstructorInfo GetParameterlessConstructor(TypeInfo ti) {
-            var r = TryGetParameterlessConstructor(ti);
+        internal static ConstructorInfo GetConstructor(TypeInfo ti, int paraCount) {
+            var r = TryGetConstructor(ti, paraCount);
             if (r != null) return r;
-            throw new ArgumentException("Cannot get parameterless constructor: " + ti.FullName);
+            throw new ArgumentException("Cannot get {0} parameter constructor of '{1}'.".InvFormat(paraCount.ToInvString(), ti.FullName));
         }
         internal static PropertyInfo TryGetPropertyInHierarchy(TypeInfo ti, string name) {
             while (true) {

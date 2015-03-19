@@ -37,6 +37,7 @@
     <!-- A reference to the entire .NET Framework is automatically included -->
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Attributes.cs" />
     <Compile Include="BinaryValue.cs" />
     <Compile Include="IgnoreCaseString.cs" />
     <Compile Include="Metadata.cs" />

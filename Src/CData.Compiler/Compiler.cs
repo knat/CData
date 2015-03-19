@@ -9,10 +9,10 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace CData.Compiler {
     public static class CDataCompiler {
         public static bool Compile(List<string> contractFileList,
-            List<string> csFileList, List<string> ppList, List<MetadataReference> refList,
+            List<string> csFileList, List<string> csPpList, List<MetadataReference> csRefList,
             out DiagContext context, out string code) {
             context = null;
-            code = null;
+            code = GeneratedFileBanner;
             var contractFileCount = contractFileList.CountOrZero();
             if (contractFileCount == 0) {
                 return true;
@@ -31,12 +31,7 @@ namespace CData.Compiler {
                         }
                     }
                 }
-
-
-                if (!CompileCore((DiagContextEx)context, cuList, out code)) {
-                    return false;
-                }
-                return true;
+                return CompileCore((DiagContextEx)context, cuList, csFileList, csPpList, csRefList, ref code);
             }
             catch (Exception ex) {
                 context.AddDiag(DiagSeverity.Error, (int)DiagCodeEx.InternalCompilerError, "Internal compiler error: " + ex.ToString(), default(TextSpan));
@@ -49,11 +44,16 @@ namespace CData.Compiler {
 //
 
 ";
+        private static readonly CSharpCompilationOptions _compilationOptions = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
+        private static readonly string[] _contractNamespaceAttributeFullName = new string[] { "ContractNamespaceAttribute", "CData" };
+        private static readonly string[] _contractClassAttributeFullName = new string[] { "ContractClassAttribute", "CData" };
+        private static readonly string[] _contractPropertyAttributeFullName = new string[] { "ContractPropertyAttribute", "CData" };
+
         private static bool CompileCore(DiagContextEx context, List<CompilationUnitNode> cuList,
-            out string code) {
-            code = null;
-            DiagContextEx.Current = context;
+            List<string> csFileList, List<string> csPpList, List<MetadataReference> csRefList,
+            ref string code) {
             try {
+                DiagContextEx.Current = context;
                 var nsList = new List<NamespaceNode>();
                 if (cuList != null) {
                     foreach (var cu in cuList) {
@@ -66,66 +66,82 @@ namespace CData.Compiler {
                     return true;
                 }
                 //
-                var nsMap = new LogicalNamespaceMap();
+                var logicalNsMap = new LogicalNamespaceMap();
                 foreach (var ns in nsList) {
                     var uri = ns.UriValue;
                     LogicalNamespace logicalNS;
-                    if (!nsMap.TryGetValue(uri, out logicalNS)) {
+                    if (!logicalNsMap.TryGetValue(uri, out logicalNS)) {
                         logicalNS = new LogicalNamespace();
-                        nsMap.Add(uri, logicalNS);
+                        logicalNsMap.Add(uri, logicalNS);
                     }
                     logicalNS.Add(ns);
                     ns.LogicalNamespace = logicalNS;
                 }
-                //if (indicatorList.Count > 0) {
-                //    foreach (var indicator in indicatorList) {
-                //        LogicalNamespace logicalNS;
-                //        if (!nsSet.TryGetValue(indicator.Uri, out logicalNS)) {
-                //            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidNamespaceReference, indicator.Uri),
-                //                indicator.UriNode.TextSpan);
-                //        }
-                //        if (logicalNS.CSharpNamespaceName == null) {
-                //            logicalNS.CSharpNamespaceName = indicator.CSharpNamespaceName;
-                //            logicalNS.IsCSharpNamespaceRef = indicator.IsRef;
-                //        }
-                //        else {
-                //            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateIndicator, indicator.Uri),
-                //                indicator.UriNode.TextSpan);
-                //        }
-                //    }
-                //    foreach (var logicalNS in nsSet.Values) {
-                //        if (logicalNS.CSharpNamespaceName == null) {
-                //            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.IndicatorRequiredForNamespace, logicalNS.Uri),
-                //                indicatorList[0].TextSpan);
-                //        }
-                //    }
-                //}
-                //else {
-                //    var idx = 0;
-                //    foreach (var logicalNS in nsSet.Values) {
-                //        logicalNS.CSharpNamespaceName = new CSharpNamespaceNameNode() { "__fake_ns__" + (idx++).ToInvString() };
-                //        logicalNS.IsCSharpNamespaceRef = true;
-                //    }
-                //}
                 //
                 foreach (var ns in nsList) {
-                    ns.ResolveImports(nsMap);
+                    ns.ResolveImports(logicalNsMap);
                 }
-                foreach (var logicalNS in nsMap.Values) {
-                    logicalNS.CheckDuplicateMembers();
+                foreach (var logicalNs in logicalNsMap.Values) {
+                    logicalNs.CheckDuplicateMembers();
                 }
                 foreach (var ns in nsList) {
                     ns.Resolve();
                 }
                 //
-                //var nsSymbolList = new List<NamespaceSymbol>();
-                //foreach (var logicalNS in nsMap.Values) {
-                //    logicalNS.NamespaceSymbol = new NamespaceSymbol(logicalNS.Uri, logicalNS.CSharpNamespaceName, logicalNS.IsCSharpNamespaceRef);
-                //    nsSymbolList.Add(logicalNS.NamespaceSymbol);
-                //}
-                //foreach (var ns in nsList) {
-                //    ns.CreateSymbols();
-                //}
+                foreach (var logicalNs in logicalNsMap.Values) {
+                    logicalNs.NamespaceSymbol = new NamespaceSymbol(logicalNs.Uri);
+                }
+                foreach (var ns in nsList) {
+                    ns.CreateSymbols();
+                }
+                //
+                if (csFileList.CountOrZero() > 0) {
+                    var csParseOpts = new CSharpParseOptions(preprocessorSymbols: csPpList, documentationMode: DocumentationMode.None);
+                    var csCompilation = CSharpCompilation.Create(
+                        assemblyName: "__TEMP__",
+                        syntaxTrees: csFileList.Select(csFile => CSharpSyntaxTree.ParseText(text: File.ReadAllText(csFile),
+                            options: csParseOpts, path: csFile)),
+                        references: csRefList,
+                        options: _compilationOptions);
+                    var needGenCode = false;
+                    var csGlobalNsSymbol = csCompilation.Assembly.GlobalNamespace;
+                    foreach (var attData in csGlobalNsSymbol.GetAttributes()) {
+                        if (attData.AttributeClass.IsFullNameEquals(_contractNamespaceAttributeFullName)) {
+                            var attCtorArgs = attData.ConstructorArguments;
+                            var uri = (string)attCtorArgs[0].Value;
+                            LogicalNamespace logicalNs;
+                            if (uri != null && logicalNsMap.TryGetValue(uri, out logicalNs)) {
+                                if (logicalNs.CSharpNamespaceName != null) {
+                                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractNamespaceAttributeUri, uri), default(TextSpan));
+                                }
+                                var csns = (string)attCtorArgs[1].Value;
+                                var csnsArr = CSEX.GetIdsBySplitDot(csns);
+                                if (csnsArr == null) {
+                                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttributeCSharpNamespace, csns), default(TextSpan));
+                                }
+                                logicalNs.CSharpNamespaceName = new CSharpNamespaceNameNode(csnsArr);
+                                logicalNs.IsCSharpNamespaceRef = (bool)attCtorArgs[2].Value;
+                                needGenCode = true;
+                            }
+                            else {
+                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttributeUri, uri), default(TextSpan));
+                            }
+                        }
+                    }
+                    if (needGenCode) {
+                        foreach (var logicalNs in logicalNsMap.Values) {
+                            if (logicalNs.CSharpNamespaceName == null) {
+                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractNamespaceAttributeRequired, logicalNs.Uri), default(TextSpan));
+                            }
+                        }
+                        //foreach(var x in )
+
+
+                    }
+                }
+
+
+
                 //var needGenCode = indicatorList.Count > 0;
                 //if (needGenCode) {
                 //    var memberList = new List<MemberDeclarationSyntax>();
@@ -154,5 +170,49 @@ namespace CData.Compiler {
             catch (DiagContextEx.ContextException) { }
             return false;
         }
+
+        private static void ProcessNamespace(INamespaceSymbol csNsSymbol, LogicalNamespaceMap logicalNsMap) {
+            foreach (var logicalNs in logicalNsMap.Values) {
+                if (!logicalNs.IsCSharpNamespaceRef) {
+                    if (csNsSymbol.IsFullNameEquals(logicalNs.CSharpNamespaceName.ReversedNameParts)) {
+                        var nsSymbol = logicalNs.NamespaceSymbol;
+                        foreach (var csTypeSymbol in csNsSymbol.GetMembers().OfType<INamedTypeSymbol>()) {
+                            if (csTypeSymbol.TypeKind == Microsoft.CodeAnalysis.TypeKind.Class && !csTypeSymbol.IsGenericType) {
+                                ClassSymbol clsSymbol;
+                                var clsAttData = csTypeSymbol.GetAttributeData(_contractClassAttributeFullName);
+                                if (clsAttData != null) {
+                                    var clsName = (string)clsAttData.ConstructorArguments[0].Value;
+                                    clsSymbol = nsSymbol.GetClass(clsName);
+                                    if (clsSymbol == null) {
+                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName, clsName), default(TextSpan));
+                                    }
+                                }
+                                else {
+                                    clsSymbol = nsSymbol.GetClass(csTypeSymbol.Name);
+                                }
+                                if (clsSymbol != null) {
+                                    if (clsSymbol.CSFullNameString == null) {
+                                        clsSymbol.CSFullNameString = csTypeSymbol.ToFullNameString();
+                                    }
+                                    else if (clsSymbol.CSFullNameString != csTypeSymbol.ToFullNameString()) {
+                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractClassAttributeName), default(TextSpan));
+                                    }
+                                    Dictionary<string, ISymbol> csMemberSymbolDict = null;
+                                    CS.GetAllPropertyAndFields(csTypeSymbol, ref csMemberSymbolDict);
+                                    if (csMemberSymbolDict != null) {
+
+                                    }
+
+                                }
+
+
+                            }
+                        }
+
+                    }
+                }
+            }
+        }
+
     }
 }

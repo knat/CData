@@ -2,41 +2,54 @@
 using System.Collections.Generic;
 
 namespace CData {
-    public interface IObjectSet<TKey, TItem> : ICollection<TItem> {
-        TKey GetKeyForItem(TItem item);
-        new bool Add(TItem item);
-        TItem this[TKey key] { get; }
+    public interface IObjectSet<TKey, TObject> : ICollection<TObject> {
+        TKey GetObjectKey(TObject obj);
+        new bool Add(TObject obj);
+        TObject this[TKey key] { get; }
         ICollection<TKey> Keys { get; }
         bool ContainsKey(TKey key);
-        bool TryGetValue(TKey key, out TItem item);
+        bool TryGetValue(TKey key, out TObject obj);
         bool Remove(TKey key);
     }
-    public abstract class ObjectSet<TKey, TItem> : IObjectSet<TKey, TItem> {
-        protected ObjectSet() {
-            _dict = new Dictionary<TKey, TItem>();
+    public class ObjectSet<TKey, TObject> : IObjectSet<TKey, TObject> {
+        public ObjectSet(Func<TObject, TKey> keySelector) : this(keySelector, null) { }
+        public ObjectSet(Func<TObject, TKey> keySelector, IEqualityComparer<TKey> keyComparer) {
+            if (keySelector == null) throw new ArgumentNullException("keySelector");
+            _keySelector = keySelector;
+            _dict = new Dictionary<TKey, TObject>(keyComparer);
         }
-        protected ObjectSet(IEqualityComparer<TKey> comparer) {
-            _dict = new Dictionary<TKey, TItem>(comparer);
+        private readonly Dictionary<TKey, TObject> _dict;
+        private readonly Func<TObject, TKey> _keySelector;
+        public Func<TObject, TKey> KeySelector {
+            get {
+                return _keySelector;
+            }
         }
-        private readonly Dictionary<TKey, TItem> _dict;
-        public abstract TKey GetKeyForItem(TItem item);
+        public IEqualityComparer<TKey> KeyComparer {
+            get {
+                return _dict.Comparer;
+            }
+        }
+        public TKey GetObjectKey(TObject obj) {
+            return _keySelector(obj);
+        }
         public int Count {
             get {
                 return _dict.Count;
             }
         }
-        public bool Add(TItem item) {
-            var key = GetKeyForItem(item);
+        public bool Add(TObject obj) {
+            var key = GetObjectKey(obj);
             if (_dict.ContainsKey(key)) {
                 return false;
             }
-            _dict.Add(key, item);
+            _dict.Add(key, obj);
             return true;
         }
-        void ICollection<TItem>.Add(TItem item) {
-            Add(item);
+        void ICollection<TObject>.Add(TObject obj) {
+            Add(obj);
         }
-        public TItem this[TKey key] {
+        public TObject this[TKey key] {
             get {
                 return _dict[key];
             }
@@ -49,34 +62,34 @@ namespace CData {
         public bool ContainsKey(TKey key) {
             return _dict.ContainsKey(key);
         }
-        public bool Contains(TItem item) {
-            return _dict.ContainsKey(GetKeyForItem(item));
+        public bool Contains(TObject obj) {
+            return _dict.ContainsKey(GetObjectKey(obj));
         }
-        public bool TryGetValue(TKey key, out TItem item) {
-            return _dict.TryGetValue(key, out item);
+        public bool TryGetValue(TKey key, out TObject obj) {
+            return _dict.TryGetValue(key, out obj);
         }
         public bool Remove(TKey key) {
             return _dict.Remove(key);
         }
-        public bool Remove(TItem item) {
-            return _dict.Remove(GetKeyForItem(item));
+        public bool Remove(TObject obj) {
+            return _dict.Remove(GetObjectKey(obj));
         }
         public void Clear() {
             _dict.Clear();
         }
-        public Dictionary<TKey, TItem>.ValueCollection.Enumerator GetEnumerator() {
+        public Dictionary<TKey, TObject>.ValueCollection.Enumerator GetEnumerator() {
             return _dict.Values.GetEnumerator();
         }
-        IEnumerator<TItem> IEnumerable<TItem>.GetEnumerator() {
+        IEnumerator<TObject> IEnumerable<TObject>.GetEnumerator() {
             return GetEnumerator();
         }
         System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() {
             return GetEnumerator();
         }
-        public void CopyTo(TItem[] array, int arrayIndex) {
+        public void CopyTo(TObject[] array, int arrayIndex) {
             _dict.Values.CopyTo(array, arrayIndex);
         }
-        bool ICollection<TItem>.IsReadOnly {
+        bool ICollection<TObject>.IsReadOnly {
             get { return false; }
         }
     }

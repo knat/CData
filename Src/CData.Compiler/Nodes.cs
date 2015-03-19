@@ -9,13 +9,18 @@ namespace CData.Compiler {
     internal sealed class LogicalNamespaceMap : Dictionary<string, LogicalNamespace> { }
     internal sealed class LogicalNamespace : List<NamespaceNode> {
         public string Uri {
-            get {
-                return this[0].UriValue;
-            }
+            get { return this[0].UriValue; }
         }
-        //public CSharpNamespaceNameNode CSharpNamespaceName;
-        //public bool IsCSharpNamespaceRef;
-        //public NamespaceSymbol NamespaceSymbol;
+        public NamespaceSymbol NamespaceSymbol;
+        public CSharpNamespaceNameNode CSharpNamespaceName {
+            get { return NamespaceSymbol.CSharpNamespaceName; }
+            set { NamespaceSymbol.CSharpNamespaceName = value; }
+        }
+        public bool IsCSharpNamespaceRef {
+            get { return NamespaceSymbol.IsCSharpNamespaceRef; }
+            set { NamespaceSymbol.IsCSharpNamespaceRef = value; }
+        }
+
         public void CheckDuplicateMembers() {
             var count = Count;
             for (var i = 0; i < count - 1; ++i) {
@@ -82,7 +87,7 @@ namespace CData.Compiler {
         public void CreateSymbols() {
             if (MemberList != null) {
                 foreach (var member in MemberList) {
-                    //member.CreateSymbol();
+                    member.CreateSymbol();
                 }
             }
         }
@@ -142,14 +147,14 @@ namespace CData.Compiler {
             }
             return result;
         }
-        //public AtomNode ResolveQNameAsAtom(QualifiableNameNode qName) {
-        //    var result = ResolveQName(qName) as AtomNode;
-        //    if (result == null) {
-        //        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidAtomNameReference, qName.ToString()),
-        //            qName.TextSpan);
-        //    }
-        //    return result;
-        //}
+        public AtomNode ResolveQNameAsAtom(QualifiableNameNode qName) {
+            var result = ResolveQName(qName) as AtomNode;
+            if (result == null) {
+                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidAtomNameReference, qName.ToString()),
+                    qName.TextSpan);
+            }
+            return result;
+        }
 
     }
     internal sealed class ImportNode {
@@ -169,71 +174,28 @@ namespace CData.Compiler {
         }
         public readonly NamespaceNode Namespace;
     }
-    internal abstract class TypeNode : NamespaceDescendantNode {
-        protected TypeNode(NamespaceNode ns) : base(ns) { }
-        public TextSpan TextSpan;
-        public abstract void Resolve();
-    }
-    internal sealed class RefTypeNode : TypeNode {
-        public RefTypeNode(NamespaceNode ns) : base(ns) { }
-        public QualifiableNameNode MemberQName;
-        public NamespaceMemberNode Member;
-        public override void Resolve() {
-            Member = Namespace.ResolveQName(MemberQName);
-        }
-    }
-    //nullable<element>
-    internal sealed class NullableTypeNode : TypeNode {
-        public NullableTypeNode(NamespaceNode ns) : base(ns) { }
-        public TypeNode Element;
-        public override void Resolve() {
-            Element.Resolve();
-        }
-    }
-    //list<item>
-    internal sealed class ListTypeNode : TypeNode {
-        public ListTypeNode(NamespaceNode ns) : base(ns) { }
-        public TypeNode Item;
-        public override void Resolve() {
-            Item.Resolve();
-        }
-    }
-    //set<Class1 \ Prop1.prop2>
-    internal sealed class SetTypeNode : TypeNode {
-        public SetTypeNode(NamespaceNode ns) : base(ns) { }
-        public RefTypeNode Item;
-        public List<NameNode> KeyNameList;//opt
-        public override void Resolve() {
-            Item.Resolve();
-            if (Item.Member is ClassNode) {
-                if (KeyNameList == null) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.KeySelectorRequiredForObjectSet), Item.TextSpan);
-                }
-            }
-            else if (KeyNameList != null) {
-                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.KeySelectorNotAllowedForAtomSet), KeyNameList[0].TextSpan);
-            }
-        }
-    }
-    //map<key = value>
-    internal sealed class MapTypeNode : TypeNode {
-        public MapTypeNode(NamespaceNode ns) : base(ns) { }
-        public RefTypeNode Key;
-        public TypeNode Value;
-        public override void Resolve() {
-            Key.Resolve();
-            if (!(Key.Member is AtomNode)) {
-                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidAtomNameReference, Key.MemberQName.ToString()),
-                    Key.MemberQName.TextSpan);
-            }
-            Value.Resolve();
-        }
-    }
 
     internal abstract class NamespaceMemberNode : NamespaceDescendantNode {
         public NamespaceMemberNode(NamespaceNode ns) : base(ns) { }
         public NameNode Name;
         public abstract void Resolve();
+        protected NamespaceMemberSymbol _symbol;
+        private bool _isProcessing;
+        public NamespaceMemberSymbol CreateSymbol() {
+            if (_symbol == null) {
+                if (_isProcessing) {
+                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.CircularReferenceNotAllowed), Name.TextSpan);
+                }
+                _isProcessing = true;
+                var nsSymbol = Namespace.LogicalNamespace.NamespaceSymbol;
+                var symbol = CreateSymbolCore(nsSymbol);
+                nsSymbol.MemberList.Add(symbol);
+                _symbol = symbol;
+                _isProcessing = false;
+            }
+            return _symbol;
+        }
+        protected abstract NamespaceMemberSymbol CreateSymbolCore(NamespaceSymbol ns);
     }
 
     internal sealed class AtomNode : NamespaceMemberNode {
@@ -255,6 +217,9 @@ namespace CData.Compiler {
         public override void Resolve() {
             throw new NotImplementedException();
         }
+        protected override NamespaceMemberSymbol CreateSymbolCore(NamespaceSymbol ns) {
+            throw new NotImplementedException();
+        }
     }
 
     internal sealed class ClassNode : NamespaceMemberNode {
@@ -270,33 +235,49 @@ namespace CData.Compiler {
                 return AbstractOrSealed.Value == ParserConstants.SealedKeyword;
             }
         }
-        private string _csName;
-        public string CSName {
-            get {
-                return _csName ?? (_csName = Name.Value.EscapeId());
-            }
-        }
-        private FullName? _fullName;
-        public FullName FullName {
-            get {
-                if (_fullName == null) {
-                    _fullName = new FullName(Namespace.UriValue, Name.Value);
-                }
-                return _fullName.Value;
-            }
-        }
+        //private string _csName;
+        //public string CSName {
+        //    get {
+        //        return _csName ?? (_csName = Name.Value.EscapeId());
+        //    }
+        //}
+        //private FullName? _fullName;
+        //public FullName FullName {
+        //    get {
+        //        if (_fullName == null) {
+        //            _fullName = new FullName(Namespace.UriValue, Name.Value);
+        //        }
+        //        return _fullName.Value;
+        //    }
+        //}
         public QualifiableNameNode BaseQName;//opt
-        public ClassNode Base;
-        public List<PropertyNode> PropertyList;
+        public ClassNode BaseClass;
+        public List<PropertyNode> PropertyList;//opt
         public override void Resolve() {
             if (BaseQName.IsValid) {
-                Base = Namespace.ResolveQNameAsClass(BaseQName);
+                BaseClass = Namespace.ResolveQNameAsClass(BaseQName);
             }
             if (PropertyList != null) {
                 foreach (var prop in PropertyList) {
                     prop.Resolve();
                 }
             }
+        }
+        protected override NamespaceMemberSymbol CreateSymbolCore(NamespaceSymbol ns) {
+            ClassSymbol baseClassSymbol = null;
+            if (BaseClass != null) {
+                baseClassSymbol = (ClassSymbol)BaseClass.CreateSymbol();
+                if (baseClassSymbol.IsSealed) {
+                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.BaseClassIsSealed), BaseQName.TextSpan);
+                }
+            }
+            List<PropertySymbol> propSymbolList = null;
+            if (PropertyList != null) {
+                foreach (var prop in PropertyList) {
+                    Extensions.CreateAndAdd(ref propSymbolList, prop.CreateSymbol());
+                }
+            }
+            return new ClassSymbol(ns, Name.Value, IsAbstract, IsSealed, baseClassSymbol, propSymbolList);
         }
     }
     internal sealed class PropertyNode : NamespaceDescendantNode {
@@ -306,7 +287,146 @@ namespace CData.Compiler {
         public void Resolve() {
             Type.Resolve();
         }
+        public PropertySymbol CreateSymbol() {
+            return new PropertySymbol(Name.Value, Type.CreateTypeSymbol());
+        }
     }
+
+    internal abstract class TypeNode : NamespaceDescendantNode {
+        protected TypeNode(NamespaceNode ns) : base(ns) { }
+        public TextSpan TextSpan;
+        public abstract void Resolve();
+        public abstract TypeSymbol CreateTypeSymbol();
+    }
+    internal sealed class RefTypeNode : TypeNode {
+        public RefTypeNode(NamespaceNode ns) : base(ns) { }
+        public QualifiableNameNode QName;
+        public NamespaceMemberNode Member;
+        public bool IsAtom {
+            get {
+                return Member is AtomNode;
+            }
+        }
+        public bool IsClass {
+            get {
+                return !IsAtom;
+            }
+        }
+        public override void Resolve() {
+            Member = Namespace.ResolveQName(QName);
+        }
+        public override TypeSymbol CreateTypeSymbol() {
+            return Member.CreateSymbol().CreateType();
+        }
+    }
+    //nullable<element>
+    internal sealed class NullableTypeNode : TypeNode {
+        public NullableTypeNode(NamespaceNode ns) : base(ns) { }
+        public TypeNode Element;
+        public override void Resolve() {
+            Element.Resolve();
+        }
+        public override TypeSymbol CreateTypeSymbol() {
+            var res = Element.CreateTypeSymbol();
+            res.IsNullable = true;
+            return res;
+        }
+    }
+    //list<item>
+    internal sealed class ListTypeNode : TypeNode {
+        public ListTypeNode(NamespaceNode ns) : base(ns) { }
+        public TypeNode Item;
+        public override void Resolve() {
+            Item.Resolve();
+        }
+        public override TypeSymbol CreateTypeSymbol() {
+            return new CollectionTypeSymbol(TypeKind.List, Item.CreateTypeSymbol(), null, null);
+        }
+    }
+    //set<Class1 \ Prop1.prop2>
+    //set<Int32>
+    internal sealed class SetTypeNode : TypeNode {
+        public SetTypeNode(NamespaceNode ns) : base(ns) { }
+        public RefTypeNode Item;
+        public List<NameNode> KeyNameList;//opt
+        public TextSpan CloseTextSpan;
+        public bool IsObjectSet {
+            get {
+                return KeyNameList != null;
+            }
+        }
+        public bool IsAtomSet {
+            get {
+                return !IsObjectSet;
+            }
+        }
+        public override void Resolve() {
+            Item.Resolve();
+            if (Item.IsAtom) {
+                if (KeyNameList != null) {
+                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.KeySelectorNotAllowedForAtomSet), KeyNameList[0].TextSpan);
+                }
+            }
+            else if (KeyNameList == null) {
+                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.KeySelectorRequiredForObjectSet), CloseTextSpan);
+            }
+        }
+        public override TypeSymbol CreateTypeSymbol() {
+            var itemTypeSymbol = Item.CreateTypeSymbol();
+            List<PropertySymbol> selectorList = null;
+            if (IsObjectSet) {
+                selectorList = new List<PropertySymbol>();
+                var clsTypeSymbol = (ClassTypeSymbol)itemTypeSymbol;
+                var keyCount = KeyNameList.Count;
+                for (var i = 0; i < keyCount; ++i) {
+                    var keyName = KeyNameList[i];
+                    var propSymbol = clsTypeSymbol.Class.GetProperty(keyName.Value);
+                    if (propSymbol == null) {
+                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidPropertyNameReference), keyName.TextSpan);
+                    }
+                    var propTypeSymbol = propSymbol.Type;
+                    if (propTypeSymbol.IsNullable) {
+                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ObjectSetKeyCannotBeNullable), keyName.TextSpan);
+                    }
+                    if (propTypeSymbol.Kind.IsAtom()) {
+                        if (i < keyCount - 1) {
+                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidObjectSetKey), KeyNameList[i + 1].TextSpan);
+                        }
+                        selectorList.Add(propSymbol);
+                    }
+                    else if (propTypeSymbol.Kind == TypeKind.Class) {
+                        if (i == keyCount - 1) {
+                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ObjectSetKeyMustBeAtom), keyName.TextSpan);
+                        }
+                        selectorList.Add(propSymbol);
+                        clsTypeSymbol = (ClassTypeSymbol)propTypeSymbol;
+                    }
+                    else {
+                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ObjectSetKeyMustBeAtom), keyName.TextSpan);
+                    }
+                }
+            }
+            return new CollectionTypeSymbol(IsObjectSet ? TypeKind.ObjectSet : TypeKind.AtomSet, itemTypeSymbol, null, selectorList);
+        }
+    }
+    //map<key = value>
+    internal sealed class MapTypeNode : TypeNode {
+        public MapTypeNode(NamespaceNode ns) : base(ns) { }
+        public RefTypeNode Key;
+        public TypeNode Value;
+        public override void Resolve() {
+            Key.Resolve();
+            if (Key.IsClass) {
+                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidAtomNameReference, Key.QName.ToString()),
+                    Key.QName.TextSpan);
+            }
+            Value.Resolve();
+        }
+        public override TypeSymbol CreateTypeSymbol() {
+            return new CollectionTypeSymbol(TypeKind.Map, Value.CreateTypeSymbol(), (AtomTypeSymbol)Key.CreateTypeSymbol(), null);
+        }
+    }
+
     internal struct QualifiableNameNode {
         public QualifiableNameNode(NameNode alias, NameNode name) {
             Alias = alias;

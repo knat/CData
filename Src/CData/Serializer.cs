@@ -6,37 +6,36 @@ using System.Collections;
 
 namespace CData {
     public static class Serializer {
-        public static bool TryLoad(string filePath, TextReader reader, DiagContext context, ObjectTypeMetadata objectTypeMetadata, out object result) {
+        public static bool TryLoad(string filePath, TextReader reader, DiagContext context, ClassTypeMetadata objectTypeMetadata, out object result) {
             return Parser.Parse(filePath, reader, context, objectTypeMetadata, out result);
         }
-        public static void Save(object obj, ObjectTypeMetadata objectTypeMetadata, TextWriter writer, string indentString = "\t", string newLineString = "\n") {
+        public static void Save(object obj, ClassTypeMetadata classTypeMetadata, TextWriter writer, string indentString = "\t", string newLineString = "\n") {
             if (writer == null) throw new ArgumentNullException("writer");
             var sb = new StringBuilder(1024 * 2);
-            Save(obj, objectTypeMetadata, sb, indentString, newLineString);
+            Save(obj, classTypeMetadata, sb, indentString, newLineString);
             writer.Write(sb.ToString());
         }
-        public static void Save(object obj, ObjectTypeMetadata objectTypeMetadata, StringBuilder stringBuilder, string indentString = "\t", string newLineString = "\n") {
+        public static void Save(object obj, ClassTypeMetadata classTypeMetadata, StringBuilder stringBuilder, string indentString = "\t", string newLineString = "\n") {
             if (obj == null) throw new ArgumentNullException("obj");
-            if (objectTypeMetadata == null) throw new ArgumentNullException("objectTypeMetadata");
+            if (classTypeMetadata == null) throw new ArgumentNullException("classTypeMetadata");
             if (stringBuilder == null) throw new ArgumentNullException("stringBuilder");
-            SaveObject(true, obj, objectTypeMetadata, new SavingContext(stringBuilder, indentString, newLineString));
+            SaveObject(true, obj, classTypeMetadata, new SavingContext(stringBuilder, indentString, newLineString));
         }
-        private static void SaveObject(bool isRoot, object obj, ObjectTypeMetadata objectMd, SavingContext context) {
+        private static void SaveObject(bool isRoot, object obj, ClassTypeMetadata clsMd, SavingContext context) {
             string rootAlias = null;
             if (isRoot) {
-                rootAlias = context.AddUri(objectMd.FullName.Uri);
+                rootAlias = context.AddUri(clsMd.FullName.Uri);
             }
             else {
-                context.Append(objectMd.FullName);
+                context.Append(clsMd.FullName);
             }
             var sb = context.StringBuilder;
             sb.Append(" {");
             context.AppendLine();
             context.PushIndent();
-            List<PropertyMetadata> propMdList = null;
-            objectMd.GetAllProperties(ref propMdList);
-            if (propMdList != null) {
-                foreach (var propMd in propMdList) {
+            var propMds = clsMd.GetAllProperties();
+            if (propMds != null) {
+                foreach (var propMd in propMds) {
                     context.Append(propMd.Name);
                     sb.Append(" = ");
                     SaveValue(propMd.GetValue(obj), propMd.Type, context);
@@ -46,7 +45,7 @@ namespace CData {
             context.PopIndent();
             context.Append('}');
             if (isRoot) {
-                context.InsertRootObjectHead(rootAlias, objectMd.FullName.Name);
+                context.InsertRootObjectHead(rootAlias, clsMd.FullName.Name);
             }
         }
         private static void SaveValue(object value, TypeMetadata typeMd, SavingContext context) {
@@ -59,13 +58,13 @@ namespace CData {
                     context.Append(null);
                     SaveAtom(value, typeKind, context.StringBuilder);
                 }
-                else if (typeKind.IsObject()) {
-                    SaveObject(false, value, (ObjectTypeMetadata)typeMd, context);
+                else if (typeKind == TypeKind.Class) {
+                    SaveObject(false, value, (ClassTypeMetadata)typeMd, context);
                 }
-                else if (typeKind.IsMap()) {
+                else if (typeKind == TypeKind.Map) {
                     var collMd = (CollectionTypeMetadata)typeMd;
-                    var keyMd = collMd.KeyType;
-                    var itemMd = collMd.ItemType;
+                    var keyMd = collMd.MapKeyType;
+                    var itemMd = collMd.ItemOrValueType;
                     IEnumerator valueEnumerator = null;
                     context.Append("#[");
                     context.AppendLine();
@@ -84,7 +83,7 @@ namespace CData {
                     context.Append(']');
                 }
                 else {
-                    var itemMd = ((CollectionTypeMetadata)typeMd).ItemType;
+                    var itemMd = ((CollectionTypeMetadata)typeMd).ItemOrValueType;
                     context.Append('[');
                     context.AppendLine();
                     context.PushIndent();

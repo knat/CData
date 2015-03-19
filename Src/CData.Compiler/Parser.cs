@@ -208,7 +208,7 @@ namespace CData.Compiler {
         private bool RefType(NamespaceNode ns, out RefTypeNode result) {
             QualifiableNameNode qName;
             if (QualifiableName(out qName)) {
-                result = new RefTypeNode(ns) { TextSpan = qName.TextSpan, MemberQName = qName };
+                result = new RefTypeNode(ns) { TextSpan = qName.TextSpan, QName = qName };
                 return true;
             }
             result = null;
@@ -255,8 +255,9 @@ namespace CData.Compiler {
                         }
                     }
                 }
-                TokenExpected('>');
-                result = new SetTypeNode(ns) { TextSpan = ts, Item = item, KeyNameList = keyNameList };
+                TextSpan closeTs;
+                TokenExpected('>', out closeTs);
+                result = new SetTypeNode(ns) { TextSpan = ts, Item = item, KeyNameList = keyNameList, CloseTextSpan = closeTs };
                 return true;
             }
             result = null;
@@ -267,7 +268,7 @@ namespace CData.Compiler {
             if (Keyword(ParserConstants.MapKeyword, out ts)) {
                 TokenExpected('<');
                 var key = (RefTypeNode)TypeExpected(ns, TypeFlags.Ref);
-                TokenExpected('=');
+                TokenExpected(',');
                 var value = TypeExpected(ns, TypeFlags.Ref | TypeFlags.Nullable | TypeFlags.List | TypeFlags.Set | TypeFlags.Map);
                 TokenExpected('>');
                 result = new MapTypeNode(ns) { TextSpan = ts, Key = key, Value = value };

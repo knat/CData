@@ -1415,15 +1415,26 @@ namespace CData.Compiler {
         }
 
 
+
         //
         //
         //symbols
         //
-        internal static TypeSyntax ToTypeSyntax(this ITypeSymbol symbol) {
-            return SyntaxFactory.ParseTypeName(symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+        //
+        internal static string ToFullNameString(this ISymbol symbol) {
+            return symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         }
-        internal static NameSyntax ToNameSyntax(this ITypeSymbol symbol) {
-            return SyntaxFactory.ParseName(symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+        internal static NameSyntax ToNameSyntax(this string s) {
+            return SyntaxFactory.ParseName(s);
+        }
+        internal static ExpressionSyntax ToExprSyntax(this string s) {
+            return SyntaxFactory.ParseExpression(s);
+        }
+        internal static TypeSyntax ToTypeSyntax(this ISymbol symbol) {
+            return SyntaxFactory.ParseTypeName(symbol.ToFullNameString());
+        }
+        internal static NameSyntax ToNameSyntax(this ISymbol symbol) {
+            return SyntaxFactory.ParseName(symbol.ToFullNameString());
         }
         internal static List<TypeParameterSyntax> ToTypeParameterSyntaxList(ImmutableArray<ITypeParameterSymbol> symbols,
             out List<TypeParameterConstraintClauseSyntax> constraintClauseList) {
@@ -1534,6 +1545,43 @@ namespace CData.Compiler {
             }
             return pSymbolList;
         }
+        internal static void GetAllPropertyAndFields(INamedTypeSymbol typeSymbol, ref Dictionary<string, ISymbol> symbolDict) {
+            while (true) {
+                if (typeSymbol.SpecialType == SpecialType.System_Object) {
+                    break;
+                }
+                foreach (var member in typeSymbol.GetMembers()) {
+                    ISymbol symbol = null;
+                    var propSymbol = member as IPropertySymbol;
+                    if (propSymbol != null) {
+                        if (!propSymbol.IsReadOnly && !propSymbol.IsWriteOnly) {
+                            symbol = propSymbol;
+                        }
+                    }
+                    else {
+                        var fieldSymbol = member as IFieldSymbol;
+                        if (fieldSymbol != null) {
+                            if (!fieldSymbol.IsConst) {
+                                symbol = fieldSymbol;
+                            }
+                        }
+                    }
+                    if (symbol != null && !symbol.IsStatic) {
+                        var name = symbol.Name;
+                        if (symbolDict == null) {
+                            symbolDict = new Dictionary<string, ISymbol>();
+                        }
+                        if (!symbolDict.ContainsKey(name)) {
+                            symbolDict.Add(name, symbol);
+                        }
+                    }
+                }
+                typeSymbol = typeSymbol.BaseType;
+            }
+        }
+
+
+
         internal static bool HasParameterlessConstructor(this INamedTypeSymbol symbol) {
             if (symbol == null) throw new ArgumentNullException("symbol");
             foreach (var ctor in symbol.InstanceConstructors) {
