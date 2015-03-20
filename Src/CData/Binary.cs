@@ -20,7 +20,7 @@ namespace CData {
             if (bytes == null) return null;
             return new Binary(bytes);
         }
-        public static bool TryFromBase64String(string s, out Binary result, bool isReadOnly = false) {
+        public static bool TryFromBase64String(string s, out Binary result, bool isReadOnly = true) {
             if (s == null) throw new ArgumentNullException("s");
             if (s.Length == 0) {
                 result = new Binary(_emptyBytes, isReadOnly);
@@ -46,6 +46,16 @@ namespace CData {
         public byte[] ToBytes() {
             return (byte[])_bytes.Clone();
         }
+        public byte[] GetBytes() {
+            ThrowIfReadOnly();
+            var bytes = _bytes;
+            if (bytes == _emptyBytes) {
+                bytes = new byte[0];
+            }
+            _bytes = _emptyBytes;
+            _count = 0;
+            return bytes;
+        }
         public bool IsReadOnly {
             get { return _isReadOnly; }
         }
@@ -55,6 +65,20 @@ namespace CData {
         }
         public int Count {
             get { return _count; }
+        }
+        public int IndexOf(byte item) {
+            var count = _count;
+            var bytes = _bytes;
+            for (var i = 0; i < count; ++i) {
+                if (bytes[i] == item) return i;
+            }
+            return -1;
+        }
+        public bool Contains(byte item) {
+            return IndexOf(item) >= 0;
+        }
+        public void CopyTo(byte[] array, int arrayIndex) {
+            Array.Copy(_bytes, 0, array, arrayIndex, _count);
         }
         private void ThrowIfReadOnly() {
             if (_isReadOnly) {
@@ -76,22 +100,60 @@ namespace CData {
                 _bytes[index] = value;
             }
         }
-        public void Clear() {
-            _count = 0;
+        public void AddRange(byte[] array, int arrayIndex, int length) {
+            InsertRange(_count, array, arrayIndex, length);
         }
-        public int IndexOf(byte item) {
+        public void InsertRange(int index, byte[] array, int arrayIndex, int length) {
+            ThrowIfReadOnly();
             var count = _count;
-            var bytes = _bytes;
-            for (var i = 0; i < count; ++i) {
-                if (bytes[i] == item) return i;
+            if (index < 0 || index > count) {
+                throw new ArgumentOutOfRangeException("index");
             }
-            return -1;
+            if (array == null) throw new ArgumentNullException("array");
+            if (arrayIndex < 0) {
+                throw new ArgumentOutOfRangeException("arrayIndex");
+            }
+            if (length < 0 || arrayIndex + length > array.Length) {
+                throw new ArgumentOutOfRangeException("length");
+            }
+            if (length > 0) {
+                var newCount = count + length;
+                if (newCount > _bytes.Length) {
+                    var newLength = _bytes.Length + length;
+                    if (newLength <= 32) {
+                        newLength = 64;
+                    }
+                    else if (newLength < 1024 * 8) {
+                        newLength *= 2;
+                    }
+                    else {
+                        newLength += 1024 * 2;
+                    }
+                    Array.Resize(ref _bytes, newLength);
+                }
+                if (index < count) {
+                    Array.Copy(_bytes, index, _bytes, index + length, count - index);
+                }
+                Array.Copy(array, arrayIndex, _bytes, index, length);
+                _count = newCount;
+            }
         }
-        public bool Contains(byte item) {
-            return IndexOf(item) >= 0;
-        }
-        public void CopyTo(byte[] array, int arrayIndex) {
-            Array.Copy(_bytes, 0, array, arrayIndex, _count);
+        public void RemoveRange(int index, int length) {
+            ThrowIfReadOnly();
+            var count = _count;
+            if (index < 0) {
+                throw new ArgumentOutOfRangeException("index");
+            }
+            if (length < 0 || index + length > count) {
+                throw new ArgumentOutOfRangeException("length");
+            }
+            if (length > 0) {
+                count -= length;
+                if (index < count) {
+                    Array.Copy(_bytes, index + length, _bytes, index, count - index);
+                }
+                _count = count;
+            }
         }
         public void Add(byte item) {
             Insert(_count, item);
@@ -104,10 +166,20 @@ namespace CData {
             }
             if (count == _bytes.Length) {
                 if (count == 0) {
-                    _bytes = new byte[8];
+                    _bytes = new byte[64];
                 }
                 else {
-                    Array.Resize(ref _bytes, count < 1024 * 8 ? count * 2 : count + 1024);
+                    int newLength;
+                    if (count <= 32) {
+                        newLength = 64;
+                    }
+                    else if (count < 1024 * 8) {
+                        newLength = count * 2;
+                    }
+                    else {
+                        newLength = count + 1024 * 2;
+                    }
+                    Array.Resize(ref _bytes, newLength);
                 }
             }
             if (index < count) {
@@ -136,6 +208,10 @@ namespace CData {
                 return true;
             }
             return false;
+        }
+        public void Clear() {
+            ThrowIfReadOnly();
+            _count = 0;
         }
         public struct Enumerator : IEnumerator<byte> {
             internal Enumerator(Binary binary) {
