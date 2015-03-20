@@ -1480,8 +1480,8 @@ namespace CData.Compiler {
             }
             return parameterList;
         }
-        //eg: symbol.IsFullNameEquals("List`1", "Generic", "Collections", "System")
-        internal static bool IsFullNameEquals(this ISymbol symbol, params string[] nameParts) {
+        //eg: symbol.IsFullNameEqual("List`1", "Generic", "Collections", "System")
+        internal static bool IsFullNameEqual(this ISymbol symbol, params string[] nameParts) {
             if (symbol == null) throw new ArgumentNullException("symbol");
             if (nameParts == null || nameParts.Length == 0) throw new ArgumentNullException("nameParts");
             var idx = 0;
@@ -1494,9 +1494,9 @@ namespace CData.Compiler {
             }
             return idx == nameParts.Length;
         }
-        //eg: var idx = symbol.MatchFullName(new []{"List`1", "Dictionary`2"}, new []{"Generic", "Collections", "System"});
+        //eg: var idx = symbol.MatchFullNames(new []{"List`1", "Dictionary`2"}, new []{"Generic", "Collections", "System"});
         //return value: -1: none; 0: symbol is List`1; 1: symbol is Dictionary`2 
-        internal static int MatchFullName(this ISymbol symbol, string[] typeNames, string[] outerNameParts) {
+        internal static int MatchFullNames(this ISymbol symbol, string[] typeNames, string[] outerNameParts) {
             if (symbol == null) throw new ArgumentNullException("symbol");
             if (typeNames == null || typeNames.Length == 0) throw new ArgumentNullException("typeNames");
             var fullLength = 1 + (outerNameParts != null ? outerNameParts.Length : 0);
@@ -1522,14 +1522,25 @@ namespace CData.Compiler {
             if (idx == fullLength) return result;
             return -1;
         }
+        internal static AttributeData GetAttributeData(this ISymbol symbol, string[] nameParts) {
+            foreach (var attData in symbol.GetAttributes()) {
+                if (attData.AttributeClass.IsFullNameEqual(nameParts)) {
+                    return attData;
+                }
+            }
+            return null;
+        }
+
+        
         internal static INamedTypeSymbol TryGetBaseTypeSymbol(this INamedTypeSymbol symbol, params string[] fullNames) {
             if (symbol == null) throw new ArgumentNullException("symbol");
             //if (symbol.TypeKind != TypeKind.Class) return null;
             for (symbol = symbol.BaseType; symbol != null; symbol = symbol.BaseType) {
-                if (symbol.IsFullNameEquals(fullNames)) return symbol;
+                if (symbol.IsFullNameEqual(fullNames)) return symbol;
             }
             return null;
         }
+
         internal static IPropertySymbol TryGetPropertySymbol(this INamedTypeSymbol symbol, string propertyName) {
             return symbol.GetMembers(propertyName).OfType<IPropertySymbol>().FirstOrDefault();
         }
@@ -1545,40 +1556,40 @@ namespace CData.Compiler {
             }
             return pSymbolList;
         }
-        internal static void GetAllPropertyAndFields(INamedTypeSymbol typeSymbol, ref Dictionary<string, ISymbol> symbolDict) {
-            while (true) {
-                if (typeSymbol.SpecialType == SpecialType.System_Object) {
-                    break;
-                }
-                foreach (var member in typeSymbol.GetMembers()) {
-                    ISymbol symbol = null;
-                    var propSymbol = member as IPropertySymbol;
-                    if (propSymbol != null) {
-                        if (!propSymbol.IsReadOnly && !propSymbol.IsWriteOnly) {
-                            symbol = propSymbol;
-                        }
-                    }
-                    else {
-                        var fieldSymbol = member as IFieldSymbol;
-                        if (fieldSymbol != null) {
-                            if (!fieldSymbol.IsConst) {
-                                symbol = fieldSymbol;
-                            }
-                        }
-                    }
-                    if (symbol != null && !symbol.IsStatic) {
-                        var name = symbol.Name;
-                        if (symbolDict == null) {
-                            symbolDict = new Dictionary<string, ISymbol>();
-                        }
-                        if (!symbolDict.ContainsKey(name)) {
-                            symbolDict.Add(name, symbol);
-                        }
-                    }
-                }
-                typeSymbol = typeSymbol.BaseType;
-            }
-        }
+        //internal static void GetAllPropertyAndFields(INamedTypeSymbol typeSymbol, ref Dictionary<string, ISymbol> symbolDict) {
+        //    while (true) {
+        //        if (typeSymbol.SpecialType == SpecialType.System_Object) {
+        //            break;
+        //        }
+        //        foreach (var member in typeSymbol.GetMembers()) {
+        //            ISymbol symbol = null;
+        //            var propSymbol = member as IPropertySymbol;
+        //            if (propSymbol != null) {
+        //                if (!propSymbol.IsReadOnly && !propSymbol.IsWriteOnly) {
+        //                    symbol = propSymbol;
+        //                }
+        //            }
+        //            else {
+        //                var fieldSymbol = member as IFieldSymbol;
+        //                if (fieldSymbol != null) {
+        //                    if (!fieldSymbol.IsConst) {
+        //                        symbol = fieldSymbol;
+        //                    }
+        //                }
+        //            }
+        //            if (symbol != null && !symbol.IsStatic) {
+        //                var name = symbol.Name;
+        //                if (symbolDict == null) {
+        //                    symbolDict = new Dictionary<string, ISymbol>();
+        //                }
+        //                if (!symbolDict.ContainsKey(name)) {
+        //                    symbolDict.Add(name, symbol);
+        //                }
+        //            }
+        //        }
+        //        typeSymbol = typeSymbol.BaseType;
+        //    }
+        //}
 
 
 

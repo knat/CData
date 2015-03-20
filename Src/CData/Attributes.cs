@@ -3,7 +3,7 @@
 namespace CData {
     [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true, Inherited = false)]
     public sealed class ContractNamespaceAttribute : Attribute {
-        public ContractNamespaceAttribute(string uri, string csharpNamespace, bool isRef = false) { }
+        public ContractNamespaceAttribute(string uri, string namespaceName, bool isReference = false) { }
     }
 
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false, Inherited = false)]
@@ -15,7 +15,5 @@ namespace CData {
     public sealed class ContractPropertyAttribute : Attribute {
         public ContractPropertyAttribute(string name) { }
     }
-
-
 
 }

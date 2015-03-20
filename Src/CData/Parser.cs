@@ -366,7 +366,7 @@ namespace CData {
                 }
                 clsMd.SetTextSpan(obj, nameNode.TextSpan);
                 List<PropertyMetadata> propMdList = null;
-                clsMd.GetAllProperties(ref propMdList);
+                clsMd.GetPropertiesInHierarchy(ref propMdList);
                 while (true) {
                     NameNode propNameNode;
                     if (Name(out propNameNode)) {
@@ -509,7 +509,7 @@ namespace CData {
                 case TypeKind.String:
                     return s;
                 case TypeKind.IgnoreCaseString:
-                    return new IgnoreCaseString(s);
+                    return new IgnoreCaseString(s, true);
                 case TypeKind.Decimal: {
                         decimal r;
                         if (s.TryInvParse(out r)) {
@@ -595,9 +595,9 @@ namespace CData {
                     }
                     break;
                 case TypeKind.Binary: {
-                        byte[] r;
-                        if (s.TryInvParse(out r)) {
-                            return new BinaryValue(r);
+                        Binary r;
+                        if (Binary.TryFromBase64String(s, out r, true)) {
+                            return r;
                         }
                     }
                     break;

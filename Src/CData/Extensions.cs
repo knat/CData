@@ -191,25 +191,6 @@ namespace CData {
         internal static string ToInvString(this bool value) {
             return value ? "true" : "false";
         }
-        internal static bool TryInvParse(this string s, out byte[] result) {
-            if (s.Length == 0) {
-                result = _emptyByteArray;
-                return true;
-            }
-            try {
-                result = Convert.FromBase64String(s);
-                return true;
-            }
-            catch (FormatException) {
-                result = null;
-                return false;
-            }
-        }
-        private static readonly byte[] _emptyByteArray = new byte[0];
-        internal static string ToInvString(this byte[] value) {
-            if (value.Length == 0) return string.Empty;
-            return Convert.ToBase64String(value);
-        }
         internal static bool TryInvParse(this string s, out Guid result) {
             return Guid.TryParseExact(s, "D", out result);
         }

@@ -2,8 +2,11 @@
 
 namespace CData {
     public sealed class IgnoreCaseString : IEquatable<IgnoreCaseString>, IComparable<IgnoreCaseString> {
-        public IgnoreCaseString(string value) {
+        private string _value;
+        private readonly bool _isReadOnly;
+        public IgnoreCaseString(string value, bool isReadOnly = true) {
             Value = value;
+            _isReadOnly = isReadOnly;
         }
         public static implicit operator IgnoreCaseString(string value) {
             if (value == null) return null;
@@ -13,17 +16,26 @@ namespace CData {
             if ((object)obj == null) return null;
             return obj._value;
         }
-        private string _value;
         public string Value {
             get {
                 return _value;
             }
             set {
+                if (_isReadOnly) {
+                    throw new InvalidOperationException("The object is readonly.");
+                }
                 if (value == null) {
                     throw new ArgumentNullException("value");
                 }
                 _value = value;
             }
+        }
+        public bool IsReadOnly {
+            get { return _isReadOnly; }
+        }
+        public IgnoreCaseString AsReadOnly() {
+            if (_isReadOnly) return this;
+            return new IgnoreCaseString(_value, true);
         }
         private static readonly StringComparer _stringComparer = StringComparer.OrdinalIgnoreCase;
         public bool Equals(IgnoreCaseString other) {

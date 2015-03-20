@@ -33,7 +33,7 @@ namespace CData {
             sb.Append(" {");
             context.AppendLine();
             context.PushIndent();
-            var propMds = clsMd.GetAllProperties();
+            var propMds = clsMd.GetPropertiesInHierarchy();
             if (propMds != null) {
                 foreach (var propMd in propMds) {
                     context.Append(propMd.Name);
@@ -155,7 +155,7 @@ namespace CData {
                     break;
                 case TypeKind.Binary:
                     sb.Append('"');
-                    sb.Append(((BinaryValue)value).Value.ToInvString());
+                    sb.Append(((Binary)value).ToBase64String());
                     sb.Append('"');
                     break;
                 case TypeKind.Guid:

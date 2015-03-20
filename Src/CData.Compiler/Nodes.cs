@@ -11,14 +11,14 @@ namespace CData.Compiler {
         public string Uri {
             get { return this[0].UriValue; }
         }
-        public NamespaceSymbol NamespaceSymbol;
-        public CSharpNamespaceNameNode CSharpNamespaceName {
-            get { return NamespaceSymbol.CSharpNamespaceName; }
-            set { NamespaceSymbol.CSharpNamespaceName = value; }
+        public NamespaceInfo NamespaceInfo;
+        public CSNamespaceNameNode CSNamespaceName {
+            get { return NamespaceInfo.CSNamespaceName; }
+            set { NamespaceInfo.CSNamespaceName = value; }
         }
-        public bool IsCSharpNamespaceRef {
-            get { return NamespaceSymbol.IsCSharpNamespaceRef; }
-            set { NamespaceSymbol.IsCSharpNamespaceRef = value; }
+        public bool IsCSNamespaceRef {
+            get { return NamespaceInfo.IsCSNamespaceRef; }
+            set { NamespaceInfo.IsCSNamespaceRef = value; }
         }
 
         public void CheckDuplicateMembers() {
@@ -84,10 +84,10 @@ namespace CData.Compiler {
                 }
             }
         }
-        public void CreateSymbols() {
+        public void CreateInfos() {
             if (MemberList != null) {
                 foreach (var member in MemberList) {
-                    member.CreateSymbol();
+                    member.CreateInfo();
                 }
             }
         }
@@ -179,23 +179,23 @@ namespace CData.Compiler {
         public NamespaceMemberNode(NamespaceNode ns) : base(ns) { }
         public NameNode Name;
         public abstract void Resolve();
-        protected NamespaceMemberSymbol _symbol;
+        protected NamespaceMemberInfo _symbol;
         private bool _isProcessing;
-        public NamespaceMemberSymbol CreateSymbol() {
+        public NamespaceMemberInfo CreateInfo() {
             if (_symbol == null) {
                 if (_isProcessing) {
                     DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.CircularReferenceNotAllowed), Name.TextSpan);
                 }
                 _isProcessing = true;
-                var nsSymbol = Namespace.LogicalNamespace.NamespaceSymbol;
-                var symbol = CreateSymbolCore(nsSymbol);
+                var nsSymbol = Namespace.LogicalNamespace.NamespaceInfo;
+                var symbol = CreateInfoCore(nsSymbol);
                 nsSymbol.MemberList.Add(symbol);
                 _symbol = symbol;
                 _isProcessing = false;
             }
             return _symbol;
         }
-        protected abstract NamespaceMemberSymbol CreateSymbolCore(NamespaceSymbol ns);
+        protected abstract NamespaceMemberInfo CreateInfoCore(NamespaceInfo ns);
     }
 
     internal sealed class AtomNode : NamespaceMemberNode {
@@ -217,7 +217,7 @@ namespace CData.Compiler {
         public override void Resolve() {
             throw new NotImplementedException();
         }
-        protected override NamespaceMemberSymbol CreateSymbolCore(NamespaceSymbol ns) {
+        protected override NamespaceMemberInfo CreateInfoCore(NamespaceInfo ns) {
             throw new NotImplementedException();
         }
     }
@@ -263,21 +263,21 @@ namespace CData.Compiler {
                 }
             }
         }
-        protected override NamespaceMemberSymbol CreateSymbolCore(NamespaceSymbol ns) {
-            ClassSymbol baseClassSymbol = null;
+        protected override NamespaceMemberInfo CreateInfoCore(NamespaceInfo ns) {
+            ClassInfo baseClassSymbol = null;
             if (BaseClass != null) {
-                baseClassSymbol = (ClassSymbol)BaseClass.CreateSymbol();
+                baseClassSymbol = (ClassInfo)BaseClass.CreateInfo();
                 if (baseClassSymbol.IsSealed) {
                     DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.BaseClassIsSealed), BaseQName.TextSpan);
                 }
             }
-            List<PropertySymbol> propSymbolList = null;
+            List<PropertyInfo> propSymbolList = null;
             if (PropertyList != null) {
                 foreach (var prop in PropertyList) {
                     Extensions.CreateAndAdd(ref propSymbolList, prop.CreateSymbol());
                 }
             }
-            return new ClassSymbol(ns, Name.Value, IsAbstract, IsSealed, baseClassSymbol, propSymbolList);
+            return new ClassInfo(ns, Name.Value, IsAbstract, IsSealed, baseClassSymbol, propSymbolList);
         }
     }
     internal sealed class PropertyNode : NamespaceDescendantNode {
@@ -287,8 +287,8 @@ namespace CData.Compiler {
         public void Resolve() {
             Type.Resolve();
         }
-        public PropertySymbol CreateSymbol() {
-            return new PropertySymbol(Name.Value, Type.CreateTypeSymbol());
+        public PropertyInfo CreateSymbol() {
+            return new PropertyInfo(Name.Value, Type.CreateTypeInfo());
         }
     }
 
@@ -296,7 +296,7 @@ namespace CData.Compiler {
         protected TypeNode(NamespaceNode ns) : base(ns) { }
         public TextSpan TextSpan;
         public abstract void Resolve();
-        public abstract TypeSymbol CreateTypeSymbol();
+        public abstract TypeInfo CreateTypeInfo();
     }
     internal sealed class RefTypeNode : TypeNode {
         public RefTypeNode(NamespaceNode ns) : base(ns) { }
@@ -315,8 +315,8 @@ namespace CData.Compiler {
         public override void Resolve() {
             Member = Namespace.ResolveQName(QName);
         }
-        public override TypeSymbol CreateTypeSymbol() {
-            return Member.CreateSymbol().CreateType();
+        public override TypeInfo CreateTypeInfo() {
+            return Member.CreateInfo().CreateType();
         }
     }
     //nullable<element>
@@ -326,8 +326,8 @@ namespace CData.Compiler {
         public override void Resolve() {
             Element.Resolve();
         }
-        public override TypeSymbol CreateTypeSymbol() {
-            var res = Element.CreateTypeSymbol();
+        public override TypeInfo CreateTypeInfo() {
+            var res = Element.CreateTypeInfo();
             res.IsNullable = true;
             return res;
         }
@@ -339,8 +339,8 @@ namespace CData.Compiler {
         public override void Resolve() {
             Item.Resolve();
         }
-        public override TypeSymbol CreateTypeSymbol() {
-            return new CollectionTypeSymbol(TypeKind.List, Item.CreateTypeSymbol(), null, null);
+        public override TypeInfo CreateTypeInfo() {
+            return new CollectionTypeInfo(TypeKind.List, Item.CreateTypeInfo(), null, null);
         }
     }
     //set<Class1 \ Prop1.prop2>
@@ -371,16 +371,16 @@ namespace CData.Compiler {
                 DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.KeySelectorRequiredForObjectSet), CloseTextSpan);
             }
         }
-        public override TypeSymbol CreateTypeSymbol() {
-            var itemTypeSymbol = Item.CreateTypeSymbol();
-            List<PropertySymbol> selectorList = null;
+        public override TypeInfo CreateTypeInfo() {
+            var itemTypeSymbol = Item.CreateTypeInfo();
+            List<PropertyInfo> selectorList = null;
             if (IsObjectSet) {
-                selectorList = new List<PropertySymbol>();
-                var clsTypeSymbol = (ClassTypeSymbol)itemTypeSymbol;
+                selectorList = new List<PropertyInfo>();
+                var clsTypeSymbol = (ClassRefTypeInfo)itemTypeSymbol;
                 var keyCount = KeyNameList.Count;
                 for (var i = 0; i < keyCount; ++i) {
                     var keyName = KeyNameList[i];
-                    var propSymbol = clsTypeSymbol.Class.GetProperty(keyName.Value);
+                    var propSymbol = clsTypeSymbol.Class.GetPropertyInHierarchy(keyName.Value);
                     if (propSymbol == null) {
                         DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidPropertyNameReference), keyName.TextSpan);
                     }
@@ -399,14 +399,14 @@ namespace CData.Compiler {
                             DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ObjectSetKeyMustBeAtom), keyName.TextSpan);
                         }
                         selectorList.Add(propSymbol);
-                        clsTypeSymbol = (ClassTypeSymbol)propTypeSymbol;
+                        clsTypeSymbol = (ClassRefTypeInfo)propTypeSymbol;
                     }
                     else {
                         DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ObjectSetKeyMustBeAtom), keyName.TextSpan);
                     }
                 }
             }
-            return new CollectionTypeSymbol(IsObjectSet ? TypeKind.ObjectSet : TypeKind.AtomSet, itemTypeSymbol, null, selectorList);
+            return new CollectionTypeInfo(IsObjectSet ? TypeKind.ObjectSet : TypeKind.AtomSet, itemTypeSymbol, null, selectorList);
         }
     }
     //map<key = value>
@@ -422,8 +422,8 @@ namespace CData.Compiler {
             }
             Value.Resolve();
         }
-        public override TypeSymbol CreateTypeSymbol() {
-            return new CollectionTypeSymbol(TypeKind.Map, Value.CreateTypeSymbol(), (AtomTypeSymbol)Key.CreateTypeSymbol(), null);
+        public override TypeInfo CreateTypeInfo() {
+            return new CollectionTypeInfo(TypeKind.Map, Value.CreateTypeInfo(), (AtomRefTypeInfo)Key.CreateTypeInfo(), null);
         }
     }
 

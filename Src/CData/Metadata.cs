@@ -111,7 +111,7 @@ namespace CData {
             { TypeKind.Double, new AtomTypeMetadata(TypeKind.Double , false, typeof(double)) },
             { TypeKind.Single, new AtomTypeMetadata(TypeKind.Single , false, typeof(float)) },
             { TypeKind.Boolean, new AtomTypeMetadata(TypeKind.Boolean , false, typeof(bool)) },
-            { TypeKind.Binary, new AtomTypeMetadata(TypeKind.Binary , false, typeof(BinaryValue)) },
+            { TypeKind.Binary, new AtomTypeMetadata(TypeKind.Binary , false, typeof(Binary)) },
             { TypeKind.Guid, new AtomTypeMetadata(TypeKind.Guid , false, typeof(Guid)) },
             { TypeKind.TimeSpan, new AtomTypeMetadata(TypeKind.TimeSpan , false, typeof(TimeSpan)) },
             { TypeKind.DateTimeOffset, new AtomTypeMetadata(TypeKind.DateTimeOffset , false, typeof(DateTimeOffset)) },
@@ -131,7 +131,7 @@ namespace CData {
             { TypeKind.Double, new AtomTypeMetadata(TypeKind.Double , true, typeof(double?)) },
             { TypeKind.Single, new AtomTypeMetadata(TypeKind.Single , true, typeof(float?)) },
             { TypeKind.Boolean, new AtomTypeMetadata(TypeKind.Boolean , true, typeof(bool?)) },
-            { TypeKind.Binary, new AtomTypeMetadata(TypeKind.Binary , true, typeof(BinaryValue)) },
+            { TypeKind.Binary, new AtomTypeMetadata(TypeKind.Binary , true, typeof(Binary)) },
             { TypeKind.Guid, new AtomTypeMetadata(TypeKind.Guid , true, typeof(Guid?)) },
             { TypeKind.TimeSpan, new AtomTypeMetadata(TypeKind.TimeSpan , true, typeof(TimeSpan?)) },
             { TypeKind.DateTimeOffset, new AtomTypeMetadata(TypeKind.DateTimeOffset , true, typeof(DateTimeOffset?)) },
@@ -230,7 +230,7 @@ namespace CData {
             }
             return false;
         }
-        public PropertyMetadata GetProperty(string name) {
+        public PropertyMetadata GetPropertyInHierarchy(string name) {
             if (_properties != null) {
                 foreach (var prop in _properties) {
                     if (prop.Name == name) {
@@ -239,13 +239,13 @@ namespace CData {
                 }
             }
             if (BaseClass != null) {
-                return BaseClass.GetProperty(name);
+                return BaseClass.GetPropertyInHierarchy(name);
             }
             return null;
         }
-        public void GetAllProperties(ref List<PropertyMetadata> propList) {
+        public void GetPropertiesInHierarchy(ref List<PropertyMetadata> propList) {
             if (BaseClass != null) {
-                BaseClass.GetAllProperties(ref propList);
+                BaseClass.GetPropertiesInHierarchy(ref propList);
             }
             if (_properties != null) {
                 if (propList == null) {
@@ -256,15 +256,15 @@ namespace CData {
                 }
             }
         }
-        public IEnumerable<PropertyMetadata> GetAllProperties() {
+        public IEnumerable<PropertyMetadata> GetPropertiesInHierarchy() {
             if (BaseClass == null) {
                 return _properties;
             }
             if (_properties == null) {
-                return BaseClass.GetAllProperties();
+                return BaseClass.GetPropertiesInHierarchy();
             }
             List<PropertyMetadata> propList = null;
-            GetAllProperties(ref propList);
+            GetPropertiesInHierarchy(ref propList);
             return propList;
         }
         public object CreateInstance() {
@@ -332,30 +332,5 @@ namespace CData {
         }
     }
 
-    //public static class XXX {
-    //    public static bool ObjectValue(Parser parser) {
-    //    }
-    //}
-    //public class Class0 { }
-    //interface IItf0 { }
-    //abstract partial class Class1 : Class0 {
-    //    public int Id { get; protected set; }
-
-    //    //bool OnLoading( DiagContext context);
-    //    partial void OnLoaded(ref bool success, DiagContext context);
-
-    //    //partial void OnLoading() {
-    //    //    throw new NotImplementedException();
-    //    //}
-
-    //    public static bool __TryCreate() {
-
-    //        return true;
-    //    }
-
-    //}
-    //public partial class Class1 : IItf0 {
-
-    //}
 
 }
