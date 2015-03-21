@@ -1421,67 +1421,17 @@ namespace CData.Compiler {
         //symbols
         //
         //
-        internal static string ToFullNameString(this ISymbol symbol) {
-            return symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        }
-        internal static NameSyntax ToNameSyntax(this string s) {
-            return SyntaxFactory.ParseName(s);
-        }
-        internal static ExpressionSyntax ToExprSyntax(this string s) {
-            return SyntaxFactory.ParseExpression(s);
-        }
-        internal static TypeSyntax ToTypeSyntax(this ISymbol symbol) {
-            return SyntaxFactory.ParseTypeName(symbol.ToFullNameString());
-        }
-        internal static NameSyntax ToNameSyntax(this ISymbol symbol) {
-            return SyntaxFactory.ParseName(symbol.ToFullNameString());
-        }
-        internal static List<TypeParameterSyntax> ToTypeParameterSyntaxList(ImmutableArray<ITypeParameterSymbol> symbols,
-            out List<TypeParameterConstraintClauseSyntax> constraintClauseList) {
-            List<TypeParameterSyntax> parameterList = null;
-            constraintClauseList = null;
-            if (symbols.Length > 0) {
-                parameterList = new List<TypeParameterSyntax>();
-                foreach (var symbol in symbols) {
-                    var identifier = Id(symbol.Name.EscapeId());
-                    SyntaxToken varianceKeyword = default(SyntaxToken);
-                    //switch (symbol.Variance) {
-                    //    case VarianceKind.In:
-                    //        varianceKeyword = InToken;
-                    //        break;
-                    //    case VarianceKind.Out:
-                    //        varianceKeyword = OutToken;
-                    //        break;
-                    //}
-                    parameterList.Add(SyntaxFactory.TypeParameter(
-                        attributeLists: default(SyntaxList<AttributeListSyntax>),
-                        varianceKeyword: varianceKeyword,
-                        identifier: identifier));
-                    //
-                    List<TypeParameterConstraintSyntax> constraintList = null;
-                    if (symbol.HasConstructorConstraint) {
-                        Extensions.CreateAndAdd(ref constraintList, SyntaxFactory.ConstructorConstraint());
-                    }
-                    if (symbol.HasReferenceTypeConstraint) {
-                        Extensions.CreateAndAdd(ref constraintList, SyntaxFactory.ClassOrStructConstraint(SyntaxKind.ClassConstraint));
-                    }
-                    else if (symbol.HasValueTypeConstraint) {
-                        Extensions.CreateAndAdd(ref constraintList, SyntaxFactory.ClassOrStructConstraint(SyntaxKind.StructConstraint));
-                    }
-                    foreach (var ct in symbol.ConstraintTypes) {
-                        Extensions.CreateAndAdd(ref constraintList, SyntaxFactory.TypeConstraint(ct.ToTypeSyntax()));
-                    }
-                    if (constraintList != null && constraintList.Count > 0) {
-                        Extensions.CreateAndAdd(ref constraintClauseList, SyntaxFactory.TypeParameterConstraintClause(
-                            name: IdName(identifier),
-                            constraints: SyntaxFactory.SeparatedList(constraintList)));
-                    }
-                }
-            }
-            return parameterList;
-        }
-        //eg: symbol.IsFullNameEqual("List`1", "Generic", "Collections", "System")
-        internal static bool IsFullNameEqual(this ISymbol symbol, params string[] nameParts) {
+        internal static readonly string[] GuidNameParts = new string[] { "Guid", "System" };
+        internal static readonly string[] TimeSpanNameParts = new string[] { "TimeSpan", "System" };
+        internal static readonly string[] DateTimeOffsetNameParts = new string[] { "DateTimeOffset", "System" };
+        internal static readonly string[] Func2NameParts = new string[] { "Func`2", "System" };
+
+        internal static readonly string[] ICollection1NameParts = new string[] { "ICollection`1", "Generic", "Collections", "System" };
+        internal static readonly string[] IDictionary2TNameParts = new string[] { "IDictionary`2", "Generic", "Collections", "System" };
+        internal static readonly string[] ISet1NameParts = new string[] { "ISet`1", "Generic", "Collections", "System" };
+
+        //eg: symbol.FullNameEquals(new string[]{"List`1", "Generic", "Collections", "System"})
+        internal static bool FullNameEquals(this ISymbol symbol, string[] nameParts) {
             if (symbol == null) throw new ArgumentNullException("symbol");
             if (nameParts == null || nameParts.Length == 0) throw new ArgumentNullException("nameParts");
             var idx = 0;
@@ -1494,8 +1444,22 @@ namespace CData.Compiler {
             }
             return idx == nameParts.Length;
         }
+        internal static bool FullNameEquals(this ISymbol symbol, string[] genericTypeNameParts, string[] typeArgNameParts) {
+            if (symbol.FullNameEquals(genericTypeNameParts)) {
+                return ((INamedTypeSymbol)symbol).TypeArguments[0].FullNameEquals(typeArgNameParts);
+            }
+            return false;
+        }
+        internal static bool FullNameEquals(this ISymbol symbol, string[] genericTypeNameParts, string[] typeArg1NameParts, string[] typeArg2NameParts) {
+            if (symbol.FullNameEquals(genericTypeNameParts)) {
+                var typeArgs = ((INamedTypeSymbol)symbol).TypeArguments;
+                return typeArgs[0].FullNameEquals(typeArg1NameParts) && typeArgs[1].FullNameEquals(typeArg2NameParts);
+            }
+            return false;
+        }
+
         //eg: var idx = symbol.MatchFullNames(new []{"List`1", "Dictionary`2"}, new []{"Generic", "Collections", "System"});
-        //return value: -1: none; 0: symbol is List`1; 1: symbol is Dictionary`2 
+        //idx: -1: none; 0: symbol is List`1; 1: symbol is Dictionary`2 
         internal static int MatchFullNames(this ISymbol symbol, string[] typeNames, string[] outerNameParts) {
             if (symbol == null) throw new ArgumentNullException("symbol");
             if (typeNames == null || typeNames.Length == 0) throw new ArgumentNullException("typeNames");
@@ -1522,40 +1486,156 @@ namespace CData.Compiler {
             if (idx == fullLength) return result;
             return -1;
         }
+
+        internal static string[] GetFullName(this ISymbol symbol) {
+            if (symbol == null) throw new ArgumentNullException("symbol");
+            var list = new List<string>();
+            for (; symbol != null; symbol = symbol.ContainingSymbol) {
+                var name = symbol.MetadataName;
+                if (string.IsNullOrEmpty(name)) break;
+                list.Add(name);
+            }
+            if (list.Count == 0) throw new ArgumentException("symbol");
+            return list.ToArray();
+        }
+
+        internal static bool ThisOrBaseFullNameEquals(this INamedTypeSymbol symbol, string[] nameParts) {
+            for (; symbol != null; symbol = symbol.BaseType) {
+                if (symbol.FullNameEquals(nameParts)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         internal static AttributeData GetAttributeData(this ISymbol symbol, string[] nameParts) {
             foreach (var attData in symbol.GetAttributes()) {
-                if (attData.AttributeClass.IsFullNameEqual(nameParts)) {
+                if (attData.AttributeClass.FullNameEquals(nameParts)) {
                     return attData;
                 }
             }
             return null;
         }
-
-        
-        internal static INamedTypeSymbol TryGetBaseTypeSymbol(this INamedTypeSymbol symbol, params string[] fullNames) {
-            if (symbol == null) throw new ArgumentNullException("symbol");
-            //if (symbol.TypeKind != TypeKind.Class) return null;
-            for (symbol = symbol.BaseType; symbol != null; symbol = symbol.BaseType) {
-                if (symbol.IsFullNameEqual(fullNames)) return symbol;
+        internal static INamedTypeSymbol GetInterface(this ITypeSymbol typeSymbol, string[] nameParts) {
+            foreach (var itf in typeSymbol.AllInterfaces) {
+                if (itf.FullNameEquals(nameParts)) {
+                    return itf;
+                }
             }
             return null;
         }
-
-        internal static IPropertySymbol TryGetPropertySymbol(this INamedTypeSymbol symbol, string propertyName) {
-            return symbol.GetMembers(propertyName).OfType<IPropertySymbol>().FirstOrDefault();
-        }
-        internal static IEnumerable<IPropertySymbol> GetPropertySymbols(this INamedTypeSymbol symbol) {
-            return symbol.GetMembers().OfType<IPropertySymbol>();
-        }
-        internal static IEnumerable<IPropertySymbol> GetPropertySymbolsAfter(this INamedTypeSymbol thisSymbol, INamedTypeSymbol baseSymbol) {
-            if (thisSymbol.BaseType.Equals(baseSymbol)) return thisSymbol.GetPropertySymbols();
-            var pSymbolList = new List<IPropertySymbol>();
-            for (; thisSymbol != null; thisSymbol = thisSymbol.BaseType) {
-                if (thisSymbol.Equals(baseSymbol)) break;
-                pSymbolList.InsertRange(0, thisSymbol.GetPropertySymbols());
+        internal static INamedTypeSymbol GetSelfOrInterface(this ITypeSymbol typeSymbol, string[] nameParts) {
+            if (typeSymbol.FullNameEquals(nameParts)) {
+                return (INamedTypeSymbol)typeSymbol;
             }
-            return pSymbolList;
+            return GetInterface(typeSymbol, nameParts);
         }
+        internal static bool HasParameterlessConstructor(this INamedTypeSymbol typeSymbol) {
+            foreach (var methodSymbol in typeSymbol.InstanceConstructors) {
+                if (methodSymbol.Parameters.Length == 0) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        //internal static bool Isff(this IMethodSymbol methodSymbol) {
+
+        //}
+
+
+
+        //internal static string ToFullNameString(this ISymbol symbol) {
+        //    return symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        //}
+
+
+
+
+
+        //
+        //
+        //
+        //internal static NameSyntax ToNameSyntax(this string s) {
+        //    return SyntaxFactory.ParseName(s);
+        //}
+        //internal static ExpressionSyntax ToExprSyntax(this string s) {
+        //    return SyntaxFactory.ParseExpression(s);
+        //}
+        //internal static TypeSyntax ToTypeSyntax(this ISymbol symbol) {
+        //    return SyntaxFactory.ParseTypeName(symbol.ToFullNameString());
+        //}
+        //internal static NameSyntax ToNameSyntax(this ISymbol symbol) {
+        //    return SyntaxFactory.ParseName(symbol.ToFullNameString());
+        //}
+        //internal static List<TypeParameterSyntax> ToTypeParameterSyntaxList(ImmutableArray<ITypeParameterSymbol> symbols,
+        //    out List<TypeParameterConstraintClauseSyntax> constraintClauseList) {
+        //    List<TypeParameterSyntax> parameterList = null;
+        //    constraintClauseList = null;
+        //    if (symbols.Length > 0) {
+        //        parameterList = new List<TypeParameterSyntax>();
+        //        foreach (var symbol in symbols) {
+        //            var identifier = Id(symbol.Name.EscapeId());
+        //            SyntaxToken varianceKeyword = default(SyntaxToken);
+        //            //switch (symbol.Variance) {
+        //            //    case VarianceKind.In:
+        //            //        varianceKeyword = InToken;
+        //            //        break;
+        //            //    case VarianceKind.Out:
+        //            //        varianceKeyword = OutToken;
+        //            //        break;
+        //            //}
+        //            parameterList.Add(SyntaxFactory.TypeParameter(
+        //                attributeLists: default(SyntaxList<AttributeListSyntax>),
+        //                varianceKeyword: varianceKeyword,
+        //                identifier: identifier));
+        //            //
+        //            List<TypeParameterConstraintSyntax> constraintList = null;
+        //            if (symbol.HasConstructorConstraint) {
+        //                Extensions.CreateAndAdd(ref constraintList, SyntaxFactory.ConstructorConstraint());
+        //            }
+        //            if (symbol.HasReferenceTypeConstraint) {
+        //                Extensions.CreateAndAdd(ref constraintList, SyntaxFactory.ClassOrStructConstraint(SyntaxKind.ClassConstraint));
+        //            }
+        //            else if (symbol.HasValueTypeConstraint) {
+        //                Extensions.CreateAndAdd(ref constraintList, SyntaxFactory.ClassOrStructConstraint(SyntaxKind.StructConstraint));
+        //            }
+        //            foreach (var ct in symbol.ConstraintTypes) {
+        //                Extensions.CreateAndAdd(ref constraintList, SyntaxFactory.TypeConstraint(ct.ToTypeSyntax()));
+        //            }
+        //            if (constraintList != null && constraintList.Count > 0) {
+        //                Extensions.CreateAndAdd(ref constraintClauseList, SyntaxFactory.TypeParameterConstraintClause(
+        //                    name: IdName(identifier),
+        //                    constraints: SyntaxFactory.SeparatedList(constraintList)));
+        //            }
+        //        }
+        //    }
+        //    return parameterList;
+        //}
+
+        //internal static INamedTypeSymbol TryGetBaseTypeSymbol(this INamedTypeSymbol symbol, params string[] fullNames) {
+        //    if (symbol == null) throw new ArgumentNullException("symbol");
+        //    //if (symbol.TypeKind != TypeKind.Class) return null;
+        //    for (symbol = symbol.BaseType; symbol != null; symbol = symbol.BaseType) {
+        //        if (symbol.IsFullNameEqual(fullNames)) return symbol;
+        //    }
+        //    return null;
+        //}
+
+        //internal static IPropertySymbol TryGetPropertySymbol(this INamedTypeSymbol symbol, string propertyName) {
+        //    return symbol.GetMembers(propertyName).OfType<IPropertySymbol>().FirstOrDefault();
+        //}
+        //internal static IEnumerable<IPropertySymbol> GetPropertySymbols(this INamedTypeSymbol symbol) {
+        //    return symbol.GetMembers().OfType<IPropertySymbol>();
+        //}
+        //internal static IEnumerable<IPropertySymbol> GetPropertySymbolsAfter(this INamedTypeSymbol thisSymbol, INamedTypeSymbol baseSymbol) {
+        //    if (thisSymbol.BaseType.Equals(baseSymbol)) return thisSymbol.GetPropertySymbols();
+        //    var pSymbolList = new List<IPropertySymbol>();
+        //    for (; thisSymbol != null; thisSymbol = thisSymbol.BaseType) {
+        //        if (thisSymbol.Equals(baseSymbol)) break;
+        //        pSymbolList.InsertRange(0, thisSymbol.GetPropertySymbols());
+        //    }
+        //    return pSymbolList;
+        //}
         //internal static void GetAllPropertyAndFields(INamedTypeSymbol typeSymbol, ref Dictionary<string, ISymbol> symbolDict) {
         //    while (true) {
         //        if (typeSymbol.SpecialType == SpecialType.System_Object) {
@@ -1593,27 +1673,27 @@ namespace CData.Compiler {
 
 
 
-        internal static bool HasParameterlessConstructor(this INamedTypeSymbol symbol) {
-            if (symbol == null) throw new ArgumentNullException("symbol");
-            foreach (var ctor in symbol.InstanceConstructors) {
-                if (ctor.Parameters.Length == 0) {
-                    return true;
-                }
-            }
-            return false;
-        }
+        //internal static bool HasParameterlessConstructor(this INamedTypeSymbol symbol) {
+        //    if (symbol == null) throw new ArgumentNullException("symbol");
+        //    foreach (var ctor in symbol.InstanceConstructors) {
+        //        if (ctor.Parameters.Length == 0) {
+        //            return true;
+        //        }
+        //    }
+        //    return false;
+        //}
         //
         //
-        internal static T SetAnn<T>(this T node, out SyntaxAnnotation ann) where T : SyntaxNode {
-            ann = new SyntaxAnnotation();
-            return node.WithAdditionalAnnotations(ann);
-        }
-        internal static SyntaxNode TryGetAnnedNode(this SyntaxNode ancestor, SyntaxAnnotation ann) {
-            return ancestor.GetAnnotatedNodes(ann).FirstOrDefault();
-        }
-        internal static T TryGetAnnedNode<T>(this SyntaxNode ancestor, SyntaxAnnotation ann) where T : SyntaxNode {
-            return ancestor.GetAnnotatedNodes(ann).FirstOrDefault() as T;
-        }
+        //internal static T SetAnn<T>(this T node, out SyntaxAnnotation ann) where T : SyntaxNode {
+        //    ann = new SyntaxAnnotation();
+        //    return node.WithAdditionalAnnotations(ann);
+        //}
+        //internal static SyntaxNode TryGetAnnedNode(this SyntaxNode ancestor, SyntaxAnnotation ann) {
+        //    return ancestor.GetAnnotatedNodes(ann).FirstOrDefault();
+        //}
+        //internal static T TryGetAnnedNode<T>(this SyntaxNode ancestor, SyntaxAnnotation ann) where T : SyntaxNode {
+        //    return ancestor.GetAnnotatedNodes(ann).FirstOrDefault() as T;
+        //}
 
         //
         //
@@ -1677,6 +1757,122 @@ namespace CData.Compiler {
         //        CompilationContextBase.Report(new Error(CompilationContextBase.Subkind, errorSeverity, resultSourceSpan, 0, diag.Id, diag.GetMessage()));
         //    }
         //}
+
+    }
+    internal sealed class CSFullName : IEquatable<CSFullName> {
+        public static bool TryParse(string dottedName, out CSFullName result) {
+            result = null;
+            List<string> partList = null;
+            foreach (var i in dottedName.Split(_dotCharArray)) {
+                if (i.Length == 0) {
+                    return false;
+                }
+                var part = i.UnescapeId();
+                if (!SyntaxFacts.IsValidIdentifier(part)) {
+                    return false;
+                }
+                if (partList == null) {
+                    partList = new List<string>();
+                }
+                partList.Add(part);
+            }
+            partList.Reverse();
+            result = new CSFullName(partList.ToArray());
+            return true;
+        }
+        private static readonly char[] _dotCharArray = new char[] { '.' };
+        public CSFullName(string[] nameParts) {
+            if (nameParts == null || nameParts.Length == 0) throw new ArgumentNullException("nameParts");
+            NameParts = nameParts;
+        }
+        public CSFullName(CSFullName parent, string name) {
+            var parentNameParts = parent.NameParts;
+            var nameParts = new string[parentNameParts.Length + 1];
+            nameParts[0] = name;
+            Array.Copy(parentNameParts, 0, nameParts, 1, parentNameParts.Length);
+            NameParts = nameParts;
+        }
+        public readonly string[] NameParts;//eg: {"List`1", "Generic", "Collections", "System"}
+        public string LastName {
+            get { return NameParts[0]; }
+        }
+        public IEnumerable<string> Names {
+            get {
+                for (var i = NameParts.Length - 1; i >= 0; --i) {
+                    yield return NameParts[i];
+                }
+            }
+        }
+
+        private NameSyntax _fullNameSyntax;//global::@NS1.NS2.Type
+        internal NameSyntax FullNameSyntax {
+            get {
+                if (_fullNameSyntax == null) {
+                    foreach (var name in Names) {
+                        if (_fullNameSyntax == null) {
+                            _fullNameSyntax = CS.GlobalAliasQualifiedName(name.EscapeId());
+                        }
+                        else {
+                            _fullNameSyntax = CS.QualifiedName(_fullNameSyntax, name.EscapeId());
+                        }
+                    }
+                }
+                return _fullNameSyntax;
+            }
+        }
+        private ExpressionSyntax _fullExprSyntax;
+        internal ExpressionSyntax FullExprSyntax {
+            get {
+                if (_fullExprSyntax == null) {
+                    foreach (var name in Names) {
+                        if (_fullExprSyntax == null) {
+                            _fullExprSyntax = CS.GlobalAliasQualifiedName(name.EscapeId());
+                        }
+                        else {
+                            _fullExprSyntax = CS.MemberAccessExpr(_fullExprSyntax, name.EscapeId());
+                        }
+                    }
+                }
+                return _fullExprSyntax;
+            }
+        }
+
+
+        //
+        public bool Equals(CSFullName other) {
+            if ((object)this == (object)other) return true;
+            if ((object)other == null) return false;
+            var xParts = NameParts;
+            var yParts = other.NameParts;
+            if (xParts == yParts) return true;
+            var xCount = xParts.Length;
+            if (xCount != yParts.Length) return false;
+            for (var i = 0; i < xCount; ++i) {
+                if (xParts[i] != yParts[i]) return false;
+            }
+            return true;
+        }
+        public override bool Equals(object obj) {
+            return Equals(obj as CSFullName);
+        }
+        public override int GetHashCode() {
+            var parts = NameParts;
+            var count = Math.Min(parts.Length, 7);
+            var hash = 17;
+            for (var i = 0; i < count; ++i) {
+                hash = Extensions.AggregateHash(hash, parts[i].GetHashCode());
+            }
+            return hash;
+        }
+        public static bool operator ==(CSFullName left, CSFullName right) {
+            if ((object)left == null) {
+                return (object)right == null;
+            }
+            return left.Equals(right);
+        }
+        public static bool operator !=(CSFullName left, CSFullName right) {
+            return !(left == right);
+        }
 
     }
 

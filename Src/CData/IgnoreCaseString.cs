@@ -3,8 +3,8 @@
 namespace CData {
     public sealed class IgnoreCaseString : IEquatable<IgnoreCaseString>, IComparable<IgnoreCaseString> {
         private string _value;
-        private readonly bool _isReadOnly;
-        public IgnoreCaseString(string value, bool isReadOnly = true) {
+        private bool _isReadOnly;
+        public IgnoreCaseString(string value, bool isReadOnly = false) {
             Value = value;
             _isReadOnly = isReadOnly;
         }
@@ -33,9 +33,8 @@ namespace CData {
         public bool IsReadOnly {
             get { return _isReadOnly; }
         }
-        public IgnoreCaseString AsReadOnly() {
-            if (_isReadOnly) return this;
-            return new IgnoreCaseString(_value, true);
+        public void AsReadOnly() {
+            _isReadOnly = true;
         }
         private static readonly StringComparer _stringComparer = StringComparer.OrdinalIgnoreCase;
         public bool Equals(IgnoreCaseString other) {

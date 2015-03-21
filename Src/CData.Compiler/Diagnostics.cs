@@ -33,10 +33,14 @@ namespace CData.Compiler {
         ObjectSetKeyMustBeAtom,
 
         //
+        InvalidContractNamespaceAttribute,
         InvalidContractNamespaceAttributeUri,
         DuplicateContractNamespaceAttributeUri,
-        InvalidContractNamespaceAttributeCSharpNamespace,
+        InvalidContractNamespaceAttributeNamespaceName,
         ContractNamespaceAttributeRequired,
+
+
+
         InvalidContractClassAttributeName,
         DuplicateContractClassAttributeName,
         InvalidContractPropertyAttributeName,
@@ -135,6 +139,20 @@ namespace CData.Compiler {
         private readonly string[] _msgArgs;
         public string GetMessage() {
             switch (Code) {
+                case DiagCodeEx.InvalidContractNamespaceAttribute:
+                    return "Invalid ContractNamespaceAttribute.";
+                case DiagCodeEx.InvalidContractNamespaceAttributeUri:
+                    return "Invalid ContractNamespaceAttribute uri '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.DuplicateContractNamespaceAttributeUri:
+                    return "Duplicate ContractNamespaceAttribute uri '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.InvalidContractNamespaceAttributeNamespaceName:
+                    return "Invalid ContractNamespaceAttribute namespaceName '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.ContractNamespaceAttributeRequired:
+                    return "ContractNamespaceAttribute required for uri '{0}'.".InvFormat(_msgArgs);
+
+
+
+
                 //common
                 case DiagCodeEx.AliasSysReserved:
                     return "Alias 'sys' reserved.";

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Collections.Generic;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
@@ -6,139 +7,25 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace CData.Compiler {
-    internal sealed class CSNamespaceNameNode : List<string>, IEquatable<CSNamespaceNameNode> {
-        public CSNamespaceNameNode() { }
-        public CSNamespaceNameNode(IEnumerable<string> parts) : base(parts) { }
-        private string[] _nameParts;
-        public string[] NameParts {
-            get {
-                if (_nameParts == null) {
-                    _nameParts = this.ToArray();
-                    Array.Reverse(_nameParts);
-                }
-                return _nameParts;
-            }
-        }
 
-        public bool Equals(CSNamespaceNameNode other) {
-            if ((object)this == (object)other) return true;
-            if ((object)other == null) return false;
-            var count = Count;
-            if (count != other.Count) {
-                return false;
-            }
-            for (var i = 0; i < count; i++) {
-                if (this[i] != other[i]) {
-                    return false;
-                }
-            }
-            return true;
-        }
-        public override bool Equals(object obj) {
-            return Equals(obj as CSNamespaceNameNode);
-        }
-        public override int GetHashCode() {
-            var hash = 17;
-            var count = Math.Min(Count, 5);
-            for (var i = 0; i < count; i++) {
-                hash = Extensions.AggregateHash(hash, this[i].GetHashCode());
-            }
-            return hash;
-        }
-        public static bool operator ==(CSNamespaceNameNode left, CSNamespaceNameNode right) {
-            if ((object)left == null) {
-                return (object)right == null;
-            }
-            return left.Equals(right);
-        }
-        public static bool operator !=(CSNamespaceNameNode left, CSNamespaceNameNode right) {
-            return !(left == right);
-        }
-        private string _string;
-        public override string ToString() {
-            if (_string == null) {
-                var sb = Extensions.AcquireStringBuilder();
-                for (var i = 0; i < Count; ++i) {
-                    if (i > 0) {
-                        sb.Append('.');
-                    }
-                    sb.Append(this[i]);
-                }
-                _string = sb.ToStringAndRelease();
-            }
-            return _string;
-        }
-        //
-        private NameSyntax _csNonGlobalFullName;//@NS1.NS2
-        internal NameSyntax CSNonGlobalFullName {
-            get {
-                if (_csNonGlobalFullName == null) {
-                    foreach (var item in this) {
-                        if (_csNonGlobalFullName == null) {
-                            _csNonGlobalFullName = CS.IdName(item.EscapeId());
-                        }
-                        else {
-                            _csNonGlobalFullName = CS.QualifiedName(_csNonGlobalFullName, item.EscapeId());
-                        }
-                    }
-                }
-                return _csNonGlobalFullName;
-            }
-        }
-        private NameSyntax _csFullName;//global::@NS1.NS2
-        internal NameSyntax CSFullName {
-            get {
-                if (_csFullName == null) {
-                    foreach (var item in this) {
-                        if (_csFullName == null) {
-                            _csFullName = CS.GlobalAliasQualifiedName(item.EscapeId());
-                        }
-                        else {
-                            _csFullName = CS.QualifiedName(_csFullName, item.EscapeId());
-                        }
-                    }
-                }
-                return _csFullName;
-            }
-        }
-        private ExpressionSyntax _csFullExpr;//global::@NS1.NS2
-        internal ExpressionSyntax CSFullExpr {
-            get {
-                if (_csFullExpr == null) {
-                    foreach (var item in this) {
-                        if (_csFullExpr == null) {
-                            _csFullExpr = CS.GlobalAliasQualifiedName(item.EscapeId());
-                        }
-                        else {
-                            _csFullExpr = CS.MemberAccessExpr(_csFullExpr, item.EscapeId());
-                        }
-                    }
-                }
-                return _csFullExpr;
-            }
-        }
-    }
-    internal static class ExtensionsEx {
-        private volatile static char[] _dotCharArray = new char[] { '.' };
-        internal static string[] SplitDot(this string s) {
-            if (s == null) return null;
-            return s.Split(_dotCharArray, StringSplitOptions.None);// StringSplitOptions.RemoveEmptyEntries);
-        }
-
-    }
     internal static class CSEX {
-        internal static string[] GetIdsBySplitDot(string s) {
-            var arr = s.SplitDot();
-            if (arr == null || arr.Length == 0) return null;
-            foreach (var name in arr) {
-                if (!SyntaxFacts.IsValidIdentifier(name)) {
-                    return null;
+        internal static TextSpan GetTextSpan(SyntaxReference sr) {
+            if (sr != null) {
+                return GetTextSpan(sr.GetSyntax().GetLocation());
+            }
+            return default(TextSpan);
+        }
+        internal static TextSpan GetTextSpan(ISymbol symbol) {
+            if (symbol != null) {
+                var locations = symbol.Locations;
+                if (locations.Length > 0) {
+                    return GetTextSpan(locations[0]);
                 }
             }
-            return arr;
+            return default(TextSpan);
         }
         internal static TextSpan GetTextSpan(Location location) {
-            if (location.IsInSource) {
+            if (location != null && location.IsInSource) {
                 var csLineSpan = location.GetLineSpan();
                 if (csLineSpan.IsValid) {
                     var csTextSpan = location.SourceSpan;
@@ -153,17 +40,112 @@ namespace CData.Compiler {
         }
         //
         //
-        private static readonly string[] _IgnoreCaseStringNameParts = new string[] { "IgnoreCaseString", "CData" };
-        private static readonly string[] _BinaryNameParts = new string[] { "Binary", "CData" };
-        private static readonly string[] _GuidNameParts = new string[] { "Guid", "System" };
-        private static readonly string[] _TimeSpanNameParts = new string[] { "TimeSpan", "System" };
-        private static readonly string[] _DateTimeOffsetNameParts = new string[] { "DateTimeOffset", "System" };
+        internal static readonly string[] IgnoreCaseStringNameParts = new string[] { "IgnoreCaseString", "CData" };
+        internal static readonly string[] BinaryNameParts = new string[] { "Binary", "CData" };
+        internal static readonly string[] IOjectSet2NameParts = new string[] { "IOjectSet`2", "CData" };
+        internal static readonly string[] ContractNamespaceAttributeNameParts = new string[] { "ContractNamespaceAttribute", "CData" };
+        internal static readonly string[] ContractClassAttributeNameParts = new string[] { "ContractClassAttribute", "CData" };
+        internal static readonly string[] ContractPropertyAttributeNameParts = new string[] { "ContractPropertyAttribute", "CData" };
+
+        internal static int ProcessContractNamespaceAttributes(LogicalNamespaceMap nsMap, IAssemblySymbol assSymbol, bool isSource) {
+            var count = 0;
+            foreach (AttributeData attData in assSymbol.GetAttributes()) {
+                if (attData.AttributeClass.FullNameEquals(ContractNamespaceAttributeNameParts)) {
+                    var ctorArgs = attData.ConstructorArguments;
+                    string uri = null, fullNameStr = null;
+                    if (ctorArgs.Length == 2) {
+                        uri = ctorArgs[0].Value as string;
+                        if (uri != null) {
+                            fullNameStr = ctorArgs[1].Value as string;
+                        }
+                    }
+                    if (fullNameStr != null) {
+                        LogicalNamespace logicalNs;
+                        if (nsMap.TryGetValue(uri, out logicalNs)) {
+                            CSFullName fullName;
+                            if (CSFullName.TryParse(fullNameStr, out fullName)) {
+                                if (logicalNs.CSFullName == null) {
+                                    logicalNs.CSFullName = fullName;
+                                    logicalNs.IsCSRef = !isSource;
+                                    ++count;
+                                }
+                                else if (isSource) {
+                                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractNamespaceAttributeUri, uri),
+                                        GetTextSpan(attData.ApplicationSyntaxReference));
+                                }
+                            }
+                            else if (isSource) {
+                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttributeNamespaceName, fullNameStr),
+                                    GetTextSpan(attData.ApplicationSyntaxReference));
+                            }
+                        }
+                        else if (isSource) {
+                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttributeUri, uri),
+                                GetTextSpan(attData.ApplicationSyntaxReference));
+                        }
+                    }
+                    else if (isSource) {
+                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttribute),
+                            GetTextSpan(attData.ApplicationSyntaxReference));
+                    }
+                }
+            }
+            return count;
+        }
+
+        internal static void ProcessNamespace(LogicalNamespaceMap nsMap, INamespaceSymbol nsSymbol) {
+            if (!nsSymbol.IsGlobalNamespace) {
+                foreach (var logicalNs in nsMap.Values) {
+                    var nsInfo = logicalNs.NamespaceInfo;
+                    if (nsSymbol.FullNameEquals(nsInfo.CSFullName.NameParts)) {
+                        foreach (var typeSymbol in nsSymbol.GetMembers().OfType<INamedTypeSymbol>()) {
+                            if (typeSymbol.TypeKind == Microsoft.CodeAnalysis.TypeKind.Class) {
+                                ClassInfo clsInfo = null;
+                                var clsAttData = typeSymbol.GetAttributeData(ContractClassAttributeNameParts);
+                                if (clsAttData != null) {
+                                    if (typeSymbol.IsGenericType) {
+                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
+                                    }
+                                    var clsName = (string)clsAttData.ConstructorArguments[0].Value;
+                                    if (clsName == null) {
+                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName, clsName), default(TextSpan));
+                                    }
+                                    clsInfo = nsInfo.GetClass(clsName);
+                                    if (clsInfo == null) {
+                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName, clsName), default(TextSpan));
+                                    }
+                                }
+                                else if (!typeSymbol.IsGenericType) {
+                                    clsInfo = nsInfo.GetClass(typeSymbol.Name);
+                                }
+                                if (clsInfo != null) {
+                                    if (typeSymbol.IsStatic) {
+                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
+                                    }
+
+                                    if (clsInfo.CSName == null) {
+                                        //clsInfo.CSName = typeSymbol.Name;
+                                    }
+                                    else if (clsInfo.CSName != typeSymbol.Name) {
+                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractClassAttributeName), default(TextSpan));
+                                    }
+
+
+
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         internal static bool IsAtomType(TypeKind typeKind, ITypeSymbol typeSymbol) {
             switch (typeKind) {
                 case TypeKind.String:
                     return typeSymbol.SpecialType == SpecialType.System_String;
                 case TypeKind.IgnoreCaseString:
-                    return typeSymbol.IsFullNameEqual(_IgnoreCaseStringNameParts);
+                    return typeSymbol.FullNameEquals(IgnoreCaseStringNameParts);
                 case TypeKind.Int64:
                     return typeSymbol.SpecialType == SpecialType.System_Int64;
                 case TypeKind.Int32:
@@ -187,13 +169,13 @@ namespace CData.Compiler {
                 case TypeKind.Boolean:
                     return typeSymbol.SpecialType == SpecialType.System_Boolean;
                 case TypeKind.Binary:
-                    return typeSymbol.IsFullNameEqual(_BinaryNameParts);
+                    return typeSymbol.FullNameEquals(BinaryNameParts);
                 case TypeKind.Guid:
-                    return typeSymbol.IsFullNameEqual(_GuidNameParts);
+                    return typeSymbol.FullNameEquals(CS.GuidNameParts);
                 case TypeKind.TimeSpan:
-                    return typeSymbol.IsFullNameEqual(_TimeSpanNameParts);
+                    return typeSymbol.FullNameEquals(CS.TimeSpanNameParts);
                 case TypeKind.DateTimeOffset:
-                    return typeSymbol.IsFullNameEqual(_DateTimeOffsetNameParts);
+                    return typeSymbol.FullNameEquals(CS.DateTimeOffsetNameParts);
                 default:
                     throw new ArgumentException("Invalid type kind: " + typeKind.ToString());
             }

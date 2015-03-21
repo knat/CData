@@ -12,13 +12,13 @@ namespace CData.Compiler {
             get { return this[0].UriValue; }
         }
         public NamespaceInfo NamespaceInfo;
-        public CSNamespaceNameNode CSNamespaceName {
-            get { return NamespaceInfo.CSNamespaceName; }
-            set { NamespaceInfo.CSNamespaceName = value; }
+        public CSFullName CSFullName {
+            get { return NamespaceInfo.CSFullName; }
+            set { NamespaceInfo.CSFullName = value; }
         }
-        public bool IsCSNamespaceRef {
-            get { return NamespaceInfo.IsCSNamespaceRef; }
-            set { NamespaceInfo.IsCSNamespaceRef = value; }
+        public bool IsCSRef {
+            get { return NamespaceInfo.IsCSRef; }
+            set { NamespaceInfo.IsCSRef = value; }
         }
 
         public void CheckDuplicateMembers() {
@@ -373,9 +373,9 @@ namespace CData.Compiler {
         }
         public override TypeInfo CreateTypeInfo() {
             var itemTypeSymbol = Item.CreateTypeInfo();
-            List<PropertyInfo> selectorList = null;
+            ObjectSetKeySelector selector = null;
             if (IsObjectSet) {
-                selectorList = new List<PropertyInfo>();
+                selector = new ObjectSetKeySelector();
                 var clsTypeSymbol = (ClassRefTypeInfo)itemTypeSymbol;
                 var keyCount = KeyNameList.Count;
                 for (var i = 0; i < keyCount; ++i) {
@@ -392,13 +392,13 @@ namespace CData.Compiler {
                         if (i < keyCount - 1) {
                             DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidObjectSetKey), KeyNameList[i + 1].TextSpan);
                         }
-                        selectorList.Add(propSymbol);
+                        selector.Add(propSymbol);
                     }
                     else if (propTypeSymbol.Kind == TypeKind.Class) {
                         if (i == keyCount - 1) {
                             DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ObjectSetKeyMustBeAtom), keyName.TextSpan);
                         }
-                        selectorList.Add(propSymbol);
+                        selector.Add(propSymbol);
                         clsTypeSymbol = (ClassRefTypeInfo)propTypeSymbol;
                     }
                     else {
@@ -406,7 +406,7 @@ namespace CData.Compiler {
                     }
                 }
             }
-            return new CollectionTypeInfo(IsObjectSet ? TypeKind.ObjectSet : TypeKind.AtomSet, itemTypeSymbol, null, selectorList);
+            return new CollectionTypeInfo(IsObjectSet ? TypeKind.ObjectSet : TypeKind.AtomSet, itemTypeSymbol, null, selector);
         }
     }
     //map<key = value>

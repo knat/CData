@@ -509,7 +509,7 @@ namespace CData {
                 case TypeKind.String:
                     return s;
                 case TypeKind.IgnoreCaseString:
-                    return new IgnoreCaseString(s, true);
+                    return new IgnoreCaseString(s, false);
                 case TypeKind.Decimal: {
                         decimal r;
                         if (s.TryInvParse(out r)) {
@@ -596,7 +596,7 @@ namespace CData {
                     break;
                 case TypeKind.Binary: {
                         Binary r;
-                        if (Binary.TryFromBase64String(s, out r, true)) {
+                        if (Binary.TryFromBase64String(s, out r, false)) {
                             return r;
                         }
                     }

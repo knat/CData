@@ -14,8 +14,8 @@ namespace CData.Compiler {
         }
         public readonly string Uri;
         public readonly List<NamespaceMemberInfo> MemberList;
-        public CSNamespaceNameNode CSNamespaceName;
-        public bool IsCSNamespaceRef;
+        public CSFullName CSFullName;
+        public bool IsCSRef;
         public ClassInfo GetClass(string name) {
             foreach (var member in MemberList) {
                 if ((member.CSName ?? member.Name) == name) {
@@ -33,7 +33,10 @@ namespace CData.Compiler {
         }
         public readonly NamespaceInfo Namespace;
         public readonly string Name;
-        public string CSName;
+        public CSFullName CSFullName;
+        public string CSName {
+            get { return CSFullName.LastName; }
+        }
         public abstract TypeInfo CreateType();
     }
 
@@ -60,9 +63,21 @@ namespace CData.Compiler {
         public readonly bool IsSealed;
         public readonly ClassInfo BaseClass;//opt
         public readonly List<PropertyInfo> PropertyList;//opt
-        //public INamedTypeSymbol CSSymbol;
+        
 
-        //public string CSFullNameString;
+        //public string[] CSNameParts;
+        //public INamedTypeSymbol CSSymbol;
+        //private string _csFullNameString;
+        //public string CSFullNameString {
+        //    get {
+        //        if (_csFullNameString == null) {
+
+        //        }
+        //        return _csFullNameString;
+        //    }
+        //}
+
+
         //private NameSyntax _CSFullName;
         //public NameSyntax CSFullName {
         //    get { return _CSFullName ?? (_CSFullName = CSFullNameString.ToNameSyntax()); }
@@ -112,7 +127,7 @@ namespace CData.Compiler {
         public readonly TypeInfo Type;
         public string CSName;
         public bool IsCSProperty;
-        //public ISymbol CS
+        //public ITypeSymbol CSTypeSymbol;//opt
 
     }
 
@@ -122,6 +137,7 @@ namespace CData.Compiler {
         }
         public readonly TypeKind Kind;
         public bool IsNullable;
+        public abstract void CheckCSType(ITypeSymbol typeSymbol);
     }
     internal sealed class AtomRefTypeInfo : TypeInfo {
         public AtomRefTypeInfo(AtomInfo atom)
@@ -129,6 +145,11 @@ namespace CData.Compiler {
             Atom = atom;
         }
         public readonly AtomInfo Atom;
+        public override void CheckCSType(ITypeSymbol typeSymbol) {
+            if (!CSEX.IsAtomType(Kind, typeSymbol)) {
+                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
+            }
+        }
     }
     internal sealed class ClassRefTypeInfo : TypeInfo {
         public ClassRefTypeInfo(ClassInfo cls)
@@ -136,18 +157,65 @@ namespace CData.Compiler {
             Class = cls;
         }
         public readonly ClassInfo Class;
+        public override void CheckCSType(ITypeSymbol typeSymbol) {
+            if (typeSymbol.FullNameEquals(Class.CSFullName.NameParts)) {
+                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
+            }
+        }
+    }
+    internal sealed class ObjectSetKeySelector : List<PropertyInfo> {
+        public TypeInfo KeyType {
+            get { return this[Count - 1].Type; }
+        }
     }
     internal sealed class CollectionTypeInfo : TypeInfo {
         public CollectionTypeInfo(TypeKind kind, TypeInfo itemOrValueType, AtomRefTypeInfo keyType,
-            List<PropertyInfo> objectSetKeySelectorList)
+            ObjectSetKeySelector objectSetKeySelector)
             : base(kind) {
             ItemOrValueType = itemOrValueType;
             KeyType = keyType;
-            ObjectSetKeySelectorList = objectSetKeySelectorList;
+            ObjectSetKeySelector = objectSetKeySelector;
         }
         public readonly TypeInfo ItemOrValueType;
         public readonly AtomRefTypeInfo KeyType;//opt, for map
-        public readonly List<PropertyInfo> ObjectSetKeySelectorList;//opt
+        public readonly ObjectSetKeySelector ObjectSetKeySelector;//opt
+        public override void CheckCSType(ITypeSymbol typeSymbol) {
+            var kind = Kind;
+            if (kind == TypeKind.List) {
+                var collSymbol = typeSymbol.GetSelfOrInterface(CS.ICollection1NameParts);
+                if (collSymbol == null) {
+                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
+                }
+                ItemOrValueType.CheckCSType(collSymbol.TypeArguments[0]);
+            }
+            else if (kind == TypeKind.Map) {
+                var dictSymbol = typeSymbol.GetSelfOrInterface(CS.IDictionary2TNameParts);
+                if (dictSymbol == null) {
+                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
+                }
+                var typeArgs = dictSymbol.TypeArguments;
+                KeyType.CheckCSType(typeArgs[0]);
+                ItemOrValueType.CheckCSType(typeArgs[1]);
+            }
+            else if (kind == TypeKind.ObjectSet) {
+                var objSetSymbol = typeSymbol.GetSelfOrInterface(CSEX.IOjectSet2NameParts);
+                if (objSetSymbol == null) {
+                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
+                }
+                var typeArgs = objSetSymbol.TypeArguments;
+                ObjectSetKeySelector.KeyType.CheckCSType(typeArgs[0]);
+                ItemOrValueType.CheckCSType(typeArgs[1]);
+            }
+            else {//ATomSet
+                var setSymbol = typeSymbol.GetSelfOrInterface(CS.ISet1NameParts);
+                if (setSymbol == null) {
+                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
+                }
+                ItemOrValueType.CheckCSType(setSymbol.TypeArguments[0]);
+
+            }
+
+        }
     }
 
 
