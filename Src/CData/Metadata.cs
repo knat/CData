@@ -4,19 +4,6 @@ using System.Collections.Generic;
 using System.Reflection;
 
 namespace CData {
-    public abstract class ProgramMetadata {
-        private volatile Dictionary<FullName, ClassTypeMetadata> _objectMap;
-        protected abstract Dictionary<FullName, ClassTypeMetadata> GetObjectMap();
-        public ClassTypeMetadata TryGetObject(FullName fullName) {
-            ClassTypeMetadata obj;
-            var map = _objectMap ?? (_objectMap = GetObjectMap());
-            if (map.TryGetValue(fullName, out obj)) {
-                return obj;
-            }
-            return null;
-        }
-    }
-
     public enum TypeKind : byte {
         None = 0,
         Class,
@@ -45,6 +32,30 @@ namespace CData {
         DateTimeOffset,
     }
     public abstract class TypeMetadata {
+        private static readonly HashSet<Assembly> _assemblySet = new HashSet<Assembly>();
+        public static void Initialize(Assembly assembly) {
+            if (assembly == null) throw new ArgumentNullException("assembly");
+            bool added;
+            lock (_assemblySet) {
+                added = _assemblySet.Add(assembly);
+            }
+            if (added) {
+                RunClassConstructors(assembly);
+            }
+        }
+        private static void RunClassConstructors(Assembly assembly) {
+            var att = assembly.GetCustomAttribute<ContractTypesAttribute>();
+            if (att != null) {
+                var types = att.Types;
+                if (types != null) {
+                    foreach (var type in types) {
+                        if (type != null) {
+                            System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(type.TypeHandle);
+                        }
+                    }
+                }
+            }
+        }
         protected TypeMetadata(TypeKind kind, bool isNullable, Type clrType) {
             Kind = kind;
             IsNullable = isNullable;
@@ -71,11 +82,6 @@ namespace CData {
         public bool IsObjectSet {
             get {
                 return Kind == TypeKind.ObjectSet;
-            }
-        }
-        public bool IsSet {
-            get {
-                return Kind == TypeKind.AtomSet || Kind == TypeKind.ObjectSet;
             }
         }
         public bool IsMap {
@@ -145,12 +151,15 @@ namespace CData {
             MapKeyType = mapKeyType;
             ObjectSetKeySelector = objectSetKeySelector;
             var ti = clrType.GetTypeInfo();
-            ClrConstructor = Extensions.GetConstructor(ti, objectSetKeySelector == null ? 0 : 1);
+            ClrConstructor = Extensions.GetParameterlessConstructor(ti);
             ClrAddMethod = Extensions.GetMethodInHierarchy(ti, "Add");
             if (kind == TypeKind.Map) {
                 ClrContainsKeyMethod = Extensions.GetMethodInHierarchy(ti, "ContainsKey");
                 ClrKeysProperty = Extensions.GetPropertyInHierarchy(ti, "Keys");
                 ClrValuesProperty = Extensions.GetPropertyInHierarchy(ti, "Values");
+            }
+            else if (kind == TypeKind.ObjectSet) {
+                ClrKeySelectorProperty = Extensions.GetPropertyInHierarchy(ti, "KeySelector");
             }
         }
         public readonly TypeMetadata ItemOrValueType;
@@ -161,8 +170,13 @@ namespace CData {
         public readonly MethodInfo ClrContainsKeyMethod;//for map
         public readonly PropertyInfo ClrKeysProperty;//for map
         public readonly PropertyInfo ClrValuesProperty;//for map
+        public readonly PropertyInfo ClrKeySelectorProperty;//for object set
         public object CreateInstance() {
-            return ClrConstructor.Invoke(ObjectSetKeySelector == null ? null : new object[] { ObjectSetKeySelector });
+            var obj = ClrConstructor.Invoke(null);
+            if (IsObjectSet) {
+                ClrKeySelectorProperty.SetValue(obj, ObjectSetKeySelector);
+            }
+            return obj;
         }
         public void InvokeAdd(object obj, object item) {
             ClrAddMethod.Invoke(obj, new object[] { item });
@@ -183,19 +197,34 @@ namespace CData {
             return (IEnumerable)ClrValuesProperty.GetValue(obj);
         }
     }
+
     public sealed class ClassTypeMetadata : TypeMetadata {
+        private static readonly Dictionary<FullName, ClassTypeMetadata> _clsMap = new Dictionary<FullName, ClassTypeMetadata>();
+        private static void Add(FullName fullName, ClassTypeMetadata cls) {
+            lock (_clsMap) {
+                _clsMap.Add(fullName, cls);
+            }
+        }
+        public static ClassTypeMetadata Get(FullName fullName) {
+            ClassTypeMetadata cls;
+            lock (_clsMap) {
+                _clsMap.TryGetValue(fullName, out cls);
+            }
+            return cls;
+        }
         public ClassTypeMetadata(bool isNullable, Type clrType,
             FullName fullName, bool isAbstract, ClassTypeMetadata baseClass, PropertyMetadata[] properties,
-            string onLoadingName, string onLoadedName, ProgramMetadata program)
+            string onLoadingName, string onLoadedName)
             : base(TypeKind.Class, isNullable, clrType) {
+            Add(fullName, this);
             FullName = fullName;
             IsAbstract = isAbstract;
             BaseClass = baseClass;
             _properties = properties;
-            Program = program;
-            var ti = clrType.GetTypeInfo();
+            TypeInfo ti = clrType.GetTypeInfo();
+            Initialize(ti.Assembly);//??
             if (!isAbstract) {
-                ClrConstructor = Extensions.GetConstructor(ti, 0);
+                ClrConstructor = Extensions.GetParameterlessConstructor(ti);
             }
             if (baseClass == null) {
                 ClrTextSpanProperty = Extensions.GetPropertyInHierarchy(ti, "__TextSpan");
@@ -216,15 +245,14 @@ namespace CData {
         public readonly bool IsAbstract;
         public readonly ClassTypeMetadata BaseClass;
         private readonly PropertyMetadata[] _properties;
-        public readonly ProgramMetadata Program;
         public readonly ConstructorInfo ClrConstructor;//for non abstract class
         public readonly PropertyInfo ClrTextSpanProperty;//for top class
         public readonly MethodInfo ClrOnLoadingMethod;//opt
         public readonly MethodInfo ClrOnLoadedMethod;//opt
         public bool IsEqualToOrDeriveFrom(ClassTypeMetadata other) {
             if (other == null) throw new ArgumentNullException("other");
-            for (var info = this; info != null; info = info.BaseClass) {
-                if (info == other) {
+            for (var cls = this; cls != null; cls = cls.BaseClass) {
+                if (cls == other) {
                     return true;
                 }
             }

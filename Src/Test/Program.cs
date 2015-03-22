@@ -5,22 +5,66 @@ using CData;
 using Microsoft.CodeAnalysis.CSharp;
 using System.IO;
 using Microsoft.CodeAnalysis;
+using System.Reflection;
 
 //[assembly: UriNamespaceMap]
 //[assembly: UriNamespaceMap]
+
+class X {
+    static X() {
+        Console.WriteLine("X");
+        System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(ZZZ).TypeHandle);
+    }
+}
+
+
+
+internal class ZZZ {
+    public static X x = new X();
+    static ZZZ() {
+        Console.WriteLine("ZZZ");
+        System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(X).TypeHandle);
+    }
+}
 
 namespace Test {
     class Program {
         static void Main(string[] args) {
-            //Test();
-            RoslynTest();
+            Test();
+            //RoslynTest();
+            //Console.WriteLine("fd");
         }
         static void Test() {
-            var dd = "".Substring(1);
-            var s = "".Split(new char[] { '.' } );
-       var gs=     SyntaxFacts.IsValidIdentifier("int ");
-        }
+            //var ass1 = typeof(Program).Assembly;
+            //var ass2 = typeof(ZZZ).Assembly;
+            //var e = ass1 == ass2;
 
+            //var s = typeof(ZZZ);
+            System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(ZZZ).TypeHandle);
+            System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(ZZZ).TypeHandle);
+            System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(X).TypeHandle);
+
+            //System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(ZZZ).TypeHandle);
+            //System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(ZZZ).TypeHandle);
+
+            //AppDomain currentDomain = AppDomain.CurrentDomain;
+            //currentDomain.AssemblyLoad += new AssemblyLoadEventHandler(MyAssemblyLoadEventHandler);
+            //PrintLoadedAssemblies(currentDomain);
+       //     var dd = "".Substring(1);
+       //     var s = "".Split(new char[] { '.' } );
+       //var gs=     SyntaxFacts.IsValidIdentifier("int ");
+        }
+        static void PrintLoadedAssemblies(AppDomain domain) {
+            Console.WriteLine("LOADED ASSEMBLIES:");
+            foreach (Assembly a in domain.GetAssemblies()) {
+                Console.WriteLine(a.FullName);
+            }
+            Console.WriteLine();
+        }
+        static void MyAssemblyLoadEventHandler(object sender, AssemblyLoadEventArgs args) {
+            Console.WriteLine("ASSEMBLY LOADED: " + args.LoadedAssembly.FullName);
+            Console.WriteLine();
+        }
         private static readonly CSharpCompilationOptions _compilationOptions = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
         static void RoslynTest() {
 
@@ -67,6 +111,7 @@ namespace Test {
         class Derivied : Base { }
         static void XX() {
             ICollection<Derivied> f = new List<Derivied>();
+            //AppDomain
             //Func<int>
             //ISet<int> f;
         }

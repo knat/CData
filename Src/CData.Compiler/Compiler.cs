@@ -100,28 +100,38 @@ namespace CData.Compiler {
                             options: csParseOpts, path: csFile)),
                         references: csRefList,
                         options: _compilationOptions);
-                    var compilationAssembly = csCompilation.Assembly;
-                    var attCount = CSEX.ProcessContractNamespaceAttributes(nsMap, compilationAssembly, true);
-                    if (attCount > 0) {
-                        if (attCount < nsMap.Count) {
-                            if (csRefList != null) {
-                                foreach (var csRef in csRefList) {
-                                    if (csRef.Properties.Kind == MetadataImageKind.Assembly) {
-                                        var assSymbol = csCompilation.GetAssemblyOrModuleSymbol(csRef) as IAssemblySymbol;
-                                        if (assSymbol != null) {
-                                            CSEX.ProcessContractNamespaceAttributes(nsMap, assSymbol, false);
-                                        }
+                    List<IAssemblySymbol> refAssSymbolList = null;
+                    if (csRefList != null) {
+                        foreach (var csRef in csRefList) {
+                            if (csRef.Properties.Kind == MetadataImageKind.Assembly) {
+                                var assSymbol = csCompilation.GetAssemblyOrModuleSymbol(csRef) as IAssemblySymbol;
+                                if (assSymbol != null) {
+                                    if (CSEX.MapNamespaces(nsMap, assSymbol, false) > 0) {
+                                        Extensions.CreateAndAdd(ref refAssSymbolList, assSymbol);
                                     }
                                 }
                             }
-                            foreach (var logicalNs in nsMap.Values) {
-                                if (logicalNs.CSFullName == null) {
-                                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractNamespaceAttributeRequired, logicalNs.Uri), default(TextSpan));
-                                }
+                        }
+                    }
+                    var csCompilationAssSymbol = csCompilation.Assembly;
+                    if (CSEX.MapNamespaces(nsMap, csCompilationAssSymbol, true) > 0) {
+                        foreach (var logicalNs in nsMap.Values) {
+                            if (logicalNs.CSFullName == null) {
+                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractNamespaceAttributeRequired, logicalNs.Uri), default(TextSpan));
                             }
                         }
-                        //
-
+                        if (refAssSymbolList != null) {
+                            foreach (var refAssSymbol in refAssSymbolList) {
+                                CSEX.MapClasses(nsMap, refAssSymbol.GlobalNamespace);
+                            }
+                        }
+                        CSEX.MapClasses(nsMap, csCompilationAssSymbol.GlobalNamespace);
+                        foreach (var logicalNs in nsMap.Values) {
+                            logicalNs.NamespaceInfo.SetMembersCSFullName();
+                        }
+                        foreach (var logicalNs in nsMap.Values) {
+                            logicalNs.NamespaceInfo.MapAndCheckClassProperties();
+                        }
 
 
                     }
@@ -202,59 +212,5 @@ namespace CData.Compiler {
         }
 
 
-
-        private static void ProcessClass(ClassInfo clsInfo, INamedTypeSymbol typeSymbol) {
-            foreach (var memberSymbol in typeSymbol.GetMembers()) {
-                var propSymbol = memberSymbol as IPropertySymbol;
-                var fieldSymbol = memberSymbol as IFieldSymbol;
-                if (propSymbol != null || fieldSymbol != null) {
-                    PropertyInfo propInfo = null;
-                    var propAttData = memberSymbol.GetAttributeData(CSEX.ContractPropertyAttributeNameParts);
-                    if (propAttData != null) {
-                        var propName = (string)propAttData.ConstructorArguments[0].Value;
-                        if (propName == null) {
-                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
-                        }
-                        propInfo = clsInfo.GetPropertyInHierarchy(propName);
-                        if (propInfo == null) {
-                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
-                        }
-                    }
-                    else {
-                        propInfo = clsInfo.GetPropertyInHierarchy(memberSymbol.Name);
-                    }
-                    if (propInfo != null) {
-                        if (memberSymbol.IsStatic) {
-                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
-                        }
-                        if (propSymbol != null) {
-                            if (propSymbol.IsReadOnly || propSymbol.IsWriteOnly) {
-                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
-                            }
-                        }
-                        else {
-                            if (fieldSymbol.IsConst) {
-                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
-                            }
-                        }
-                        if (propInfo.CSName == null) {
-                            propInfo.CSName = memberSymbol.Name;
-                        }
-                        else {
-                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
-                        }
-                        propInfo.IsCSProperty = propSymbol != null;
-
-                    }
-
-                }
-
-            }
-        }
-
-        private static void ProcessProperty(PropertyInfo propInfo, ITypeSymbol typeSymbol) {
-
-
-        }
     }
 }

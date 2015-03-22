@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace CData {
     public interface IObjectSet<TKey, TObject> : ICollection<TObject> {
-        TKey GetObjectKey(TObject obj);
+        Func<TObject, TKey> KeySelector { get; set; }
         new bool Add(TObject obj);
         TObject this[TKey key] { get; }
         ICollection<TKey> Keys { get; }
@@ -12,17 +12,20 @@ namespace CData {
         bool Remove(TKey key);
     }
     public class ObjectSet<TKey, TObject> : IObjectSet<TKey, TObject> {
+        public ObjectSet() : this(null, null) { }
         public ObjectSet(Func<TObject, TKey> keySelector) : this(keySelector, null) { }
         public ObjectSet(Func<TObject, TKey> keySelector, IEqualityComparer<TKey> keyComparer) {
-            if (keySelector == null) throw new ArgumentNullException("keySelector");
             _keySelector = keySelector;
             _dict = new Dictionary<TKey, TObject>(keyComparer);
         }
         private readonly Dictionary<TKey, TObject> _dict;
-        private readonly Func<TObject, TKey> _keySelector;
+        private Func<TObject, TKey> _keySelector;
         public Func<TObject, TKey> KeySelector {
             get {
                 return _keySelector;
+            }
+            set {
+                _keySelector = value;
             }
         }
         public IEqualityComparer<TKey> KeyComparer {
@@ -30,13 +33,15 @@ namespace CData {
                 return _dict.Comparer;
             }
         }
-        public TKey GetObjectKey(TObject obj) {
-            return _keySelector(obj);
-        }
         public int Count {
             get {
                 return _dict.Count;
             }
+        }
+        private TKey GetObjectKey(TObject obj) {
+            var keySelector = _keySelector;
+            if (keySelector == null) throw new ArgumentNullException("keySelector");
+            return keySelector(obj);
         }
         public bool Add(TObject obj) {
             var key = GetObjectKey(obj);

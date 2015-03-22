@@ -8,17 +8,6 @@ namespace CData {
         }
         public readonly string Uri;
         public readonly string Name;
-        public bool IsValid {
-            get {
-                return Name != null;
-            }
-        }
-        public override string ToString() {
-            if (IsValid) {
-                return "{" + Uri + "}" + Name;
-            }
-            return null;
-        }
         public bool Equals(FullName other) {
             return Uri == other.Uri && Name == other.Name;
         }
@@ -26,16 +15,16 @@ namespace CData {
             return obj is FullName && Equals((FullName)obj);
         }
         public override int GetHashCode() {
-            if (IsValid) {
-                return Extensions.CombineHash(Uri.GetHashCode(), Name.GetHashCode());
-            }
-            return 0;
+            return Extensions.CombineHash(Uri.GetHashCode(), Name.GetHashCode());
         }
         public static bool operator ==(FullName left, FullName right) {
             return left.Equals(right);
         }
         public static bool operator !=(FullName left, FullName right) {
             return !left.Equals(right);
+        }
+        public override string ToString() {
+            return "{" + Uri + "}" + Name;
         }
     }
 }

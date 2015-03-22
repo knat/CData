@@ -349,7 +349,7 @@ namespace CData {
                 var hasUriAliasingList = UriAliasingList();
                 TokenExpected('{');
                 var fullName = new FullName(GetUri(aliasNode), nameNode.Value);
-                var clsMd = declaredClsMd.Program.TryGetObject(fullName);
+                var clsMd = ClassTypeMetadata.Get(fullName);
                 if (clsMd == null) {
                     ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidClassReference, fullName.ToString()), nameNode.TextSpan);
                 }

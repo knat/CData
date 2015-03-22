@@ -9,6 +9,12 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace CData.Compiler {
 
     internal static class CSEX {
+        internal static TextSpan GetTextSpan(AttributeData attData) {
+            if (attData != null) {
+                return GetTextSpan(attData.ApplicationSyntaxReference);
+            }
+            return default(TextSpan);
+        }
         internal static TextSpan GetTextSpan(SyntaxReference sr) {
             if (sr != null) {
                 return GetTextSpan(sr.GetSyntax().GetLocation());
@@ -47,7 +53,7 @@ namespace CData.Compiler {
         internal static readonly string[] ContractClassAttributeNameParts = new string[] { "ContractClassAttribute", "CData" };
         internal static readonly string[] ContractPropertyAttributeNameParts = new string[] { "ContractPropertyAttribute", "CData" };
 
-        internal static int ProcessContractNamespaceAttributes(LogicalNamespaceMap nsMap, IAssemblySymbol assSymbol, bool isSource) {
+        internal static int MapNamespaces(LogicalNamespaceMap nsMap, IAssemblySymbol assSymbol, bool isInSource) {
             var count = 0;
             foreach (AttributeData attData in assSymbol.GetAttributes()) {
                 if (attData.AttributeClass.FullNameEquals(ContractNamespaceAttributeNameParts)) {
@@ -66,81 +72,93 @@ namespace CData.Compiler {
                             if (CSFullName.TryParse(fullNameStr, out fullName)) {
                                 if (logicalNs.CSFullName == null) {
                                     logicalNs.CSFullName = fullName;
-                                    logicalNs.IsCSRef = !isSource;
+                                    logicalNs.IsCSRef = !isInSource;
                                     ++count;
                                 }
-                                else if (isSource) {
+                                else {// if (isInSource) {
                                     DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractNamespaceAttributeUri, uri),
-                                        GetTextSpan(attData.ApplicationSyntaxReference));
+                                        GetTextSpan(attData));
                                 }
                             }
-                            else if (isSource) {
+                            else {//if (isInSource) {
                                 DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttributeNamespaceName, fullNameStr),
-                                    GetTextSpan(attData.ApplicationSyntaxReference));
+                                    GetTextSpan(attData));
                             }
                         }
-                        else if (isSource) {
+                        else if (isInSource) {
                             DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttributeUri, uri),
-                                GetTextSpan(attData.ApplicationSyntaxReference));
+                                GetTextSpan(attData));
                         }
                     }
-                    else if (isSource) {
+                    else if (isInSource) {
                         DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttribute),
-                            GetTextSpan(attData.ApplicationSyntaxReference));
+                            GetTextSpan(attData));
                     }
                 }
             }
             return count;
         }
-
-        internal static void ProcessNamespace(LogicalNamespaceMap nsMap, INamespaceSymbol nsSymbol) {
+        internal static string GetFirstArgumentAsString(AttributeData attData) {
+            var ctorArgs = attData.ConstructorArguments;
+            if (ctorArgs.Length > 0) {
+                return ctorArgs[0].Value as string;
+            }
+            return null;
+        }
+        internal static void MapClasses(LogicalNamespaceMap nsMap, INamespaceSymbol nsSymbol) {
             if (!nsSymbol.IsGlobalNamespace) {
                 foreach (var logicalNs in nsMap.Values) {
                     var nsInfo = logicalNs.NamespaceInfo;
                     if (nsSymbol.FullNameEquals(nsInfo.CSFullName.NameParts)) {
                         foreach (var typeSymbol in nsSymbol.GetMembers().OfType<INamedTypeSymbol>()) {
                             if (typeSymbol.TypeKind == Microsoft.CodeAnalysis.TypeKind.Class) {
-                                ClassInfo clsInfo = null;
                                 var clsAttData = typeSymbol.GetAttributeData(ContractClassAttributeNameParts);
                                 if (clsAttData != null) {
                                     if (typeSymbol.IsGenericType) {
-                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
+                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractClassCannotBeGeneric), GetTextSpan(typeSymbol));
                                     }
-                                    var clsName = (string)clsAttData.ConstructorArguments[0].Value;
-                                    if (clsName == null) {
-                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName, clsName), default(TextSpan));
-                                    }
-                                    clsInfo = nsInfo.GetClass(clsName);
-                                    if (clsInfo == null) {
-                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName, clsName), default(TextSpan));
-                                    }
-                                }
-                                else if (!typeSymbol.IsGenericType) {
-                                    clsInfo = nsInfo.GetClass(typeSymbol.Name);
-                                }
-                                if (clsInfo != null) {
                                     if (typeSymbol.IsStatic) {
-                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
+                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractClassCannotBeStatic), GetTextSpan(typeSymbol));
                                     }
-
-                                    if (clsInfo.CSName == null) {
-                                        //clsInfo.CSName = typeSymbol.Name;
+                                    var clsName = GetFirstArgumentAsString(clsAttData);
+                                    if (clsName == null) {
+                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttribute), GetTextSpan(clsAttData));
                                     }
-                                    else if (clsInfo.CSName != typeSymbol.Name) {
-                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractClassAttributeName), default(TextSpan));
+                                    ClassInfo clsInfo = nsInfo.GetClass(clsName);
+                                    if (clsInfo == null) {
+                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName, clsName), GetTextSpan(clsAttData));
                                     }
-
-
-
+                                    if (clsInfo.CSClassSymbol != null) {
+                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractClassAttributeName, clsName), GetTextSpan(clsAttData));
+                                    }
+                                    clsInfo.CSClassSymbol = typeSymbol;
+                                }
+                            }
+                        }
+                        foreach (var typeSymbol in nsSymbol.GetMembers().OfType<INamedTypeSymbol>()) {
+                            if (typeSymbol.TypeKind == Microsoft.CodeAnalysis.TypeKind.Class && !typeSymbol.IsGenericType) {
+                                var clsName = typeSymbol.Name;
+                                ClassInfo clsInfo = nsInfo.GetClass(clsName);
+                                if (clsInfo != null) {
+                                    if (clsInfo.CSClassSymbol == null) {
+                                        if (typeSymbol.IsStatic) {
+                                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractClassCannotBeStatic), GetTextSpan(typeSymbol));
+                                        }
+                                        clsInfo.CSClassSymbol = typeSymbol;
+                                    }
                                 }
                             }
                         }
                     }
                 }
             }
+            foreach (var subNsSymbol in nsSymbol.GetNamespaceMembers()) {
+                MapClasses(nsMap, subNsSymbol);
+            }
         }
 
-        internal static bool IsAtomType(TypeKind typeKind, ITypeSymbol typeSymbol) {
+
+        private static bool IsAtomType(TypeKind typeKind, ITypeSymbol typeSymbol) {
             switch (typeKind) {
                 case TypeKind.String:
                     return typeSymbol.SpecialType == SpecialType.System_String;

@@ -279,18 +279,18 @@ namespace CData {
         }
         //
         //
-        internal static ConstructorInfo TryGetConstructor(TypeInfo ti, int paraCount) {
+        internal static ConstructorInfo TryGetParameterlessConstructor(TypeInfo ti) {
             foreach (var ci in ti.DeclaredConstructors) {
-                if (ci.GetParameters().Length == paraCount) {
+                if (ci.GetParameters().Length == 0) {
                     return ci;
                 }
             }
             return null;
         }
-        internal static ConstructorInfo GetConstructor(TypeInfo ti, int paraCount) {
-            var r = TryGetConstructor(ti, paraCount);
+        internal static ConstructorInfo GetParameterlessConstructor(TypeInfo ti) {
+            var r = TryGetParameterlessConstructor(ti);
             if (r != null) return r;
-            throw new ArgumentException("Cannot get {0} parameter constructor of '{1}'.".InvFormat(paraCount.ToInvString(), ti.FullName));
+            throw new ArgumentException("Cannot get parameterless constructor: " + ti.FullName);
         }
         internal static PropertyInfo TryGetPropertyInHierarchy(TypeInfo ti, string name) {
             while (true) {

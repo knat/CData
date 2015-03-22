@@ -38,92 +38,22 @@ namespace CData.Compiler {
         DuplicateContractNamespaceAttributeUri,
         InvalidContractNamespaceAttributeNamespaceName,
         ContractNamespaceAttributeRequired,
-
-
-
+        InvalidContractClassAttribute,
         InvalidContractClassAttributeName,
         DuplicateContractClassAttributeName,
+        ContractClassCannotBeGeneric,
+        ContractClassCannotBeStatic,
+        InvalidContractPropertyAttribute,
         InvalidContractPropertyAttributeName,
+        DuplicateContractPropertyAttributeName,
+        ContractPropertyOrFieldCannotBeStatic,
+        ContractPropertyMustHaveGetterAndSetter,
+        ContractPropertyCannotBeIndexer,
+        ContractFieldCannotBeConst,
+        InvalidContractPropertyOrFieldType,
+        InvalidContractPropertyOrFieldCollectionType,
 
-        
 
-
-
-
-
-        //
-        //
-        InvalidElementNameReference,
-
-        //facets
-        UInt64ValueRequired,
-        ByteValueRequired,
-        FacetNotAllowedForType,
-        MaxLengthNotGreaterThanOrEqualToMinLength,
-        MinLengthNotGreaterThanOrEqualToBaseMinLength,
-        MaxLengthNotLessThanOrEqualToBaseMaxLength,
-        PrecisionCannotBeZero,
-        ScaleNotLessThanOrEqualToPrecision,
-        PrecisionNotLessThanOrEqualToBasePrecision,
-        ScaleNotLessThanOrEqualToBaseScale,
-        InvalidPattern,
-        InvalidLiteralForType,
-        DuplicateEnumItemName,
-        EnumItemNameNotAllowedInRestriction,
-        EnumItemNotInBaseEnum,
-        MinValueNotGreaterThanOrEqualToBaseMinValue,
-        MinValueNotGreaterThanBaseMinValue,
-        MaxValueNotLessThanOrEqualToBaseMaxValue,
-        MaxValueNotLessThanBaseMaxValue,
-        MaxValueNotGreaterThanOrEqualToMinValue,
-        MaxValueNotGreaterThanMinValue,
-
-        //type
-        SimpleTypeRequired,
-        ComplexTypeRequired,
-        BaseTypeSealed,
-        CannotExtendOrRestrictSysComplexType,
-        CannotRestrictSysSimpleAtomListType,
-        CannotExtendSimpleChildWithComplexChildren,
-        CannotExtendChildrenWithSimpleChild,
-        CannotRestrictSimpleChildWithComplexChildren,
-        CannotRestrictComplexChildrenWithSimpleChild,
-        CannotRestrictNullSimpleChild,
-        AttributesChildrenNotAllowedInSimpleTypeRestriction,
-        FacetsNotAllowedInComplexTypeRestriction,
-        TypeNotEqualToOrDeriveFrom,
-        TypeNotEqualToOrDeriveFromRestricted,
-        TypeNotEqualToOrDeriveFromSubstituted,
-
-        //
-        //attribute
-        DuplicateAttributeName,
-        CannotFindRestrictedAttribute,
-        CannotDeleteRequiredAttribute,
-        CannotChangeRequiredToOptional,
-        //
-        DeletionNotAllowedInExtension,
-        CannotChangeNonNullableToNullable,
-
-        //child
-        SubstitutedElementSealed,
-        DuplicateMemberName,
-        MaxOccurrenceNotEqualToOrGreaterThanMinOccurrence,
-        MaxOccurrenceCannotBeZero,
-        MaxOccurrenceCannotGreaterThanOneInChildSet,
-        ComplexChildrenKindNotEqualToBase,
-        DuplicateElementFullName,
-        CannotFindRestrictedMember,
-        CannotDeleteRequiredMember,
-        MemberKindNotEqualToRestricted,
-        MinOccurrenceNotEqualToOrGreaterThanRestricted,
-        MaxOccurrenceNotEqualToOrLessThanRestricted,
-        ElementNameNotEqualToRestricted,
-        ElementNotEqualToOrSubstituteForRestricted,
-        //AmbiguousElementFullName,
-
-        //
-        //
 
     }
     internal struct DiagMsgEx {
@@ -149,7 +79,34 @@ namespace CData.Compiler {
                     return "Invalid ContractNamespaceAttribute namespaceName '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.ContractNamespaceAttributeRequired:
                     return "ContractNamespaceAttribute required for uri '{0}'.".InvFormat(_msgArgs);
-
+                case DiagCodeEx.InvalidContractClassAttribute:
+                    return "Invalid ContractClassAttribute.";
+                case DiagCodeEx.InvalidContractClassAttributeName:
+                    return "Invalid ContractClassAttribute name '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.DuplicateContractClassAttributeName:
+                    return "Duplicate ContractClassAttribute name '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.ContractClassCannotBeGeneric:
+                    return "Contract class cannot be generic.";
+                case DiagCodeEx.ContractClassCannotBeStatic:
+                    return "Contract class cannot be static.";
+                case DiagCodeEx.InvalidContractPropertyAttribute:
+                    return "Invalid ContractPropertyAttribute.";
+                case DiagCodeEx.InvalidContractPropertyAttributeName:
+                    return "Invalid ContractPropertyAttribute name '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.DuplicateContractPropertyAttributeName:
+                    return "Duplicate ContractPropertyAttribute name '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.ContractPropertyOrFieldCannotBeStatic:
+                    return "Contract property or field cannot be static.";
+                case DiagCodeEx.ContractPropertyMustHaveGetterAndSetter:
+                    return "Contract property must have getter and setter.";
+                case DiagCodeEx.ContractPropertyCannotBeIndexer:
+                    return "Contract property cannot be indexer";
+                case DiagCodeEx.ContractFieldCannotBeConst:
+                    return "Contract field cannot be const.";
+                case DiagCodeEx.InvalidContractPropertyOrFieldType:
+                    return "Invalid contract property or field '{0}' type.".InvFormat(_msgArgs);
+                case DiagCodeEx.InvalidContractPropertyOrFieldCollectionType:
+                    return "Invalid contract property or field '{0}' collection type. Non-abstract parameterless-constructor type required.".InvFormat(_msgArgs);
 
 
 
@@ -191,134 +148,9 @@ namespace CData.Compiler {
                     return "Invalid name reference '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.InvalidClassNameReference:
                     return "Invalid type name reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.InvalidElementNameReference:
-                    return "Invalid element name reference '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.CircularReferenceNotAllowed:
                     return "Circular reference not allowed.";
 
-                //facets
-                case DiagCodeEx.UInt64ValueRequired:
-                    return "UInt64 value required.";
-                case DiagCodeEx.ByteValueRequired:
-                    return "Byte value required.";
-                case DiagCodeEx.FacetNotAllowedForType:
-                    return "Facet not allowed for type '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.MaxLengthNotGreaterThanOrEqualToMinLength:
-                    return "Max length '{0}' not greater than or equal to min length '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.MinLengthNotGreaterThanOrEqualToBaseMinLength:
-                    return "Min length '{0}' not greater than or equal to base min length '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.MaxLengthNotLessThanOrEqualToBaseMaxLength:
-                    return "Max length '{0}' not less than or equal to base max length '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.PrecisionCannotBeZero:
-                    return "Precision cannot ze zero.";
-                case DiagCodeEx.ScaleNotLessThanOrEqualToPrecision:
-                    return "Scale '{0}' not less than or equal to precision '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.PrecisionNotLessThanOrEqualToBasePrecision:
-                    return "Precision '{0}' not less than or equal to base precision '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.ScaleNotLessThanOrEqualToBaseScale:
-                    return "Scale '{0}' not less than or equal to base scale '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.InvalidPattern:
-                    return "Invalid pattern '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.InvalidLiteralForType:
-                    return "Invalid literal '{0}' for type '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.DuplicateEnumItemName:
-                    return "Duplicate enum item name '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.EnumItemNameNotAllowedInRestriction:
-                    return "Enum item name not allowed in restriction.";
-                case DiagCodeEx.EnumItemNotInBaseEnum:
-                    return "Enum item '{0}' not in base enum.".InvFormat(_msgArgs);
-                case DiagCodeEx.MinValueNotGreaterThanOrEqualToBaseMinValue:
-                    return "Min value '{0}' not greater than or equal to base min value '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.MinValueNotGreaterThanBaseMinValue:
-                    return "Min value '{0}' not greater than base min value '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.MaxValueNotLessThanOrEqualToBaseMaxValue:
-                    return "Max value '{0}' not less than or equal to base max value '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.MaxValueNotLessThanBaseMaxValue:
-                    return "Max value '{0}' not less than base max value '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.MaxValueNotGreaterThanOrEqualToMinValue:
-                    return "Max value '{0}' not greater than or equal to min value '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.MaxValueNotGreaterThanMinValue:
-                    return "Max value '{0}' not greater than min value '{1}'.".InvFormat(_msgArgs);
-
-                //type
-                case DiagCodeEx.SimpleTypeRequired:
-                    return "Simple type required.";
-                case DiagCodeEx.ComplexTypeRequired:
-                    return "Complex type required.";
-                case DiagCodeEx.BaseTypeSealed:
-                    return "Base type '{0}' sealed.".InvFormat(_msgArgs);
-                case DiagCodeEx.CannotExtendOrRestrictSysComplexType:
-                    return "Cannot extend or restrict 'sys:ComplexType'.";
-                case DiagCodeEx.CannotRestrictSysSimpleAtomListType:
-                    return "Cannot restrict 'sys:SimpleType', 'sys:AtomType' or 'sys:ListType'.";
-                case DiagCodeEx.CannotExtendSimpleChildWithComplexChildren:
-                    return "Cannot extend simple child with complex children.";
-                case DiagCodeEx.CannotExtendChildrenWithSimpleChild:
-                    return "Cannot extend children with simple child.";
-                case DiagCodeEx.CannotRestrictSimpleChildWithComplexChildren:
-                    return "Cannot restrict simple child with complex children.";
-                case DiagCodeEx.CannotRestrictComplexChildrenWithSimpleChild:
-                    return "Cannot restrict complex children with simple child.";
-                case DiagCodeEx.CannotRestrictNullSimpleChild:
-                    return "Cannot restrict null simple child.";
-                case DiagCodeEx.AttributesChildrenNotAllowedInSimpleTypeRestriction:
-                    return "Attributes/children not allowed in simple type restriction.";
-                case DiagCodeEx.FacetsNotAllowedInComplexTypeRestriction:
-                    return "Facets not allowed in complex type restriction.";
-                case DiagCodeEx.TypeNotEqualToOrDeriveFrom:
-                    return "Type '{0}' not equal to or derive from '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.TypeNotEqualToOrDeriveFromRestricted:
-                    return "Type '{0}' not equal to or derive from the restricted '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.TypeNotEqualToOrDeriveFromSubstituted:
-                    return "Type '{0}' not equal to or derive from the substituted '{1}'.".InvFormat(_msgArgs);
-
-                //
-                //attribute
-                case DiagCodeEx.DuplicateAttributeName:
-                    return "Duplicate attribute name '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.CannotFindRestrictedAttribute:
-                    return "Cannot find restricted attribute '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.CannotDeleteRequiredAttribute:
-                    return "Cannot delete required attribute '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.CannotChangeRequiredToOptional:
-                    return "Cannot change required to optional.";
-                //
-                case DiagCodeEx.DeletionNotAllowedInExtension:
-                    return "Deletion not allowed in extension.";
-                case DiagCodeEx.CannotChangeNonNullableToNullable:
-                    return "Cannot change non-nullable to nullable.";
-
-                //child
-                case DiagCodeEx.SubstitutedElementSealed:
-                    return "Substituted element '{0}' sealed.".InvFormat(_msgArgs);
-                case DiagCodeEx.DuplicateMemberName:
-                    return "Duplicate member name '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.MaxOccurrenceNotEqualToOrGreaterThanMinOccurrence:
-                    return "Max occurrence '{0}' not equal to or greater than min occurrence '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.MaxOccurrenceCannotBeZero:
-                    return "Max occurrence cannot be zero.";
-                case DiagCodeEx.MaxOccurrenceCannotGreaterThanOneInChildSet:
-                    return "Max occurrence cannot greater than one in child set";
-                case DiagCodeEx.ComplexChildrenKindNotEqualToBase:
-                    return "Complex children kind '{0}' not equal to the base '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.DuplicateElementFullName:
-                    return "Duplicate element full name '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.CannotFindRestrictedMember:
-                    return "Cannot find restricted member '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.CannotDeleteRequiredMember:
-                    return "Cannot delete required member '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.MemberKindNotEqualToRestricted:
-                    return "Member kind '{0}' not equal to the restricted '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.MinOccurrenceNotEqualToOrGreaterThanRestricted:
-                    return "Min occurrence '{0}' not equal to or greater than the restricted '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.MaxOccurrenceNotEqualToOrLessThanRestricted:
-                    return "Max occurrence '{0}' not equal to or less than the restricted '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.ElementNameNotEqualToRestricted:
-                    return "Element name '{0}' not equal to the restricted '{1}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.ElementNotEqualToOrSubstituteForRestricted:
-                    return "Element '{0}' not equal to or substitute for the restricted '{1}'.".InvFormat(_msgArgs);
-                //case DiagCodeEx.AmbiguousElementFullName:
-                //    return "Ambiguous element full name '{0}'.".InvFormat(_msgArgs);
 
 
                 default:

@@ -17,13 +17,35 @@ namespace CData.Compiler {
         public CSFullName CSFullName;
         public bool IsCSRef;
         public ClassInfo GetClass(string name) {
-            foreach (var member in MemberList) {
-                if ((member.CSName ?? member.Name) == name) {
-                    return (ClassInfo)member;
+            foreach (ClassInfo cls in MemberList) {
+                if (cls.Name == name) {
+                    return cls;
                 }
             }
             return null;
         }
+        public void SetMembersCSFullName() {
+            var nsFullName = CSFullName;
+            foreach (var member in MemberList) {
+                string csName;
+                if (member.CSClassSymbol != null) {
+                    csName = member.CSClassSymbol.Name;
+                }
+                else {
+                    csName = member.Name;
+                }
+                member.CSFullName = new CSFullName(nsFullName, csName);
+            }
+        }
+        public void MapAndCheckClassProperties() {
+            if (!IsCSRef) {
+                foreach (ClassInfo cls in MemberList) {
+                    cls.MapAndCheckProperties();
+                }
+            }
+        }
+
+
     }
 
     internal abstract class NamespaceMemberInfo {
@@ -33,10 +55,13 @@ namespace CData.Compiler {
         }
         public readonly NamespaceInfo Namespace;
         public readonly string Name;
+        public INamedTypeSymbol CSClassSymbol;//opt
         public CSFullName CSFullName;
-        public string CSName {
-            get { return CSFullName.LastName; }
-        }
+
+
+        //public string CSName {
+        //    get { return CSFullName.LastName; }
+        //}
         public abstract TypeInfo CreateType();
     }
 
@@ -63,35 +88,99 @@ namespace CData.Compiler {
         public readonly bool IsSealed;
         public readonly ClassInfo BaseClass;//opt
         public readonly List<PropertyInfo> PropertyList;//opt
-        
-
-        //public string[] CSNameParts;
-        //public INamedTypeSymbol CSSymbol;
-        //private string _csFullNameString;
-        //public string CSFullNameString {
-        //    get {
-        //        if (_csFullNameString == null) {
-
-        //        }
-        //        return _csFullNameString;
-        //    }
-        //}
-
-
-        //private NameSyntax _CSFullName;
-        //public NameSyntax CSFullName {
-        //    get { return _CSFullName ?? (_CSFullName = CSFullNameString.ToNameSyntax()); }
-        //    set { _CSFullName = value; }
-        //}
-        //private ExpressionSyntax _CSFullExpr;
-        //public ExpressionSyntax CSFullExpr {
-        //    get { return _CSFullExpr ?? (_CSFullExpr = CSFullNameString.ToExprSyntax()); }
-        //    set { _CSFullExpr = value; }
-        //}
-
-
         public override TypeInfo CreateType() {
             return new ClassRefTypeInfo(this);
+        }
+        public void MapAndCheckProperties() {
+            var typeSymbol = CSClassSymbol;
+            if (typeSymbol != null) {
+                foreach (var memberSymbol in typeSymbol.GetMembers()) {
+                    var propSymbol = memberSymbol as IPropertySymbol;
+                    var fieldSymbol = memberSymbol as IFieldSymbol;
+                    if (propSymbol != null || fieldSymbol != null) {
+                        var propAttData = memberSymbol.GetAttributeData(CSEX.ContractPropertyAttributeNameParts);
+                        if (propAttData != null) {
+                            var propName = CSEX.GetFirstArgumentAsString(propAttData);
+                            if (propName == null) {
+                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyAttribute),
+                                    CSEX.GetTextSpan(propAttData));
+                            }
+                            var propInfo = GetProperty(propName);
+                            if (propInfo == null) {
+                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyAttributeName, propName),
+                                    CSEX.GetTextSpan(propAttData));
+                            }
+                            if (propInfo.HasCSSymbol) {
+                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractPropertyAttributeName, propName),
+                                    CSEX.GetTextSpan(propAttData));
+                            }
+                            propInfo.CSPropertySymbol = propSymbol;
+                            propInfo.CSFieldSymbol = fieldSymbol;
+                        }
+                    }
+                }
+                foreach (var memberSymbol in typeSymbol.GetMembers()) {
+                    var propSymbol = memberSymbol as IPropertySymbol;
+                    var fieldSymbol = memberSymbol as IFieldSymbol;
+                    if (propSymbol != null || fieldSymbol != null) {
+                        var propName = memberSymbol.Name;
+                        var propInfo = GetProperty(propName);
+                        if (propInfo != null) {
+                            if (!propInfo.HasCSSymbol) {
+                                propInfo.CSPropertySymbol = propSymbol;
+                                propInfo.CSFieldSymbol = fieldSymbol;
+                            }
+                        }
+                    }
+                }
+                if (PropertyList != null) {
+                    foreach (var propInfo in PropertyList) {
+                        var propSymbol = propInfo.CSPropertySymbol;
+                        var fieldSymbol = propInfo.CSFieldSymbol;
+                        var memberSymbol = (ISymbol)propSymbol ?? fieldSymbol;
+                        if (memberSymbol != null) {
+                            if (memberSymbol.IsStatic) {
+                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractPropertyOrFieldCannotBeStatic),
+                                    CSEX.GetTextSpan(memberSymbol));
+                            }
+                            if (propSymbol != null) {
+                                if (propSymbol.IsReadOnly || propSymbol.IsWriteOnly) {
+                                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractPropertyMustHaveGetterAndSetter),
+                                        CSEX.GetTextSpan(memberSymbol));
+                                }
+                                if (propSymbol.IsIndexer) {
+                                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractPropertyCannotBeIndexer),
+                                        CSEX.GetTextSpan(memberSymbol));
+                                }
+                            }
+                            else {
+                                if (fieldSymbol.IsConst) {
+                                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractFieldCannotBeConst),
+                                        CSEX.GetTextSpan(memberSymbol));
+                                }
+                            }
+                            propInfo.CSName = memberSymbol.Name;
+                            propInfo.IsCSProperty = propSymbol != null;
+                            propInfo.CheckCSSymbol();
+                        }
+                        else {
+                            propInfo.CSName = propInfo.Name;
+                            propInfo.IsCSProperty = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        public PropertyInfo GetProperty(string name) {
+            if (PropertyList != null) {
+                foreach (var prop in PropertyList) {
+                    if (prop.Name == name) {
+                        return prop;
+                    }
+                }
+            }
+            return null;
         }
         public PropertyInfo GetPropertyInHierarchy(string name) {
             if (PropertyList != null) {
@@ -106,16 +195,6 @@ namespace CData.Compiler {
             }
             return null;
         }
-        public PropertyInfo GetProperty(string name) {
-            if (PropertyList != null) {
-                foreach (var prop in PropertyList) {
-                    if (prop.Name == name) {
-                        return prop;
-                    }
-                }
-            }
-            return null;
-        }
 
     }
     internal sealed class PropertyInfo {
@@ -127,8 +206,17 @@ namespace CData.Compiler {
         public readonly TypeInfo Type;
         public string CSName;
         public bool IsCSProperty;
-        //public ITypeSymbol CSTypeSymbol;//opt
-
+        public IPropertySymbol CSPropertySymbol;//opt
+        public IFieldSymbol CSFieldSymbol;//opt
+        public ISymbol CSSymbol {
+            get { return (ISymbol)CSPropertySymbol ?? CSFieldSymbol; }
+        }
+        public bool HasCSSymbol {
+            get { return CSPropertySymbol != null || CSFieldSymbol != null; }
+        }
+        public void CheckCSSymbol() {
+            Type.CheckCSType(CSSymbol, CSPropertySymbol != null ? CSPropertySymbol.Type : CSFieldSymbol.Type, ".");
+        }
     }
 
     internal abstract class TypeInfo {
@@ -137,7 +225,7 @@ namespace CData.Compiler {
         }
         public readonly TypeKind Kind;
         public bool IsNullable;
-        public abstract void CheckCSType(ITypeSymbol typeSymbol);
+        public abstract void CheckCSType(ISymbol propSymbol, ITypeSymbol typeSymbol, string parentTypeName);
     }
     internal sealed class AtomRefTypeInfo : TypeInfo {
         public AtomRefTypeInfo(AtomInfo atom)
@@ -145,9 +233,10 @@ namespace CData.Compiler {
             Atom = atom;
         }
         public readonly AtomInfo Atom;
-        public override void CheckCSType(ITypeSymbol typeSymbol) {
-            if (!CSEX.IsAtomType(Kind, typeSymbol)) {
-                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
+        public override void CheckCSType(ISymbol propSymbol, ITypeSymbol typeSymbol, string parentTypeName) {
+            if (!CSEX.IsAtomType(Kind, IsNullable, typeSymbol)) {
+                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyOrFieldType, parentTypeName),
+                    CSEX.GetTextSpan(propSymbol));
             }
         }
     }
@@ -157,9 +246,10 @@ namespace CData.Compiler {
             Class = cls;
         }
         public readonly ClassInfo Class;
-        public override void CheckCSType(ITypeSymbol typeSymbol) {
+        public override void CheckCSType(ISymbol propSymbol, ITypeSymbol typeSymbol, string parentTypeName) {
             if (typeSymbol.FullNameEquals(Class.CSFullName.NameParts)) {
-                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
+                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyOrFieldType, parentTypeName),
+                    CSEX.GetTextSpan(propSymbol));
             }
         }
     }
@@ -179,42 +269,58 @@ namespace CData.Compiler {
         public readonly TypeInfo ItemOrValueType;
         public readonly AtomRefTypeInfo KeyType;//opt, for map
         public readonly ObjectSetKeySelector ObjectSetKeySelector;//opt
-        public override void CheckCSType(ITypeSymbol typeSymbol) {
+        public INamedTypeSymbol CSCollectionSymbol;//opt
+
+        public override void CheckCSType(ISymbol propSymbol, ITypeSymbol typeSymbol, string parentTypeName) {
             var kind = Kind;
+            INamedTypeSymbol collSymbol;
             if (kind == TypeKind.List) {
-                var collSymbol = typeSymbol.GetSelfOrInterface(CS.ICollection1NameParts);
+                collSymbol = typeSymbol.GetSelfOrInterface(CS.ICollection1NameParts);
                 if (collSymbol == null) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
+                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyOrFieldType, parentTypeName),
+                        CSEX.GetTextSpan(propSymbol));
                 }
-                ItemOrValueType.CheckCSType(collSymbol.TypeArguments[0]);
+                ItemOrValueType.CheckCSType(propSymbol, collSymbol.TypeArguments[0], parentTypeName + @"\list item");
             }
             else if (kind == TypeKind.Map) {
-                var dictSymbol = typeSymbol.GetSelfOrInterface(CS.IDictionary2TNameParts);
-                if (dictSymbol == null) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
+                collSymbol = typeSymbol.GetSelfOrInterface(CS.IDictionary2TNameParts);
+                if (collSymbol == null) {
+                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyOrFieldType, parentTypeName),
+                        CSEX.GetTextSpan(propSymbol));
                 }
-                var typeArgs = dictSymbol.TypeArguments;
-                KeyType.CheckCSType(typeArgs[0]);
-                ItemOrValueType.CheckCSType(typeArgs[1]);
+                var typeArgs = collSymbol.TypeArguments;
+                KeyType.CheckCSType(propSymbol, typeArgs[0], parentTypeName + @"\map key");
+                ItemOrValueType.CheckCSType(propSymbol, typeArgs[1], parentTypeName + @"\map value");
             }
             else if (kind == TypeKind.ObjectSet) {
-                var objSetSymbol = typeSymbol.GetSelfOrInterface(CSEX.IOjectSet2NameParts);
-                if (objSetSymbol == null) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
+                collSymbol = typeSymbol.GetSelfOrInterface(CSEX.IOjectSet2NameParts);
+                if (collSymbol == null) {
+                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyOrFieldType, parentTypeName),
+                        CSEX.GetTextSpan(propSymbol));
                 }
-                var typeArgs = objSetSymbol.TypeArguments;
-                ObjectSetKeySelector.KeyType.CheckCSType(typeArgs[0]);
-                ItemOrValueType.CheckCSType(typeArgs[1]);
+                var typeArgs = collSymbol.TypeArguments;
+                ObjectSetKeySelector.KeyType.CheckCSType(propSymbol, typeArgs[0], parentTypeName + @"\object set key");
+                ItemOrValueType.CheckCSType(propSymbol, typeArgs[1], parentTypeName + @"\object set item");
             }
-            else {//ATomSet
-                var setSymbol = typeSymbol.GetSelfOrInterface(CS.ISet1NameParts);
-                if (setSymbol == null) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName), default(TextSpan));
+            else {//AtomSet
+                collSymbol = typeSymbol.GetSelfOrInterface(CS.ISet1NameParts);
+                if (collSymbol == null) {
+                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyOrFieldType, parentTypeName),
+                        CSEX.GetTextSpan(propSymbol));
                 }
-                ItemOrValueType.CheckCSType(setSymbol.TypeArguments[0]);
-
+                ItemOrValueType.CheckCSType(propSymbol, collSymbol.TypeArguments[0], parentTypeName + @"\atom set item");
             }
+            //
+            if (collSymbol.TypeKind == Microsoft.CodeAnalysis.TypeKind.Interface) {
+            }
+            else {
+                if (collSymbol.IsAbstract || collSymbol.IsGenericType || !collSymbol.HasParameterlessConstructor()) {
+                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyOrFieldCollectionType, parentTypeName),
+                        CSEX.GetTextSpan(propSymbol));
 
+                }
+                CSCollectionSymbol = collSymbol;
+            }
         }
     }
 
