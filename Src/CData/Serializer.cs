@@ -6,22 +6,28 @@ using System.Collections;
 
 namespace CData {
     public static class Serializer {
-        public static bool TryLoad(string filePath, TextReader reader, DiagContext context, ClassTypeMetadata objectTypeMetadata, out object result) {
-            return Parser.Parse(filePath, reader, context, objectTypeMetadata, out result);
+        public static bool TryLoad<T>(string filePath, TextReader reader, DiagContext context, ClassMetadata classMetadata, out T result) where T : class {
+            object obj;
+            if (Parser.Parse(filePath, reader, context, classMetadata, out obj)) {
+                result = (T)obj;
+                return true;
+            }
+            result = null;
+            return false;
         }
-        public static void Save(object obj, ClassTypeMetadata classTypeMetadata, TextWriter writer, string indentString = "\t", string newLineString = "\n") {
+        public static void Save(object obj, ClassMetadata classMetadata, TextWriter writer, string indentString = "\t", string newLineString = "\n") {
             if (writer == null) throw new ArgumentNullException("writer");
             var sb = new StringBuilder(1024 * 2);
-            Save(obj, classTypeMetadata, sb, indentString, newLineString);
+            Save(obj, classMetadata, sb, indentString, newLineString);
             writer.Write(sb.ToString());
         }
-        public static void Save(object obj, ClassTypeMetadata classTypeMetadata, StringBuilder stringBuilder, string indentString = "\t", string newLineString = "\n") {
+        public static void Save(object obj, ClassMetadata classMetadata, StringBuilder stringBuilder, string indentString = "\t", string newLineString = "\n") {
             if (obj == null) throw new ArgumentNullException("obj");
-            if (classTypeMetadata == null) throw new ArgumentNullException("classTypeMetadata");
+            if (classMetadata == null) throw new ArgumentNullException("classMetadata");
             if (stringBuilder == null) throw new ArgumentNullException("stringBuilder");
-            SaveObject(true, obj, classTypeMetadata, new SavingContext(stringBuilder, indentString, newLineString));
+            SaveObject(true, obj, classMetadata, new SavingContext(stringBuilder, indentString, newLineString));
         }
-        private static void SaveObject(bool isRoot, object obj, ClassTypeMetadata clsMd, SavingContext context) {
+        private static void SaveObject(bool isRoot, object obj, ClassMetadata clsMd, SavingContext context) {
             string rootAlias = null;
             if (isRoot) {
                 rootAlias = context.AddUri(clsMd.FullName.Uri);
@@ -59,7 +65,7 @@ namespace CData {
                     SaveAtom(value, typeKind, context.StringBuilder);
                 }
                 else if (typeKind == TypeKind.Class) {
-                    SaveObject(false, value, (ClassTypeMetadata)typeMd, context);
+                    SaveObject(false, value, ((ClassRefTypeMetadata)typeMd).Class, context);
                 }
                 else if (typeKind == TypeKind.Map) {
                     var collMd = (CollectionTypeMetadata)typeMd;
@@ -181,7 +187,3 @@ namespace CData {
 
     }
 }
-//a0:name <> {
-//   prop1 = name {
-//
-//}

@@ -40,7 +40,7 @@ namespace CData {
         }
         private TKey GetObjectKey(TObject obj) {
             var keySelector = _keySelector;
-            if (keySelector == null) throw new ArgumentNullException("keySelector");
+            if (keySelector == null) throw new InvalidOperationException("KeySelector is null.");
             return keySelector(obj);
         }
         public bool Add(TObject obj) {

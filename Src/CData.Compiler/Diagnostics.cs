@@ -43,6 +43,7 @@ namespace CData.Compiler {
         DuplicateContractClassAttributeName,
         ContractClassCannotBeGeneric,
         ContractClassCannotBeStatic,
+        NonAbstractParameterlessConstructorContractClassRequired,
         InvalidContractPropertyAttribute,
         InvalidContractPropertyAttributeName,
         DuplicateContractPropertyAttributeName,
@@ -50,8 +51,7 @@ namespace CData.Compiler {
         ContractPropertyMustHaveGetterAndSetter,
         ContractPropertyCannotBeIndexer,
         ContractFieldCannotBeConst,
-        InvalidContractPropertyOrFieldType,
-        InvalidContractPropertyOrFieldCollectionType,
+        InvalidContractPropertyType,
 
 
 
@@ -89,6 +89,8 @@ namespace CData.Compiler {
                     return "Contract class cannot be generic.";
                 case DiagCodeEx.ContractClassCannotBeStatic:
                     return "Contract class cannot be static.";
+                case DiagCodeEx.NonAbstractParameterlessConstructorContractClassRequired:
+                    return "Non-abstract parameterless-constructor contract class required.";
                 case DiagCodeEx.InvalidContractPropertyAttribute:
                     return "Invalid ContractPropertyAttribute.";
                 case DiagCodeEx.InvalidContractPropertyAttributeName:
@@ -103,10 +105,8 @@ namespace CData.Compiler {
                     return "Contract property cannot be indexer";
                 case DiagCodeEx.ContractFieldCannotBeConst:
                     return "Contract field cannot be const.";
-                case DiagCodeEx.InvalidContractPropertyOrFieldType:
-                    return "Invalid contract property or field '{0}' type.".InvFormat(_msgArgs);
-                case DiagCodeEx.InvalidContractPropertyOrFieldCollectionType:
-                    return "Invalid contract property or field '{0}' collection type. Non-abstract parameterless-constructor type required.".InvFormat(_msgArgs);
+                case DiagCodeEx.InvalidContractPropertyType:
+                    return "Invalid contract property/field type {0}. {1} expected.".InvFormat(_msgArgs);
 
 
 

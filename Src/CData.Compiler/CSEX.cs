@@ -110,39 +110,53 @@ namespace CData.Compiler {
                 foreach (var logicalNs in nsMap.Values) {
                     var nsInfo = logicalNs.NamespaceInfo;
                     if (nsSymbol.FullNameEquals(nsInfo.CSFullName.NameParts)) {
-                        foreach (var typeSymbol in nsSymbol.GetMembers().OfType<INamedTypeSymbol>()) {
-                            if (typeSymbol.TypeKind == Microsoft.CodeAnalysis.TypeKind.Class) {
-                                var clsAttData = typeSymbol.GetAttributeData(ContractClassAttributeNameParts);
-                                if (clsAttData != null) {
-                                    if (typeSymbol.IsGenericType) {
-                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractClassCannotBeGeneric), GetTextSpan(typeSymbol));
-                                    }
-                                    if (typeSymbol.IsStatic) {
-                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractClassCannotBeStatic), GetTextSpan(typeSymbol));
-                                    }
-                                    var clsName = GetFirstArgumentAsString(clsAttData);
-                                    if (clsName == null) {
-                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttribute), GetTextSpan(clsAttData));
-                                    }
-                                    ClassInfo clsInfo = nsInfo.GetClass(clsName);
-                                    if (clsInfo == null) {
-                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName, clsName), GetTextSpan(clsAttData));
-                                    }
-                                    if (clsInfo.CSClassSymbol != null) {
-                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractClassAttributeName, clsName), GetTextSpan(clsAttData));
-                                    }
-                                    clsInfo.CSClassSymbol = typeSymbol;
+                        var typeSymbolList = nsSymbol.GetMembers().OfType<INamedTypeSymbol>().Where(i => i.TypeKind == Microsoft.CodeAnalysis.TypeKind.Class).ToList();
+                        for (var i = 0; i < typeSymbolList.Count; ) {
+                            var typeSymbol = typeSymbolList[i];
+                            var clsAttData = typeSymbol.GetAttributeData(ContractClassAttributeNameParts);
+                            if (clsAttData != null) {
+                                if (typeSymbol.IsGenericType) {
+                                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractClassCannotBeGeneric), GetTextSpan(typeSymbol));
                                 }
+                                if (typeSymbol.IsStatic) {
+                                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractClassCannotBeStatic), GetTextSpan(typeSymbol));
+                                }
+                                var clsName = GetFirstArgumentAsString(clsAttData);
+                                if (clsName == null) {
+                                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttribute), GetTextSpan(clsAttData));
+                                }
+                                ClassInfo clsInfo = nsInfo.GetClass(clsName);
+                                if (clsInfo == null) {
+                                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName, clsName), GetTextSpan(clsAttData));
+                                }
+                                if (clsInfo.CSClassSymbol != null) {
+                                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractClassAttributeName, clsName), GetTextSpan(clsAttData));
+                                }
+                                if (!clsInfo.IsAbstract) {
+                                    if (typeSymbol.IsAbstract || !typeSymbol.HasParameterlessConstructor()) {
+                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.NonAbstractParameterlessConstructorContractClassRequired), GetTextSpan(typeSymbol));
+                                    }
+                                }
+                                clsInfo.CSClassSymbol = typeSymbol;
+                                typeSymbolList.RemoveAt(i);
+                                continue;
                             }
+                            ++i;
                         }
-                        foreach (var typeSymbol in nsSymbol.GetMembers().OfType<INamedTypeSymbol>()) {
-                            if (typeSymbol.TypeKind == Microsoft.CodeAnalysis.TypeKind.Class && !typeSymbol.IsGenericType) {
+
+                        foreach (var typeSymbol in typeSymbolList) {
+                            if (!typeSymbol.IsGenericType) {
                                 var clsName = typeSymbol.Name;
                                 ClassInfo clsInfo = nsInfo.GetClass(clsName);
                                 if (clsInfo != null) {
                                     if (clsInfo.CSClassSymbol == null) {
                                         if (typeSymbol.IsStatic) {
                                             DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractClassCannotBeStatic), GetTextSpan(typeSymbol));
+                                        }
+                                        if (!clsInfo.IsAbstract) {
+                                            if (typeSymbol.IsAbstract || !typeSymbol.HasParameterlessConstructor()) {
+                                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.NonAbstractParameterlessConstructorContractClassRequired), GetTextSpan(typeSymbol));
+                                            }
                                         }
                                         clsInfo.CSClassSymbol = typeSymbol;
                                     }
@@ -207,6 +221,68 @@ namespace CData.Compiler {
             }
             return false;
         }
+        //
+        //
+        //
+        internal static AliasQualifiedNameSyntax CDataName {
+            get { return CS.GlobalAliasQualifiedName("CData"); }
+        }
+        internal static QualifiedNameSyntax IgnoreCaseStringName {
+            get { return CS.QualifiedName(CDataName, "IgnoreCaseString"); }
+        }
+        internal static QualifiedNameSyntax BinaryName {
+            get { return CS.QualifiedName(CDataName, "Binary"); }
+        }
+        internal static QualifiedNameSyntax ObjectSetOf(TypeSyntax keyType, TypeSyntax objectType) {
+            return SyntaxFactory.QualifiedName(CDataName, CS.GenericName("ObjectSet", keyType, objectType));
+        }
+        internal static QualifiedNameSyntax ClassMetadataName {
+            get { return CS.QualifiedName(CDataName, "ClassMetadata"); }
+        }
+        internal static QualifiedNameSyntax ClassRefTypeMetadataName {
+            get { return CS.QualifiedName(CDataName, "ClassRefTypeMetadata"); }
+        }
+        internal static QualifiedNameSyntax PropertyMetadataName {
+            get { return CS.QualifiedName(CDataName, "PropertyMetadata"); }
+        }
+        internal static ArrayTypeSyntax PropertyMetadataArrayType {
+            get { return CS.OneDimArrayType(PropertyMetadataName); }
+        }
+        internal static QualifiedNameSyntax CollectionTypeMetadataName {
+            get { return CS.QualifiedName(CDataName, "CollectionTypeMetadata"); }
+        }
+        internal static QualifiedNameSyntax AtomRefTypeMetadataName {
+            get { return CS.QualifiedName(CDataName, "AtomRefTypeMetadata"); }
+        }
+        internal static MemberAccessExpressionSyntax AtomRefTypeMetadataExpr {
+            get { return CS.MemberAccessExpr(CDataName, "AtomRefTypeMetadata"); }
+        }
+        internal static ExpressionSyntax Literal(TypeKind value) {
+            return CS.MemberAccessExpr(CS.MemberAccessExpr(CDataName, "TypeKind"), value.ToString());
+        }
+        internal static QualifiedNameSyntax FullNameName {
+            get { return CS.QualifiedName(CDataName, "FullName"); }
+        }
+        internal static ExpressionSyntax Literal(FullName value) {
+            return CS.NewObjExpr(FullNameName, CS.Literal(value.Uri), CS.Literal(value.Name));
+        }
+        internal const string ThisMetadataNameStr = "__ThisMetadata";
+        internal const string MetadataNameStr = "__Metadata";
+        internal const string TextSpanNameStr = "__TextSpan";
+        internal static QualifiedNameSyntax DiagContextName {
+            get { return CS.QualifiedName(CDataName, "DiagContext"); }
+        }
+        internal static QualifiedNameSyntax TextSpanName {
+            get { return CS.QualifiedName(CDataName, "TextSpan"); }
+        }
+        internal static MemberAccessExpressionSyntax SerializerExpr {
+            get { return CS.MemberAccessExpr(CDataName, "Serializer"); }
+        }
+        internal static QualifiedNameSyntax ContractTypesAttributeName {
+            get { return CS.QualifiedName(CDataName, "ContractTypesAttribute"); }
+        }
+
+
 
 
     }

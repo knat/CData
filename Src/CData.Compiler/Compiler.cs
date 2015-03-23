@@ -132,79 +132,23 @@ namespace CData.Compiler {
                         foreach (var logicalNs in nsMap.Values) {
                             logicalNs.NamespaceInfo.MapAndCheckClassProperties();
                         }
-
-
+                        List<MemberDeclarationSyntax> csCuMemberList = new List<MemberDeclarationSyntax>();
+                        List<TypeOfExpressionSyntax> csClstypeList = new List<TypeOfExpressionSyntax>();
+                        foreach (var logicalNs in nsMap.Values) {
+                            logicalNs.NamespaceInfo.Generate(csCuMemberList, csClstypeList);
+                        }
+                        AttributeListSyntax csAttList = null;
+                        if (csClstypeList.Count > 0) {
+                            //>[assembly: ContractTypesAttribute(new Type[] {... })]
+                            csAttList = CS.AttributeList("assembly", CSEX.ContractTypesAttributeName,
+                                SyntaxFactory.AttributeArgument(CS.NewArrExpr(CS.SystemTypeArrayType, csClstypeList)));
+                        }
+                        code = GeneratedFileBanner +
+                            SyntaxFactory.CompilationUnit(default(SyntaxList<ExternAliasDirectiveSyntax>), default(SyntaxList<UsingDirectiveSyntax>),
+                            csAttList == null ? default(SyntaxList<AttributeListSyntax>) : SyntaxFactory.SingletonList(csAttList),
+                            SyntaxFactory.List(csCuMemberList)).NormalizeWhitespace().ToString();
                     }
-
-
-
-                    //var needGenCode = false;
-
-
-                    ////var ddd = csCompilation.GlobalNamespace;
-
-
-
-                    //var globalNsSymbol = csCompilation.Assembly.GlobalNamespace;
-                    //foreach (var attData in globalNsSymbol.GetAttributes()) {
-                    //    if (attData.AttributeClass.FullNameEquals(ContractNamespaceAttributeNameParts)) {
-                    //        var attCtorArgs = attData.ConstructorArguments;
-                    //        var uri = (string)attCtorArgs[0].Value;
-                    //        LogicalNamespace logicalNs;
-                    //        if (uri != null && nsMap.TryGetValue(uri, out logicalNs)) {
-                    //            if (logicalNs.CSNamespaceName != null) {
-                    //                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractNamespaceAttributeUri, uri), default(TextSpan));
-                    //            }
-                    //            var csns = (string)attCtorArgs[1].Value;
-                    //            var csnsArr = CSEX.GetIdsBySplitDot(csns);
-                    //            if (csnsArr == null) {
-                    //                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttributeCSharpNamespace, csns), default(TextSpan));
-                    //            }
-                    //            logicalNs.CSNamespaceName = new CSNamespaceNameNode(csnsArr);
-                    //            logicalNs.IsCSNamespaceRef = (bool)attCtorArgs[2].Value;
-                    //            needGenCode = true;
-                    //        }
-                    //        else {
-                    //            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttribute, uri), default(TextSpan));
-                    //        }
-                    //    }
-                    //}
-                    //if (needGenCode) {
-                    //    foreach (var logicalNs in nsMap.Values) {
-                    //        if (logicalNs.CSNamespaceName == null) {
-                    //        }
-                    //    }
-                    //    //foreach(var x in )
-
-
-                    //}
                 }
-
-
-
-                //var needGenCode = indicatorList.Count > 0;
-                //if (needGenCode) {
-                //    var memberList = new List<MemberDeclarationSyntax>();
-                //    foreach (var ns in nsSymbolList) {
-                //        ns.Generate(memberList);
-                //    }
-                //    //>internal sealed class XDataProgramInfo : ProgramInfo {
-                //    //>    private XDataProgramInfo() { }
-                //    //>    public static readonly XDataProgramInfo Instance = new XDataProgramInfo();
-                //    //>    protected override List<NamespaceInfo> GetNamespaces() {
-                //    //>        return new List<NamespaceInfo>() {
-                //    //>            ...
-                //    //>        };
-                //    //>    }
-                //    //>}
-                //    memberList.Add(CS.Class(null, CS.InternalSealedTokenList, "XDataProgramInfo", new[] { CSEX.ProgramInfoName },
-                //        CS.Constructor(CS.PrivateTokenList, "XDataProgramInfo", null, null),
-                //        CS.Field(CS.PublicStaticReadOnlyTokenList, CS.IdName("XDataProgramInfo"), "Instance", CS.NewObjExpr(CS.IdName("XDataProgramInfo"))),
-                //        CS.Method(CS.ProtectedOverrideTokenList, CS.ListOf(CSEX.NamespaceInfoName), "GetNamespaces", null,
-                //            CS.ReturnStm(CS.NewObjExpr(CS.ListOf(CSEX.NamespaceInfoName), null, nsSymbolList.Select(i => i.InfoExpr))))));
-                //    code = GeneratedFileBanner + SyntaxFactory.CompilationUnit(default(SyntaxList<ExternAliasDirectiveSyntax>), default(SyntaxList<UsingDirectiveSyntax>), default(SyntaxList<AttributeListSyntax>),
-                //          SyntaxFactory.List(memberList)).NormalizeWhitespace().ToString();
-                //}
                 return true;
             }
             catch (DiagContextEx.ContextException) { }

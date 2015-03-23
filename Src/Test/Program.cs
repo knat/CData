@@ -9,6 +9,8 @@ using System.Reflection;
 
 //[assembly: UriNamespaceMap]
 //[assembly: UriNamespaceMap]
+[assembly: ContractTypesAttribute(new Type[] { typeof(int), typeof(string) })]
+
 
 class X {
     static X() {
@@ -35,14 +37,17 @@ namespace Test {
             //Console.WriteLine("fd");
         }
         static void Test() {
+            var ti = typeof(ObjectSet<int, string>).GetTypeInfo();
+            var add = ti.GetDeclaredMethod("Add");
+
             //var ass1 = typeof(Program).Assembly;
             //var ass2 = typeof(ZZZ).Assembly;
             //var e = ass1 == ass2;
 
             //var s = typeof(ZZZ);
-            System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(ZZZ).TypeHandle);
-            System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(ZZZ).TypeHandle);
-            System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(X).TypeHandle);
+            //System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(ZZZ).TypeHandle);
+            //System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(ZZZ).TypeHandle);
+            //System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(X).TypeHandle);
 
             //System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(ZZZ).TypeHandle);
             //System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(ZZZ).TypeHandle);
@@ -50,9 +55,9 @@ namespace Test {
             //AppDomain currentDomain = AppDomain.CurrentDomain;
             //currentDomain.AssemblyLoad += new AssemblyLoadEventHandler(MyAssemblyLoadEventHandler);
             //PrintLoadedAssemblies(currentDomain);
-       //     var dd = "".Substring(1);
-       //     var s = "".Split(new char[] { '.' } );
-       //var gs=     SyntaxFacts.IsValidIdentifier("int ");
+            //     var dd = "".Substring(1);
+            //     var s = "".Split(new char[] { '.' } );
+            //var gs=     SyntaxFacts.IsValidIdentifier("int ");
         }
         static void PrintLoadedAssemblies(AppDomain domain) {
             Console.WriteLine("LOADED ASSEMBLIES:");

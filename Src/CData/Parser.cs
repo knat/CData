@@ -251,9 +251,9 @@ namespace CData {
 
     }
     internal sealed class Parser : ParserBase {
-        internal static bool Parse(string filePath, TextReader reader, DiagContext context, ClassTypeMetadata classTypeMetadata, out object result) {
-            if (classTypeMetadata == null) throw new ArgumentNullException("classTypeMetadata");
-            return (_instance ?? (_instance = new Parser())).ParsingUnit(filePath, reader, context, classTypeMetadata, out result);
+        internal static bool Parse(string filePath, TextReader reader, DiagContext context, ClassMetadata classMetadata, out object result) {
+            if (classMetadata == null) throw new ArgumentNullException("classMetadata");
+            return (_instance ?? (_instance = new Parser())).ParsingUnit(filePath, reader, context, classMetadata, out result);
         }
         [ThreadStatic]
         private static Parser _instance;
@@ -269,7 +269,7 @@ namespace CData {
             base.Clear();
             _uriAliasingListStack.Clear();
         }
-        private bool ParsingUnit(string filePath, TextReader reader, DiagContext context, ClassTypeMetadata clsMd, out object result) {
+        private bool ParsingUnit(string filePath, TextReader reader, DiagContext context, ClassMetadata clsMd, out object result) {
             try {
                 Set(filePath, reader, context);
                 object obj;
@@ -341,7 +341,7 @@ namespace CData {
             ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidUriReference, alias), aliasNode.TextSpan);
             return null;
         }
-        private bool ObjectValue(ClassTypeMetadata declaredClsMd, out object result) {
+        private bool ObjectValue(ClassMetadata declaredClsMd, out object result) {
             NameNode aliasNode;
             if (Name(out aliasNode)) {
                 TokenExpected(':');
@@ -349,7 +349,7 @@ namespace CData {
                 var hasUriAliasingList = UriAliasingList();
                 TokenExpected('{');
                 var fullName = new FullName(GetUri(aliasNode), nameNode.Value);
-                var clsMd = ClassTypeMetadata.Get(fullName);
+                var clsMd = ClassMetadata.Get(fullName);
                 if (clsMd == null) {
                     ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidClassReference, fullName.ToString()), nameNode.TextSpan);
                 }
@@ -497,7 +497,7 @@ namespace CData {
                     if (typeKind != TypeKind.Class) {
                         ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()));
                     }
-                    return ObjectValue((ClassTypeMetadata)typeMd, out result);
+                    return ObjectValue(((ClassRefTypeMetadata)typeMd).Class, out result);
                 }
             }
             result = null;

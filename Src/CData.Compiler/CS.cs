@@ -15,7 +15,8 @@ namespace CData.Compiler {
             return text[0] == '@' ? text.Substring(1) : text;
         }
         internal static SyntaxToken Id(string escapedId) {
-            return SyntaxFactory.Identifier(default(SyntaxTriviaList), SyntaxKind.IdentifierToken, escapedId, escapedId.UnescapeId(), default(SyntaxTriviaList));
+            return SyntaxFactory.Identifier(default(SyntaxTriviaList), SyntaxKind.IdentifierToken,
+                escapedId, escapedId.UnescapeId(), default(SyntaxTriviaList));
         }
         internal static IdentifierNameSyntax IdName(string name) {
             return SyntaxFactory.IdentifierName(Id(name));
@@ -207,7 +208,10 @@ namespace CData.Compiler {
         //
         //
         private static SyntaxList<ArrayRankSpecifierSyntax> OneDimArrayTypeRankSpecifiers {
-            get { return SyntaxFactory.SingletonList(SyntaxFactory.ArrayRankSpecifier(SyntaxFactory.SingletonSeparatedList<ExpressionSyntax>(SyntaxFactory.OmittedArraySizeExpression()))); }
+            get {
+                return SyntaxFactory.SingletonList(SyntaxFactory.ArrayRankSpecifier(
+                    SyntaxFactory.SingletonSeparatedList<ExpressionSyntax>(SyntaxFactory.OmittedArraySizeExpression())));
+            }
         }
         internal static ArrayTypeSyntax OneDimArrayType(TypeSyntax elementType) {
             return SyntaxFactory.ArrayType(elementType, OneDimArrayTypeRankSpecifiers);
@@ -525,6 +529,15 @@ namespace CData.Compiler {
             if (value == null) return NullLiteral;
             return NewObjExpr(UriName, Literal(value.ToString()));
         }
+        //global::System.Type
+        internal static QualifiedNameSyntax SystemTypeName {
+            get { return QualifiedName(GlobalSystemName, "Type"); }
+        }
+        //global::System.Type[]
+        internal static ArrayTypeSyntax SystemTypeArrayType {
+            get { return OneDimArrayType(SystemTypeName); }
+        }
+
         //global::System.IDisposable
         internal static QualifiedNameSyntax IDisposableName {
             get { return QualifiedName(GlobalSystemName, "IDisposable"); }
@@ -634,6 +647,14 @@ namespace CData.Compiler {
         internal static QualifiedNameSyntax ListOf(TypeSyntax type) {
             return SyntaxFactory.QualifiedName(GlobalSystemCollectionGenericName, GenericName("List", type));
         }
+        //global::System.Collection.Generic.ISet<T>
+        internal static QualifiedNameSyntax ISetOf(TypeSyntax type) {
+            return SyntaxFactory.QualifiedName(GlobalSystemCollectionGenericName, GenericName("ISet", type));
+        }
+        //global::System.Collection.Generic.HashSet<T>
+        internal static QualifiedNameSyntax HashSetOf(TypeSyntax type) {
+            return SyntaxFactory.QualifiedName(GlobalSystemCollectionGenericName, GenericName("HashSet", type));
+        }
         //global::System.Collection.Generic.IReadOnlyList<T>
         internal static QualifiedNameSyntax IReadOnlyListOf(TypeSyntax type) {
             return SyntaxFactory.QualifiedName(GlobalSystemCollectionGenericName, GenericName("IReadOnlyList", type));
@@ -671,12 +692,20 @@ namespace CData.Compiler {
         internal static QualifiedNameSyntax TextReaderName {
             get { return QualifiedName(GlobalSystemIOName, "TextReader"); }
         }
+        internal static QualifiedNameSyntax TextWriterName {
+            get { return QualifiedName(GlobalSystemIOName, "TextWriter"); }
+        }
 
         //
         //global::System.Text
         internal static QualifiedNameSyntax GlobalSystemTextName {
             get { return QualifiedName(GlobalSystemName, "Text"); }
         }
+        //global::System.Text.StringBuilder
+        internal static QualifiedNameSyntax StringBuilderName {
+            get { return QualifiedName(GlobalSystemTextName, "StringBuilder"); }
+        }
+
         //global::System.Text.RegularExpressions
         internal static QualifiedNameSyntax GlobalSystemTextRegularExpressionsName {
             get { return QualifiedName(GlobalSystemTextName, "RegularExpressions"); }
@@ -1229,6 +1258,11 @@ namespace CData.Compiler {
             return SyntaxFactory.AttributeList(SyntaxFactory.SingletonSeparatedList(
                 SyntaxFactory.Attribute(name, SyntaxFactory.AttributeArgumentList(SyntaxFactory.SeparatedList(arguments)))));
         }
+        internal static AttributeListSyntax AttributeList(string target, NameSyntax name, params AttributeArgumentSyntax[] arguments) {
+            return SyntaxFactory.AttributeList(SyntaxFactory.AttributeTargetSpecifier(Id(target)),
+                SyntaxFactory.SingletonSeparatedList(
+                    SyntaxFactory.Attribute(name, SyntaxFactory.AttributeArgumentList(SyntaxFactory.SeparatedList(arguments)))));
+        }
         internal static AttributeArgumentSyntax AttributeArgument(IdentifierNameSyntax name, ExpressionSyntax expr) {
             return SyntaxFactory.AttributeArgument(
                 nameEquals: SyntaxFactory.NameEquals(name),
@@ -1294,7 +1328,9 @@ namespace CData.Compiler {
             SyntaxTokenList setterModifiers = default(SyntaxTokenList), IEnumerable<StatementSyntax> setterStatements = null) {
             var getter = AccessorDecl(SyntaxKind.GetAccessorDeclaration, getterModifiers, getterStatements);
             AccessorDeclarationSyntax setter = null;
-            if (!getterOnly) setter = AccessorDecl(SyntaxKind.SetAccessorDeclaration, setterModifiers, setterStatements);
+            if (!getterOnly) {
+                setter = AccessorDecl(SyntaxKind.SetAccessorDeclaration, setterModifiers, setterStatements);
+            }
             return Property(attributeLists, modifiers, type, identifier,
                 SyntaxFactory.AccessorList(setter == null ? SyntaxFactory.SingletonList(getter) : SyntaxFactory.List(new[] { getter, setter }))
                 );
@@ -1320,11 +1356,25 @@ namespace CData.Compiler {
         internal static AccessorListSyntax GetSetAccessorList {
             get {
                 return SyntaxFactory.AccessorList(SyntaxFactory.List(new[] {
-                    SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration, default(SyntaxList<AttributeListSyntax>), default(SyntaxTokenList), SyntaxFactory.Token(SyntaxKind.GetKeyword), null, SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
-                    SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration, default(SyntaxList<AttributeListSyntax>), default(SyntaxTokenList), SyntaxFactory.Token(SyntaxKind.SetKeyword), null, SyntaxFactory.Token(SyntaxKind.SemicolonToken))
+                    SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration, default(SyntaxList<AttributeListSyntax>), default(SyntaxTokenList), 
+                        SyntaxFactory.Token(SyntaxKind.GetKeyword), null, SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
+                    SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration, default(SyntaxList<AttributeListSyntax>), default(SyntaxTokenList),
+                        SyntaxFactory.Token(SyntaxKind.SetKeyword), null, SyntaxFactory.Token(SyntaxKind.SemicolonToken))
                 }));
             }
         }
+        //{ get; private set; }
+        internal static AccessorListSyntax GetPrivateSetAccessorList {
+            get {
+                return SyntaxFactory.AccessorList(SyntaxFactory.List(new[] {
+                    SyntaxFactory.AccessorDeclaration(SyntaxKind.GetAccessorDeclaration, default(SyntaxList<AttributeListSyntax>), default(SyntaxTokenList), 
+                        SyntaxFactory.Token(SyntaxKind.GetKeyword), null, SyntaxFactory.Token(SyntaxKind.SemicolonToken)),
+                    SyntaxFactory.AccessorDeclaration(SyntaxKind.SetAccessorDeclaration, default(SyntaxList<AttributeListSyntax>), PrivateTokenList,
+                        SyntaxFactory.Token(SyntaxKind.SetKeyword), null, SyntaxFactory.Token(SyntaxKind.SemicolonToken))
+                }));
+            }
+        }
+
         internal static IndexerDeclarationSyntax Indexer(SyntaxTokenList modifiers, TypeSyntax type, IEnumerable<ParameterSyntax> parameters, bool getterOnly,
             SyntaxTokenList getterModifiers, IEnumerable<StatementSyntax> getterStatements,
             SyntaxTokenList setterModifiers = default(SyntaxTokenList), IEnumerable<StatementSyntax> setterStatements = null) {
@@ -1498,6 +1548,12 @@ namespace CData.Compiler {
             if (list.Count == 0) throw new ArgumentException("symbol");
             return list.ToArray();
         }
+        internal static NameSyntax ToNameSyntax(this ISymbol symbol) {
+            return SyntaxFactory.ParseName(symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+        }
+        internal static TypeSyntax ToTypeSyntax(this ISymbol symbol) {
+            return SyntaxFactory.ParseTypeName(symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+        }
 
         internal static bool ThisOrBaseFullNameEquals(this INamedTypeSymbol symbol, string[] nameParts) {
             for (; symbol != null; symbol = symbol.BaseType) {
@@ -1538,9 +1594,8 @@ namespace CData.Compiler {
             }
             return false;
         }
-        //internal static bool Isff(this IMethodSymbol methodSymbol) {
 
-        //}
+
 
 
 
@@ -1563,9 +1618,6 @@ namespace CData.Compiler {
         //}
         //internal static TypeSyntax ToTypeSyntax(this ISymbol symbol) {
         //    return SyntaxFactory.ParseTypeName(symbol.ToFullNameString());
-        //}
-        //internal static NameSyntax ToNameSyntax(this ISymbol symbol) {
-        //    return SyntaxFactory.ParseName(symbol.ToFullNameString());
         //}
         //internal static List<TypeParameterSyntax> ToTypeParameterSyntaxList(ImmutableArray<ITypeParameterSymbol> symbols,
         //    out List<TypeParameterConstraintClauseSyntax> constraintClauseList) {
@@ -1802,6 +1854,9 @@ namespace CData.Compiler {
                     yield return NameParts[i];
                 }
             }
+        }
+        public override string ToString() {
+            return string.Join(".", Names);
         }
 
         private NameSyntax _fullNameSyntax;//global::@NS1.NS2.Type

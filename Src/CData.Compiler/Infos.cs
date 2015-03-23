@@ -6,7 +6,6 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace CData.Compiler {
-
     internal sealed class NamespaceInfo {
         public NamespaceInfo(string uri) {
             Uri = uri;
@@ -38,13 +37,21 @@ namespace CData.Compiler {
             }
         }
         public void MapAndCheckClassProperties() {
-            if (!IsCSRef) {
-                foreach (ClassInfo cls in MemberList) {
-                    cls.MapAndCheckProperties();
-                }
+            foreach (ClassInfo cls in MemberList) {
+                cls.MapAndCheckProperties(IsCSRef);
             }
         }
-
+        public void Generate(List<MemberDeclarationSyntax> list, List<TypeOfExpressionSyntax> typeList) {
+            if (!IsCSRef) {
+                var memberList = new List<MemberDeclarationSyntax>();
+                foreach (ClassInfo cls in MemberList) {
+                    cls.Generate(list, typeList);
+                }
+                list.Add(SyntaxFactory.NamespaceDeclaration(CSFullName.FullNameSyntax,
+                    default(SyntaxList<ExternAliasDirectiveSyntax>), default(SyntaxList<UsingDirectiveSyntax>),
+                    SyntaxFactory.List(memberList)));
+            }
+        }
 
     }
 
@@ -55,22 +62,63 @@ namespace CData.Compiler {
         }
         public readonly NamespaceInfo Namespace;
         public readonly string Name;
-        public INamedTypeSymbol CSClassSymbol;//opt
+        public FullName FullName {
+            get {
+                return new FullName(Namespace.Uri, Name);
+            }
+        }
         public CSFullName CSFullName;
-
-
-        //public string CSName {
-        //    get { return CSFullName.LastName; }
-        //}
+        public NameSyntax CSFullNameSyntax {
+            get {
+                return CSFullName.FullNameSyntax;
+            }
+        }
+        public ExpressionSyntax CSFullExprSyntax {
+            get {
+                return CSFullName.FullExprSyntax;
+            }
+        }
+        public INamedTypeSymbol CSClassSymbol;//opt
         public abstract TypeInfo CreateType();
     }
 
     internal sealed class AtomInfo : NamespaceMemberInfo {
-        private AtomInfo(TypeKind kind)
+        public static AtomInfo Get(TypeKind kind) {
+            return _map[kind];
+        }
+        private static readonly Dictionary<TypeKind, AtomInfo> _map = new Dictionary<TypeKind, AtomInfo> {
+            { TypeKind.String, new AtomInfo(TypeKind.String, CS.StringType, CS.StringType) },
+            { TypeKind.IgnoreCaseString, new AtomInfo(TypeKind.IgnoreCaseString, CSEX.IgnoreCaseStringName, CSEX.IgnoreCaseStringName) },
+            { TypeKind.Decimal, new AtomInfo(TypeKind.Decimal, CS.DecimalType, CS.DecimalNullableType) },
+            { TypeKind.Int64, new AtomInfo(TypeKind.Int64, CS.LongType, CS.ULongNullableType) },
+            { TypeKind.Int32, new AtomInfo(TypeKind.Int32, CS.IntType, CS.IntNullableType) },
+            { TypeKind.Int16, new AtomInfo(TypeKind.Int16, CS.ShortType, CS.ShortNullableType) },
+            { TypeKind.SByte, new AtomInfo(TypeKind.SByte, CS.SByteType, CS.SByteNullableType) },
+            { TypeKind.UInt64, new AtomInfo(TypeKind.UInt64, CS.ULongType, CS.ULongNullableType) },
+            { TypeKind.UInt32, new AtomInfo(TypeKind.UInt32, CS.UIntType, CS.UIntNullableType) },
+            { TypeKind.UInt16, new AtomInfo(TypeKind.UInt16, CS.UShortType, CS.UShortNullableType) },
+            { TypeKind.Byte, new AtomInfo(TypeKind.Byte, CS.ByteType, CS.ByteNullableType) },
+            { TypeKind.Double, new AtomInfo(TypeKind.Double, CS.DoubleType, CS.DoubleNullableType) },
+            { TypeKind.Single, new AtomInfo(TypeKind.Single, CS.FloatType, CS.FloatNullableType) },
+            { TypeKind.Boolean, new AtomInfo(TypeKind.Boolean, CS.BoolType, CS.BoolNullableType) },
+            { TypeKind.Binary, new AtomInfo(TypeKind.Binary, CSEX.BinaryName, CSEX.BinaryName) },
+            { TypeKind.Guid, new AtomInfo(TypeKind.Guid, CS.GuidName, CS.GuidNullableType) },
+            { TypeKind.TimeSpan, new AtomInfo(TypeKind.TimeSpan, CS.TimeSpanName, CS.TimeSpanNullableType) },
+            { TypeKind.DateTimeOffset, new AtomInfo(TypeKind.DateTimeOffset, CS.DateTimeOffsetName, CS.DateTimeOffsetNullableType) },
+        };
+        private AtomInfo(TypeKind kind, TypeSyntax typeSyntax, TypeSyntax nullableTypeSyntax)
             : base(null, null) {
             Kind = kind;
+            TypeSyntax = typeSyntax;
+            NullableTypeSyntax = nullableTypeSyntax;
+            TypeDisplayName = typeSyntax.ToString();
+            NullableTypeDisplayName = nullableTypeSyntax.ToString();
         }
         public readonly TypeKind Kind;
+        public readonly TypeSyntax TypeSyntax;
+        public readonly TypeSyntax NullableTypeSyntax;
+        public readonly string TypeDisplayName;
+        public readonly string NullableTypeDisplayName;
         public override TypeInfo CreateType() {
             return new AtomRefTypeInfo(this);
         }
@@ -91,58 +139,57 @@ namespace CData.Compiler {
         public override TypeInfo CreateType() {
             return new ClassRefTypeInfo(this);
         }
-        public void MapAndCheckProperties() {
+        public void MapAndCheckProperties(bool isRef) {
             var typeSymbol = CSClassSymbol;
             if (typeSymbol != null) {
-                foreach (var memberSymbol in typeSymbol.GetMembers()) {
-                    var propSymbol = memberSymbol as IPropertySymbol;
-                    var fieldSymbol = memberSymbol as IFieldSymbol;
-                    if (propSymbol != null || fieldSymbol != null) {
-                        var propAttData = memberSymbol.GetAttributeData(CSEX.ContractPropertyAttributeNameParts);
-                        if (propAttData != null) {
-                            var propName = CSEX.GetFirstArgumentAsString(propAttData);
-                            if (propName == null) {
-                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyAttribute),
-                                    CSEX.GetTextSpan(propAttData));
-                            }
-                            var propInfo = GetProperty(propName);
-                            if (propInfo == null) {
-                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyAttributeName, propName),
-                                    CSEX.GetTextSpan(propAttData));
-                            }
-                            if (propInfo.HasCSSymbol) {
-                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractPropertyAttributeName, propName),
-                                    CSEX.GetTextSpan(propAttData));
-                            }
-                            propInfo.CSPropertySymbol = propSymbol;
-                            propInfo.CSFieldSymbol = fieldSymbol;
+                var memberSymbolList = typeSymbol.GetMembers().Where(i => {
+                    var kind = i.Kind;
+                    return kind == SymbolKind.Property || kind == SymbolKind.Field;
+                }).ToList();
+                for (var i = 0; i < memberSymbolList.Count; ) {
+                    var memberSymbol = memberSymbolList[i];
+                    var propAttData = memberSymbol.GetAttributeData(CSEX.ContractPropertyAttributeNameParts);
+                    if (propAttData != null) {
+                        var propName = CSEX.GetFirstArgumentAsString(propAttData);
+                        if (propName == null) {
+                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyAttribute),
+                                CSEX.GetTextSpan(propAttData));
                         }
-                    }
-                }
-                foreach (var memberSymbol in typeSymbol.GetMembers()) {
-                    var propSymbol = memberSymbol as IPropertySymbol;
-                    var fieldSymbol = memberSymbol as IFieldSymbol;
-                    if (propSymbol != null || fieldSymbol != null) {
-                        var propName = memberSymbol.Name;
                         var propInfo = GetProperty(propName);
-                        if (propInfo != null) {
-                            if (!propInfo.HasCSSymbol) {
-                                propInfo.CSPropertySymbol = propSymbol;
-                                propInfo.CSFieldSymbol = fieldSymbol;
-                            }
+                        if (propInfo == null) {
+                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyAttributeName, propName),
+                                CSEX.GetTextSpan(propAttData));
+                        }
+                        if (propInfo.HasCSSymbol) {
+                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractPropertyAttributeName, propName),
+                                CSEX.GetTextSpan(propAttData));
+                        }
+                        propInfo.CSSymbol = memberSymbol;
+                        memberSymbolList.RemoveAt(i);
+                        continue;
+                    }
+                    ++i;
+                }
+                foreach (var memberSymbol in memberSymbolList) {
+                    var propName = memberSymbol.Name;
+                    var propInfo = GetProperty(propName);
+                    if (propInfo != null) {
+                        if (!propInfo.HasCSSymbol) {
+                            propInfo.CSSymbol = memberSymbol;
                         }
                     }
                 }
+
                 if (PropertyList != null) {
                     foreach (var propInfo in PropertyList) {
-                        var propSymbol = propInfo.CSPropertySymbol;
-                        var fieldSymbol = propInfo.CSFieldSymbol;
-                        var memberSymbol = (ISymbol)propSymbol ?? fieldSymbol;
+                        var memberSymbol = propInfo.CSSymbol;
                         if (memberSymbol != null) {
                             if (memberSymbol.IsStatic) {
                                 DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractPropertyOrFieldCannotBeStatic),
                                     CSEX.GetTextSpan(memberSymbol));
                             }
+                            var propSymbol = propInfo.CSPropertySymbol;
+                            var fieldSymbol = propInfo.CSFieldSymbol;
                             if (propSymbol != null) {
                                 if (propSymbol.IsReadOnly || propSymbol.IsWriteOnly) {
                                     DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractPropertyMustHaveGetterAndSetter),
@@ -161,7 +208,9 @@ namespace CData.Compiler {
                             }
                             propInfo.CSName = memberSymbol.Name;
                             propInfo.IsCSProperty = propSymbol != null;
-                            propInfo.CheckCSSymbol();
+                            if (!isRef) {
+                                propInfo.CheckCSSymbol();
+                            }
                         }
                         else {
                             propInfo.CSName = propInfo.Name;
@@ -171,7 +220,84 @@ namespace CData.Compiler {
                 }
             }
         }
+        public void Generate(List<MemberDeclarationSyntax> list, List<TypeOfExpressionSyntax> typeList) {
+            var memberList = new List<MemberDeclarationSyntax>();
+            if (PropertyList != null) {
+                foreach (var propInfo in PropertyList) {
+                    propInfo.Generate(memberList);
+                }
+            }
+            if (BaseClass == null) {
+                //>public TextSpan __TextSpan {get; private set;}
+                memberList.Add(CS.Property(null, CS.PublicTokenList, CSEX.TextSpanName, CS.Id(CSEX.TextSpanNameStr), CS.GetPrivateSetAccessorList));
+            }
+            //>public static bool TryLoad(string filePath, System.IO.TextReader reader, DiagContext context, out XXX result) {
+            //  return CData.Serializer.TryLoad<XXX>(filePath, reader, context, __ThisMetadata, out result);
+            //}
+            memberList.Add(CS.Method(CS.PublicStaticTokenList, CS.BoolType, "TryLoad", new[] {
+                    CS.Parameter(CS.StringType, "filePath"),
+                    CS.Parameter(CS.TextReaderName, "reader"),
+                    CS.Parameter(CSEX.DiagContextName, "context"),
+                    CS.OutParameter(CSFullNameSyntax, "result")
+                },
+                CS.ReturnStm(CS.InvoExpr(CS.MemberAccessExpr(CSEX.SerializerExpr, CS.GenericName("TryLoad", CSFullNameSyntax)),
+                    SyntaxFactory.Argument(CS.IdName("filePath")), SyntaxFactory.Argument(CS.IdName("reader")), SyntaxFactory.Argument(CS.IdName("context")),
+                    SyntaxFactory.Argument(CS.IdName(CSEX.ThisMetadataNameStr)), CS.OutArgument("result")))));
+            if (BaseClass == null) {
+                //>public void Save(TextWriter writer, string indentString = "\t", string newLineString = "\n") {
+                //>  CData.Serializer.Save(this, __Metadata, writer, indentString, newLineString);
+                //>}
+                memberList.Add(CS.Method(CS.PublicTokenList, CS.VoidType, "Save", new[] { 
+                        CS.Parameter(CS.TextWriterName, "writer"),
+                        CS.Parameter(CS.StringType, "indentString", CS.Literal("\t")),
+                        CS.Parameter(CS.StringType, "newLineString", CS.Literal("\n"))
+                    },
+                    CS.ExprStm(CS.InvoExpr(CS.MemberAccessExpr(CSEX.SerializerExpr, "Save"), SyntaxFactory.ThisExpression(),
+                        CS.IdName(CSEX.MetadataNameStr), CS.IdName("writer"), CS.IdName("indentString"), CS.IdName("newLineString")
+                    ))));
+                //>public void Save(StringBuilder stringBuilder, string indentString = "\t", string newLineString = "\n") {
+                //>  CData.Serializer.Save(this, __Metadata, stringBuilder, indentString, newLineString);
+                //>}
+                memberList.Add(CS.Method(CS.PublicTokenList, CS.VoidType, "Save", new[] { 
+                        CS.Parameter(CS.StringBuilderName, "stringBuilder"),
+                        CS.Parameter(CS.StringType, "indentString", CS.Literal("\t")),
+                        CS.Parameter(CS.StringType, "newLineString", CS.Literal("\n"))
+                    },
+                    CS.ExprStm(CS.InvoExpr(CS.MemberAccessExpr(CSEX.SerializerExpr, "Save"), SyntaxFactory.ThisExpression(),
+                        CS.IdName(CSEX.MetadataNameStr), CS.IdName("stringBuilder"), CS.IdName("indentString"), CS.IdName("newLineString")
+                    ))));
+            }
 
+            //>new public static readonly ClassMetadata __ThisMetadata =
+            //>  new ClassMetadata(FullName fullName, bool isAbstract, ClassMetadata baseClass, PropertyMetadata[] properties, Type clrType);
+            memberList.Add(CS.Field(BaseClass == null ? CS.PublicStaticReadOnlyTokenList : CS.NewPublicStaticReadOnlyTokenList,
+                CSEX.ClassMetadataName, CSEX.ThisMetadataNameStr,
+                CS.NewObjExpr(CSEX.ClassMetadataName, CSEX.Literal(FullName),
+                    CS.Literal(IsAbstract),
+                    BaseClass == null ? (ExpressionSyntax)CS.NullLiteral : CS.MemberAccessExpr(BaseClass.CSFullExprSyntax, CSEX.ThisMetadataNameStr),
+                    CS.NewArrOrNullExpr(CSEX.PropertyMetadataArrayType, PropertyList == null ? null : PropertyList.Select(i => i.GenerateMetadata())),
+                    CS.TypeOfExpr(CSFullNameSyntax)
+                )));
+            //>public virtual/override ClassMetadata __Metadata {
+            //>    get { return __ThisMetadata; }
+            //>}
+            memberList.Add(CS.Property(BaseClass == null ? CS.PublicVirtualTokenList : CS.PublicOverrideTokenList,
+                CSEX.ClassMetadataName, CSEX.MetadataNameStr, true, default(SyntaxTokenList),
+                new StatementSyntax[] { 
+                    CS.ReturnStm(CS.IdName(CSEX.ThisMetadataNameStr))
+                }));
+
+            list.Add(SyntaxFactory.ClassDeclaration(
+                attributeLists: default(SyntaxList<AttributeListSyntax>),
+                modifiers: IsAbstract ? CS.PublicAbstractPartialTokenList : CS.PublicPartialTokenList,
+                identifier: CS.Id(CS.EscapeId(CSFullName.LastName)),
+                typeParameterList: null,
+                baseList: BaseClass == null ? null : CS.BaseList(BaseClass.CSFullNameSyntax),
+                constraintClauses: default(SyntaxList<TypeParameterConstraintClauseSyntax>),
+                members: SyntaxFactory.List(memberList)
+                ));
+            typeList.Add(CS.TypeOfExpr(CSFullNameSyntax));
+        }
         public PropertyInfo GetProperty(string name) {
             if (PropertyList != null) {
                 foreach (var prop in PropertyList) {
@@ -206,16 +332,34 @@ namespace CData.Compiler {
         public readonly TypeInfo Type;
         public string CSName;
         public bool IsCSProperty;
-        public IPropertySymbol CSPropertySymbol;//opt
-        public IFieldSymbol CSFieldSymbol;//opt
-        public ISymbol CSSymbol {
-            get { return (ISymbol)CSPropertySymbol ?? CSFieldSymbol; }
-        }
+        public ISymbol CSSymbol;//opt
         public bool HasCSSymbol {
-            get { return CSPropertySymbol != null || CSFieldSymbol != null; }
+            get {
+                return CSSymbol != null;
+            }
+        }
+        public IPropertySymbol CSPropertySymbol {
+            get {
+                return CSSymbol as IPropertySymbol;
+            }
+        }
+        public IFieldSymbol CSFieldSymbol {
+            get {
+                return CSSymbol as IFieldSymbol;
+            }
         }
         public void CheckCSSymbol() {
             Type.CheckCSType(CSSymbol, CSPropertySymbol != null ? CSPropertySymbol.Type : CSFieldSymbol.Type, ".");
+        }
+        public void Generate(List<MemberDeclarationSyntax> list) {
+            if (CSSymbol == null) {
+                list.Add(CS.Property(null, CS.PublicTokenList, Type.GetTypeSyntax(), CS.Id(CS.EscapeId(CSName)), CS.GetPrivateSetAccessorList));
+            }
+        }
+        public ExpressionSyntax GenerateMetadata() {
+            //>new PropertyMetadata(string name, TypeMetadata type, string clrName, bool isClrProperty)
+            return CS.NewObjExpr(CSEX.PropertyMetadataName, CS.Literal(Name), Type.GenerateMetadata(),
+                CS.Literal(CSName), CS.Literal(IsCSProperty));
         }
     }
 
@@ -226,6 +370,8 @@ namespace CData.Compiler {
         public readonly TypeKind Kind;
         public bool IsNullable;
         public abstract void CheckCSType(ISymbol propSymbol, ITypeSymbol typeSymbol, string parentTypeName);
+        public abstract TypeSyntax GetTypeSyntax();
+        public abstract ExpressionSyntax GenerateMetadata();
     }
     internal sealed class AtomRefTypeInfo : TypeInfo {
         public AtomRefTypeInfo(AtomInfo atom)
@@ -235,9 +381,17 @@ namespace CData.Compiler {
         public readonly AtomInfo Atom;
         public override void CheckCSType(ISymbol propSymbol, ITypeSymbol typeSymbol, string parentTypeName) {
             if (!CSEX.IsAtomType(Kind, IsNullable, typeSymbol)) {
-                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyOrFieldType, parentTypeName),
+                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyType,
+                    parentTypeName, IsNullable ? Atom.NullableTypeDisplayName : Atom.TypeDisplayName),
                     CSEX.GetTextSpan(propSymbol));
             }
+        }
+        public override TypeSyntax GetTypeSyntax() {
+            return IsNullable ? Atom.NullableTypeSyntax : Atom.TypeSyntax;
+        }
+        public override ExpressionSyntax GenerateMetadata() {
+            //>AtomRefTypeMetadata.Get(kind, isNullable)
+            return CS.InvoExpr(CS.MemberAccessExpr(CSEX.AtomRefTypeMetadataExpr, "Get"), CSEX.Literal(Kind), CS.Literal(IsNullable));
         }
     }
     internal sealed class ClassRefTypeInfo : TypeInfo {
@@ -248,9 +402,19 @@ namespace CData.Compiler {
         public readonly ClassInfo Class;
         public override void CheckCSType(ISymbol propSymbol, ITypeSymbol typeSymbol, string parentTypeName) {
             if (typeSymbol.FullNameEquals(Class.CSFullName.NameParts)) {
-                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyOrFieldType, parentTypeName),
+                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyType,
+                    parentTypeName, Class.CSFullName.ToString()),
                     CSEX.GetTextSpan(propSymbol));
             }
+        }
+        public override TypeSyntax GetTypeSyntax() {
+            return Class.CSFullNameSyntax;
+        }
+        public override ExpressionSyntax GenerateMetadata() {
+            //>new ClassRefTypeMetadata(class.__ThisMetadata, isNullable)
+            return CS.NewObjExpr(CSEX.ClassRefTypeMetadataName,
+                CS.MemberAccessExpr(Class.CSFullExprSyntax, CSEX.ThisMetadataNameStr),
+                CS.Literal(IsNullable));
         }
     }
     internal sealed class ObjectSetKeySelector : List<PropertyInfo> {
@@ -259,25 +423,25 @@ namespace CData.Compiler {
         }
     }
     internal sealed class CollectionTypeInfo : TypeInfo {
-        public CollectionTypeInfo(TypeKind kind, TypeInfo itemOrValueType, AtomRefTypeInfo keyType,
+        public CollectionTypeInfo(TypeKind kind, TypeInfo itemOrValueType, AtomRefTypeInfo mapKeyType,
             ObjectSetKeySelector objectSetKeySelector)
             : base(kind) {
             ItemOrValueType = itemOrValueType;
-            KeyType = keyType;
+            MapKeyType = mapKeyType;
             ObjectSetKeySelector = objectSetKeySelector;
         }
         public readonly TypeInfo ItemOrValueType;
-        public readonly AtomRefTypeInfo KeyType;//opt, for map
+        public readonly AtomRefTypeInfo MapKeyType;//opt, for map
         public readonly ObjectSetKeySelector ObjectSetKeySelector;//opt
         public INamedTypeSymbol CSCollectionSymbol;//opt
-
         public override void CheckCSType(ISymbol propSymbol, ITypeSymbol typeSymbol, string parentTypeName) {
-            var kind = Kind;
             INamedTypeSymbol collSymbol;
+            var kind = Kind;
             if (kind == TypeKind.List) {
                 collSymbol = typeSymbol.GetSelfOrInterface(CS.ICollection1NameParts);
                 if (collSymbol == null) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyOrFieldType, parentTypeName),
+                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyType,
+                        parentTypeName, "System.Collections.Generic.ICollection<T> or implementing type"),
                         CSEX.GetTextSpan(propSymbol));
                 }
                 ItemOrValueType.CheckCSType(propSymbol, collSymbol.TypeArguments[0], parentTypeName + @"\list item");
@@ -285,17 +449,19 @@ namespace CData.Compiler {
             else if (kind == TypeKind.Map) {
                 collSymbol = typeSymbol.GetSelfOrInterface(CS.IDictionary2TNameParts);
                 if (collSymbol == null) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyOrFieldType, parentTypeName),
+                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyType,
+                        parentTypeName, "System.Collections.Generic.IDictionary<TKey, TValue> or implementing type"),
                         CSEX.GetTextSpan(propSymbol));
                 }
                 var typeArgs = collSymbol.TypeArguments;
-                KeyType.CheckCSType(propSymbol, typeArgs[0], parentTypeName + @"\map key");
+                MapKeyType.CheckCSType(propSymbol, typeArgs[0], parentTypeName + @"\map key");
                 ItemOrValueType.CheckCSType(propSymbol, typeArgs[1], parentTypeName + @"\map value");
             }
             else if (kind == TypeKind.ObjectSet) {
                 collSymbol = typeSymbol.GetSelfOrInterface(CSEX.IOjectSet2NameParts);
                 if (collSymbol == null) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyOrFieldType, parentTypeName),
+                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyType,
+                        parentTypeName, "CData.IObjectSet<TKey, TObject> or implementing type"),
                         CSEX.GetTextSpan(propSymbol));
                 }
                 var typeArgs = collSymbol.TypeArguments;
@@ -305,7 +471,8 @@ namespace CData.Compiler {
             else {//AtomSet
                 collSymbol = typeSymbol.GetSelfOrInterface(CS.ISet1NameParts);
                 if (collSymbol == null) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyOrFieldType, parentTypeName),
+                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyType,
+                        parentTypeName, "System.Collections.Generic.ISet<T> or implementing type"),
                         CSEX.GetTextSpan(propSymbol));
                 }
                 ItemOrValueType.CheckCSType(propSymbol, collSymbol.TypeArguments[0], parentTypeName + @"\atom set item");
@@ -314,13 +481,53 @@ namespace CData.Compiler {
             if (collSymbol.TypeKind == Microsoft.CodeAnalysis.TypeKind.Interface) {
             }
             else {
-                if (collSymbol.IsAbstract || collSymbol.IsGenericType || !collSymbol.HasParameterlessConstructor()) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyOrFieldCollectionType, parentTypeName),
+                if (collSymbol.IsAbstract || !collSymbol.HasParameterlessConstructor()) {
+                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyType,
+                        parentTypeName, "Non-abstract parameterless-constructor type"),
                         CSEX.GetTextSpan(propSymbol));
 
                 }
                 CSCollectionSymbol = collSymbol;
             }
+        }
+        public override TypeSyntax GetTypeSyntax() {
+            if (CSCollectionSymbol != null) {
+                return CSCollectionSymbol.ToNameSyntax();
+            }
+            var kind = Kind;
+            if (kind == TypeKind.List) {
+                return CS.ListOf(ItemOrValueType.GetTypeSyntax());
+            }
+            else if (kind == TypeKind.Map) {
+                return CS.DictionaryOf(MapKeyType.GetTypeSyntax(), ItemOrValueType.GetTypeSyntax());
+            }
+            else if (kind == TypeKind.ObjectSet) {
+                return CSEX.ObjectSetOf(ObjectSetKeySelector.KeyType.GetTypeSyntax(), ItemOrValueType.GetTypeSyntax());
+            }
+            else {//AtomSet
+                return CS.HashSetOf(ItemOrValueType.GetTypeSyntax());
+            }
+        }
+        public override ExpressionSyntax GenerateMetadata() {
+            var kind = Kind;
+            ExpressionSyntax objectSetKeySelectorExpr = null;
+            if (kind == TypeKind.ObjectSet) {
+                //>(Func<ObjType, KeyType>)(obj => obj.Prop1.Prop2)
+                ExpressionSyntax bodyExpr = CS.IdName("obj");
+                foreach (var propInfo in ObjectSetKeySelector) {
+                    bodyExpr = CS.MemberAccessExpr(bodyExpr, CS.EscapeId(propInfo.CSName));
+                }
+                objectSetKeySelectorExpr = CS.CastExpr(
+                    CS.FuncOf(ItemOrValueType.GetTypeSyntax(), ObjectSetKeySelector.KeyType.GetTypeSyntax()),
+                    CS.ParedExpr(CS.SimpleLambdaExpr("obj", bodyExpr)));
+            }
+            //>new CollectionTypeMetadata(kind, isNullable, itemOrValueType, mapKeyType, objectSetKeySelector, clrType)
+            return CS.NewObjExpr(CSEX.CollectionTypeMetadataName,
+                CSEX.Literal(Kind), CS.Literal(IsNullable), ItemOrValueType.GenerateMetadata(),
+                kind == TypeKind.Map ? MapKeyType.GenerateMetadata() : CS.NullLiteral,
+                objectSetKeySelectorExpr ?? CS.NullLiteral,
+                CS.TypeOfExpr(GetTypeSyntax())
+                );
         }
     }
 

@@ -6,64 +6,37 @@ using System.Reflection;
 namespace CData {
     public enum TypeKind : byte {
         None = 0,
-        Class,
-        List,
-        AtomSet,
-        ObjectSet,
-        Map,
-        //DO NOT CHANGE THE ORDER
-        String,
-        IgnoreCaseString,
-        Decimal,
-        Int64,
-        Int32,
-        Int16,
-        SByte,
-        UInt64,
-        UInt32,
-        UInt16,
-        Byte,
-        Double,
-        Single,
-        Boolean,
-        Binary,
-        Guid,
-        TimeSpan,
-        DateTimeOffset,
+        Class = 1,
+        List = 2,
+        AtomSet = 3,
+        ObjectSet = 4,
+        Map = 5,
+        String = 50,
+        IgnoreCaseString = 51,
+        Decimal = 52,
+        Int64 = 53,
+        Int32 = 54,
+        Int16 = 55,
+        SByte = 56,
+        UInt64 = 57,
+        UInt32 = 58,
+        UInt16 = 59,
+        Byte = 60,
+        Double = 61,
+        Single = 62,
+        Boolean = 63,
+        Binary = 64,
+        Guid = 65,
+        TimeSpan = 66,
+        DateTimeOffset = 67,
     }
     public abstract class TypeMetadata {
-        private static readonly HashSet<Assembly> _assemblySet = new HashSet<Assembly>();
-        public static void Initialize(Assembly assembly) {
-            if (assembly == null) throw new ArgumentNullException("assembly");
-            bool added;
-            lock (_assemblySet) {
-                added = _assemblySet.Add(assembly);
-            }
-            if (added) {
-                RunClassConstructors(assembly);
-            }
-        }
-        private static void RunClassConstructors(Assembly assembly) {
-            var att = assembly.GetCustomAttribute<ContractTypesAttribute>();
-            if (att != null) {
-                var types = att.Types;
-                if (types != null) {
-                    foreach (var type in types) {
-                        if (type != null) {
-                            System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(type.TypeHandle);
-                        }
-                    }
-                }
-            }
-        }
-        protected TypeMetadata(TypeKind kind, bool isNullable, Type clrType) {
+        protected TypeMetadata(TypeKind kind, bool isNullable) {
             Kind = kind;
             IsNullable = isNullable;
-            ClrType = clrType;
         }
         public readonly TypeKind Kind;
         public readonly bool IsNullable;
-        public readonly Type ClrType;
         public bool IsClass {
             get {
                 return Kind == TypeKind.Class;
@@ -95,61 +68,15 @@ namespace CData {
             }
         }
     }
-    public sealed class AtomTypeMetadata : TypeMetadata {
-        public static AtomTypeMetadata Get(TypeKind kind, bool isNullable) {
-            return isNullable ? _nullableMap[kind] : _map[kind];
-        }
-        private AtomTypeMetadata(TypeKind kind, bool isNullable, Type clrType)
-            : base(kind, isNullable, clrType) {
-        }
-        private static readonly Dictionary<TypeKind, AtomTypeMetadata> _map = new Dictionary<TypeKind, AtomTypeMetadata> {
-            { TypeKind.String, new AtomTypeMetadata(TypeKind.String , false, typeof(string)) },
-            { TypeKind.IgnoreCaseString, new AtomTypeMetadata(TypeKind.IgnoreCaseString , false, typeof(IgnoreCaseString)) },
-            { TypeKind.Decimal, new AtomTypeMetadata(TypeKind.Decimal , false, typeof(decimal)) },
-            { TypeKind.Int64, new AtomTypeMetadata(TypeKind.Int64 , false, typeof(long)) },
-            { TypeKind.Int32, new AtomTypeMetadata(TypeKind.Int32 , false, typeof(int)) },
-            { TypeKind.Int16, new AtomTypeMetadata(TypeKind.Int16 , false, typeof(short)) },
-            { TypeKind.SByte, new AtomTypeMetadata(TypeKind.SByte , false, typeof(sbyte)) },
-            { TypeKind.UInt64, new AtomTypeMetadata(TypeKind.UInt64 , false, typeof(ulong)) },
-            { TypeKind.UInt32, new AtomTypeMetadata(TypeKind.UInt32 , false, typeof(uint)) },
-            { TypeKind.UInt16, new AtomTypeMetadata(TypeKind.UInt16 , false, typeof(ushort)) },
-            { TypeKind.Byte, new AtomTypeMetadata(TypeKind.Byte , false, typeof(byte)) },
-            { TypeKind.Double, new AtomTypeMetadata(TypeKind.Double , false, typeof(double)) },
-            { TypeKind.Single, new AtomTypeMetadata(TypeKind.Single , false, typeof(float)) },
-            { TypeKind.Boolean, new AtomTypeMetadata(TypeKind.Boolean , false, typeof(bool)) },
-            { TypeKind.Binary, new AtomTypeMetadata(TypeKind.Binary , false, typeof(Binary)) },
-            { TypeKind.Guid, new AtomTypeMetadata(TypeKind.Guid , false, typeof(Guid)) },
-            { TypeKind.TimeSpan, new AtomTypeMetadata(TypeKind.TimeSpan , false, typeof(TimeSpan)) },
-            { TypeKind.DateTimeOffset, new AtomTypeMetadata(TypeKind.DateTimeOffset , false, typeof(DateTimeOffset)) },
-        };
-        private static readonly Dictionary<TypeKind, AtomTypeMetadata> _nullableMap = new Dictionary<TypeKind, AtomTypeMetadata> {
-            { TypeKind.String, new AtomTypeMetadata(TypeKind.String , true, typeof(string)) },
-            { TypeKind.IgnoreCaseString, new AtomTypeMetadata(TypeKind.IgnoreCaseString , true, typeof(IgnoreCaseString)) },
-            { TypeKind.Decimal, new AtomTypeMetadata(TypeKind.Decimal , true, typeof(decimal?)) },
-            { TypeKind.Int64, new AtomTypeMetadata(TypeKind.Int64 , true, typeof(long?)) },
-            { TypeKind.Int32, new AtomTypeMetadata(TypeKind.Int32 , true, typeof(int?)) },
-            { TypeKind.Int16, new AtomTypeMetadata(TypeKind.Int16 , true, typeof(short?)) },
-            { TypeKind.SByte, new AtomTypeMetadata(TypeKind.SByte , true, typeof(sbyte?)) },
-            { TypeKind.UInt64, new AtomTypeMetadata(TypeKind.UInt64 , true, typeof(ulong?)) },
-            { TypeKind.UInt32, new AtomTypeMetadata(TypeKind.UInt32 , true, typeof(uint?)) },
-            { TypeKind.UInt16, new AtomTypeMetadata(TypeKind.UInt16 , true, typeof(ushort?)) },
-            { TypeKind.Byte, new AtomTypeMetadata(TypeKind.Byte , true, typeof(byte?)) },
-            { TypeKind.Double, new AtomTypeMetadata(TypeKind.Double , true, typeof(double?)) },
-            { TypeKind.Single, new AtomTypeMetadata(TypeKind.Single , true, typeof(float?)) },
-            { TypeKind.Boolean, new AtomTypeMetadata(TypeKind.Boolean , true, typeof(bool?)) },
-            { TypeKind.Binary, new AtomTypeMetadata(TypeKind.Binary , true, typeof(Binary)) },
-            { TypeKind.Guid, new AtomTypeMetadata(TypeKind.Guid , true, typeof(Guid?)) },
-            { TypeKind.TimeSpan, new AtomTypeMetadata(TypeKind.TimeSpan , true, typeof(TimeSpan?)) },
-            { TypeKind.DateTimeOffset, new AtomTypeMetadata(TypeKind.DateTimeOffset , true, typeof(DateTimeOffset?)) },
-        };
-    }
     public sealed class CollectionTypeMetadata : TypeMetadata {
-        public CollectionTypeMetadata(TypeKind kind, bool isNullable, Type clrType,
-            TypeMetadata itemOrValueType, AtomTypeMetadata mapKeyType, object objectSetKeySelector)
-            : base(kind, isNullable, clrType) {
+        public CollectionTypeMetadata(TypeKind kind, bool isNullable,
+            TypeMetadata itemOrValueType, AtomRefTypeMetadata mapKeyType, object objectSetKeySelector,
+            Type clrType)
+            : base(kind, isNullable) {
             ItemOrValueType = itemOrValueType;
             MapKeyType = mapKeyType;
             ObjectSetKeySelector = objectSetKeySelector;
+            ClrType = clrType;
             var ti = clrType.GetTypeInfo();
             ClrConstructor = Extensions.GetParameterlessConstructor(ti);
             ClrAddMethod = Extensions.GetMethodInHierarchy(ti, "Add");
@@ -163,8 +90,9 @@ namespace CData {
             }
         }
         public readonly TypeMetadata ItemOrValueType;
-        public readonly AtomTypeMetadata MapKeyType;//opt
+        public readonly AtomRefTypeMetadata MapKeyType;//opt
         public readonly object ObjectSetKeySelector;//opt
+        public readonly Type ClrType;
         public readonly ConstructorInfo ClrConstructor;
         public readonly MethodInfo ClrAddMethod;
         public readonly MethodInfo ClrContainsKeyMethod;//for map
@@ -197,59 +125,136 @@ namespace CData {
             return (IEnumerable)ClrValuesProperty.GetValue(obj);
         }
     }
+    public sealed class AtomRefTypeMetadata : TypeMetadata {
+        public static AtomRefTypeMetadata Get(TypeKind kind, bool isNullable) {
+            return isNullable ? _nullableMap[kind] : _map[kind];
+        }
+        private AtomRefTypeMetadata(TypeKind kind, bool isNullable)
+            : base(kind, isNullable) {
+        }
+        private static readonly Dictionary<TypeKind, AtomRefTypeMetadata> _map = new Dictionary<TypeKind, AtomRefTypeMetadata> {
+            { TypeKind.String, new AtomRefTypeMetadata(TypeKind.String , false) },
+            { TypeKind.IgnoreCaseString, new AtomRefTypeMetadata(TypeKind.IgnoreCaseString, false) },
+            { TypeKind.Decimal, new AtomRefTypeMetadata(TypeKind.Decimal, false) },
+            { TypeKind.Int64, new AtomRefTypeMetadata(TypeKind.Int64, false) },
+            { TypeKind.Int32, new AtomRefTypeMetadata(TypeKind.Int32, false) },
+            { TypeKind.Int16, new AtomRefTypeMetadata(TypeKind.Int16, false) },
+            { TypeKind.SByte, new AtomRefTypeMetadata(TypeKind.SByte, false) },
+            { TypeKind.UInt64, new AtomRefTypeMetadata(TypeKind.UInt64, false) },
+            { TypeKind.UInt32, new AtomRefTypeMetadata(TypeKind.UInt32, false) },
+            { TypeKind.UInt16, new AtomRefTypeMetadata(TypeKind.UInt16, false) },
+            { TypeKind.Byte, new AtomRefTypeMetadata(TypeKind.Byte, false) },
+            { TypeKind.Double, new AtomRefTypeMetadata(TypeKind.Double, false) },
+            { TypeKind.Single, new AtomRefTypeMetadata(TypeKind.Single, false) },
+            { TypeKind.Boolean, new AtomRefTypeMetadata(TypeKind.Boolean, false) },
+            { TypeKind.Binary, new AtomRefTypeMetadata(TypeKind.Binary, false) },
+            { TypeKind.Guid, new AtomRefTypeMetadata(TypeKind.Guid, false) },
+            { TypeKind.TimeSpan, new AtomRefTypeMetadata(TypeKind.TimeSpan, false) },
+            { TypeKind.DateTimeOffset, new AtomRefTypeMetadata(TypeKind.DateTimeOffset, false) },
+        };
+        private static readonly Dictionary<TypeKind, AtomRefTypeMetadata> _nullableMap = new Dictionary<TypeKind, AtomRefTypeMetadata> {
+            { TypeKind.String, new AtomRefTypeMetadata(TypeKind.String, true) },
+            { TypeKind.IgnoreCaseString, new AtomRefTypeMetadata(TypeKind.IgnoreCaseString, true) },
+            { TypeKind.Decimal, new AtomRefTypeMetadata(TypeKind.Decimal, true) },
+            { TypeKind.Int64, new AtomRefTypeMetadata(TypeKind.Int64, true) },
+            { TypeKind.Int32, new AtomRefTypeMetadata(TypeKind.Int32, true) },
+            { TypeKind.Int16, new AtomRefTypeMetadata(TypeKind.Int16, true) },
+            { TypeKind.SByte, new AtomRefTypeMetadata(TypeKind.SByte, true) },
+            { TypeKind.UInt64, new AtomRefTypeMetadata(TypeKind.UInt64, true) },
+            { TypeKind.UInt32, new AtomRefTypeMetadata(TypeKind.UInt32, true) },
+            { TypeKind.UInt16, new AtomRefTypeMetadata(TypeKind.UInt16, true) },
+            { TypeKind.Byte, new AtomRefTypeMetadata(TypeKind.Byte, true) },
+            { TypeKind.Double, new AtomRefTypeMetadata(TypeKind.Double, true) },
+            { TypeKind.Single, new AtomRefTypeMetadata(TypeKind.Single, true) },
+            { TypeKind.Boolean, new AtomRefTypeMetadata(TypeKind.Boolean, true) },
+            { TypeKind.Binary, new AtomRefTypeMetadata(TypeKind.Binary, true) },
+            { TypeKind.Guid, new AtomRefTypeMetadata(TypeKind.Guid, true) },
+            { TypeKind.TimeSpan, new AtomRefTypeMetadata(TypeKind.TimeSpan, true) },
+            { TypeKind.DateTimeOffset, new AtomRefTypeMetadata(TypeKind.DateTimeOffset, true) },
+        };
+    }
+    public sealed class ClassRefTypeMetadata : TypeMetadata {
+        public ClassRefTypeMetadata(ClassMetadata cls, bool isNullable)
+            : base(TypeKind.Class, isNullable) {
+            Class = cls;
+        }
+        public readonly ClassMetadata Class;
+    }
 
-    public sealed class ClassTypeMetadata : TypeMetadata {
-        private static readonly Dictionary<FullName, ClassTypeMetadata> _clsMap = new Dictionary<FullName, ClassTypeMetadata>();
-        private static void Add(FullName fullName, ClassTypeMetadata cls) {
+    public sealed class ClassMetadata {
+        private static readonly HashSet<Assembly> _assemblySet = new HashSet<Assembly>();
+        public static void Initialize(Assembly assembly) {
+            if (assembly == null) throw new ArgumentNullException("assembly");
+            bool added;
+            lock (_assemblySet) {
+                added = _assemblySet.Add(assembly);
+            }
+            if (added) {
+                RunClassConstructors(assembly);
+            }
+        }
+        private static void RunClassConstructors(Assembly assembly) {
+            var att = assembly.GetCustomAttribute<ContractTypesAttribute>();
+            if (att != null) {
+                var types = att.Types;
+                if (types != null) {
+                    foreach (var type in types) {
+                        if (type != null) {
+                            System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(type.TypeHandle);
+                        }
+                    }
+                }
+            }
+        }
+        //
+        private static readonly Dictionary<FullName, ClassMetadata> _clsMap = new Dictionary<FullName, ClassMetadata>();
+        private static void Add(FullName fullName, ClassMetadata cls) {
             lock (_clsMap) {
                 _clsMap.Add(fullName, cls);
             }
         }
-        public static ClassTypeMetadata Get(FullName fullName) {
-            ClassTypeMetadata cls;
+        public static ClassMetadata Get(FullName fullName) {
+            ClassMetadata cls;
             lock (_clsMap) {
                 _clsMap.TryGetValue(fullName, out cls);
             }
             return cls;
         }
-        public ClassTypeMetadata(bool isNullable, Type clrType,
-            FullName fullName, bool isAbstract, ClassTypeMetadata baseClass, PropertyMetadata[] properties,
-            string onLoadingName, string onLoadedName)
-            : base(TypeKind.Class, isNullable, clrType) {
+        //
+        public ClassMetadata(FullName fullName, bool isAbstract, ClassMetadata baseClass, PropertyMetadata[] properties,
+            Type clrType) {
             Add(fullName, this);
             FullName = fullName;
             IsAbstract = isAbstract;
             BaseClass = baseClass;
             _properties = properties;
+            ClrType = clrType;
             TypeInfo ti = clrType.GetTypeInfo();
             Initialize(ti.Assembly);//??
             if (!isAbstract) {
                 ClrConstructor = Extensions.GetParameterlessConstructor(ti);
-            }
-            if (baseClass == null) {
-                ClrTextSpanProperty = Extensions.GetPropertyInHierarchy(ti, "__TextSpan");
-            }
-            if (onLoadingName != null) {
-                ClrOnLoadingMethod = Extensions.GetMethod(ti, onLoadingName);
-            }
-            if (onLoadedName != null) {
-                ClrOnLoadedMethod = Extensions.GetMethod(ti, onLoadedName);
             }
             if (properties != null) {
                 foreach (var prop in properties) {
                     prop.GetClrPropertyOrField(ti);
                 }
             }
+            if (baseClass == null) {
+                ClrTextSpanProperty = Extensions.GetProperty(ti, "__TextSpan");
+            }
+            ClrOnLoadingMethod = ti.GetDeclaredMethod("OnLoading");
+            ClrOnLoadedMethod = ti.GetDeclaredMethod("OnLoaded");
         }
         public readonly FullName FullName;
         public readonly bool IsAbstract;
-        public readonly ClassTypeMetadata BaseClass;
+        public readonly ClassMetadata BaseClass;
         private readonly PropertyMetadata[] _properties;
+        public readonly Type ClrType;
         public readonly ConstructorInfo ClrConstructor;//for non abstract class
         public readonly PropertyInfo ClrTextSpanProperty;//for top class
         public readonly MethodInfo ClrOnLoadingMethod;//opt
         public readonly MethodInfo ClrOnLoadedMethod;//opt
-        public bool IsEqualToOrDeriveFrom(ClassTypeMetadata other) {
+        public bool IsEqualToOrDeriveFrom(ClassMetadata other) {
             if (other == null) throw new ArgumentNullException("other");
             for (var cls = this; cls != null; cls = cls.BaseClass) {
                 if (cls == other) {
@@ -336,10 +341,10 @@ namespace CData {
         public FieldInfo ClrField { get; private set; }
         internal void GetClrPropertyOrField(TypeInfo ti) {
             if (IsClrProperty) {
-                ClrProperty = Extensions.GetPropertyInHierarchy(ti, ClrName);
+                ClrProperty = Extensions.GetProperty(ti, ClrName);
             }
             else {
-                ClrField = Extensions.GetFieldInHierarchy(ti, ClrName);
+                ClrField = Extensions.GetField(ti, ClrName);
             }
         }
         public object GetValue(object obj) {
