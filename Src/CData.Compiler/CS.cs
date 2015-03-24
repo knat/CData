@@ -1474,7 +1474,7 @@ namespace CData.Compiler {
         internal static readonly string[] GuidNameParts = new string[] { "Guid", "System" };
         internal static readonly string[] TimeSpanNameParts = new string[] { "TimeSpan", "System" };
         internal static readonly string[] DateTimeOffsetNameParts = new string[] { "DateTimeOffset", "System" };
-        internal static readonly string[] Func2NameParts = new string[] { "Func`2", "System" };
+        //internal static readonly string[] Func2NameParts = new string[] { "Func`2", "System" };
 
         internal static readonly string[] ICollection1NameParts = new string[] { "ICollection`1", "Generic", "Collections", "System" };
         internal static readonly string[] IDictionary2TNameParts = new string[] { "IDictionary`2", "Generic", "Collections", "System" };

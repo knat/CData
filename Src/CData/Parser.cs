@@ -236,6 +236,13 @@ namespace CData {
             }
             return atomValue;
         }
+        protected AtomValueNode NonNullAtomValueExpected() {
+            var atomValue = AtomValueExpected();
+            if (atomValue.IsNull) {
+                ErrorDiagAndThrow("Non-null atom value expected.", atomValue.TextSpan);
+            }
+            return atomValue;
+        }
         protected bool StringValue(out AtomValueNode result) {
             return AtomValue(out result, AtomValueKind.String);
         }
@@ -273,13 +280,13 @@ namespace CData {
             try {
                 Set(filePath, reader, context);
                 object obj;
-                if (ObjectValue(clsMd, out obj)) {
+                if (ClassValue(clsMd, out obj)) {
                     EndOfFileExpected();
                     result = obj;
                     return true;
                 }
                 else {
-                    ErrorDiagAndThrow("Object value expected.");
+                    ErrorDiagAndThrow("Class value expected.");
                 }
             }
             catch (ParsingException) { }
@@ -341,7 +348,7 @@ namespace CData {
             ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidUriReference, alias), aliasNode.TextSpan);
             return null;
         }
-        private bool ObjectValue(ClassMetadata declaredClsMd, out object result) {
+        private bool ClassValue(ClassMetadata declaredClsMd, out object result) {
             NameNode aliasNode;
             if (Name(out aliasNode)) {
                 TokenExpected(':');
@@ -349,12 +356,12 @@ namespace CData {
                 var hasUriAliasingList = UriAliasingList();
                 TokenExpected('{');
                 var fullName = new FullName(GetUri(aliasNode), nameNode.Value);
-                var clsMd = ClassMetadata.Get(fullName);
+                var clsMd = EntityMetadata.Get<ClassMetadata>(fullName);
                 if (clsMd == null) {
                     ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidClassReference, fullName.ToString()), nameNode.TextSpan);
                 }
                 if (!clsMd.IsEqualToOrDeriveFrom(declaredClsMd)) {
-                    ErrorDiagAndThrow(new DiagMsg(DiagCode.ClassNotEqualToOrDeriveFrom, fullName.ToString(), declaredClsMd.FullName.ToString()),
+                    ErrorDiagAndThrow(new DiagMsg(DiagCode.ClassNotEqualToOrDeriveFromTheDeclared, fullName.ToString(), declaredClsMd.FullName.ToString()),
                         nameNode.TextSpan);
                 }
                 if (clsMd.IsAbstract) {
@@ -385,7 +392,7 @@ namespace CData {
                             ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidPropertyName, propName), propNameNode.TextSpan);
                         }
                         TokenExpected('=');
-                        propMd.SetValue(obj, ValueExpected(propMd.Type));
+                        propMd.SetValue(obj, TypeValueExpected(propMd.Type));
                     }
                     else {
                         TextSpan ts;
@@ -410,15 +417,15 @@ namespace CData {
             result = null;
             return false;
         }
-        private object ValueExpected(TypeMetadata typeMd) {
+        private object TypeValueExpected(TypeMetadata typeMd) {
             object value;
-            if (Value(typeMd, out value)) {
+            if (TypeValue(typeMd, out value)) {
                 return value;
             }
             ErrorDiagAndThrow(new DiagMsg(DiagCode.ValueExpected));
             return null;
         }
-        private bool Value(TypeMetadata typeMd, out object result) {
+        private bool TypeValue(TypeMetadata typeMd, out object result) {
             var typeKind = typeMd.Kind;
             AtomValueNode avNode;
             if (AtomValue(out avNode)) {
@@ -432,12 +439,40 @@ namespace CData {
                 if (!typeKind.IsAtom()) {
                     ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), avNode.TextSpan);
                 }
-                result = ParseAtomValue(typeKind, avNode);
+                result = Extensions.TryParse(typeKind, avNode.Value);
+                if (result == null) {
+                    ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidAtomValue, avNode.Value, typeKind.ToString()), avNode.TextSpan);
+                }
                 return true;
             }
             else {
                 TextSpan ts;
-                if (Token('[', out ts)) {
+                if (Token('$', out ts)) {
+                    if (typeKind != TypeKind.Enum) {
+                        ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), ts);
+                    }
+                    var uri = GetUri(NameExpected());
+                    TokenExpected(':');
+                    var nameNode = NameExpected();
+                    var fullName = new FullName(uri, nameNode.Value);
+                    var enumMd = EntityMetadata.Get<EnumMetadata>(fullName);
+                    if (enumMd == null) {
+                        ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidClassReference, fullName.ToString()), nameNode.TextSpan);
+                    }
+                    var declaredEnumMd = ((EntityRefTypeMetadata)typeMd).Entity as EnumMetadata;
+                    if (enumMd != declaredEnumMd) {
+                        ErrorDiagAndThrow(new DiagMsg(DiagCode.EnumNotEqualToTheDeclared, fullName.ToString(), declaredEnumMd.FullName.ToString()),
+                            nameNode.TextSpan);
+                    }
+                    TokenExpected('.');
+                    var memberNameNode = NameExpected();
+                    result = enumMd.GetMemberValue(memberNameNode.Value);
+                    if (result == null) {
+                        ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidEnumMemberName, memberNameNode.Value), memberNameNode.TextSpan);
+                    }
+                    return true;
+                }
+                else if (Token('[', out ts)) {
                     var isList = typeKind == TypeKind.List;
                     var isSet = typeKind == TypeKind.AtomSet || typeKind == TypeKind.ObjectSet;
                     if (!isList && !isSet) {
@@ -451,7 +486,7 @@ namespace CData {
                         if (isSet) {
                             ts = GetTextSpan();
                         }
-                        if (Value(itemMd, out itemObj)) {
+                        if (TypeValue(itemMd, out itemObj)) {
                             if (isSet) {
                                 if (!collMd.InvokeBoolAdd(collObj, itemObj)) {
                                     ErrorDiagAndThrow(new DiagMsg(DiagCode.DuplicateSetItem), ts);
@@ -479,12 +514,12 @@ namespace CData {
                     while (true) {
                         object keyObj;
                         ts = GetTextSpan();
-                        if (Value(keyMd, out keyObj)) {
+                        if (TypeValue(keyMd, out keyObj)) {
                             if (collMd.InvokeContainsKey(collObj, keyObj)) {
                                 ErrorDiagAndThrow(new DiagMsg(DiagCode.DuplicateMapKey), ts);
                             }
                             TokenExpected('=');
-                            collMd.InvokeAdd(collObj, keyObj, ValueExpected(valueMd));
+                            collMd.InvokeAdd(collObj, keyObj, TypeValueExpected(valueMd));
                         }
                         else {
                             TokenExpected(']');
@@ -497,138 +532,13 @@ namespace CData {
                     if (typeKind != TypeKind.Class) {
                         ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()));
                     }
-                    return ObjectValue(((ClassRefTypeMetadata)typeMd).Class, out result);
+                    return ClassValue(((EntityRefTypeMetadata)typeMd).Entity as ClassMetadata, out result);
                 }
             }
             result = null;
             return false;
         }
-        private object ParseAtomValue(TypeKind typeKind, AtomValueNode avNode) {
-            var s = avNode.Value;
-            switch (typeKind) {
-                case TypeKind.String:
-                    return s;
-                case TypeKind.IgnoreCaseString:
-                    return new IgnoreCaseString(s, false);
-                case TypeKind.Decimal: {
-                        decimal r;
-                        if (s.TryInvParse(out r)) {
-                            return r;
-                        }
-                    }
-                    break;
-                case TypeKind.Int64: {
-                        long r;
-                        if (s.TryInvParse(out r)) {
-                            return r;
-                        }
-                    }
-                    break;
-                case TypeKind.Int32: {
-                        int r;
-                        if (s.TryInvParse(out r)) {
-                            return r;
-                        }
-                    }
-                    break;
-                case TypeKind.Int16: {
-                        short r;
-                        if (s.TryInvParse(out r)) {
-                            return r;
-                        }
-                    }
-                    break;
-                case TypeKind.SByte: {
-                        sbyte r;
-                        if (s.TryInvParse(out r)) {
-                            return r;
-                        }
-                    }
-                    break;
-                case TypeKind.UInt64: {
-                        ulong r;
-                        if (s.TryInvParse(out r)) {
-                            return r;
-                        }
-                    }
-                    break;
-                case TypeKind.UInt32: {
-                        uint r;
-                        if (s.TryInvParse(out r)) {
-                            return r;
-                        }
-                    }
-                    break;
-                case TypeKind.UInt16: {
-                        ushort r;
-                        if (s.TryInvParse(out r)) {
-                            return r;
-                        }
-                    }
-                    break;
-                case TypeKind.Byte: {
-                        byte r;
-                        if (s.TryInvParse(out r)) {
-                            return r;
-                        }
-                    }
-                    break;
-                case TypeKind.Double: {
-                        double r;
-                        if (s.TryInvParse(out r)) {
-                            return r;
-                        }
-                    }
-                    break;
-                case TypeKind.Single: {
-                        float r;
-                        if (s.TryInvParse(out r)) {
-                            return r;
-                        }
-                    }
-                    break;
-                case TypeKind.Boolean: {
-                        bool r;
-                        if (s.TryInvParse(out r)) {
-                            return r;
-                        }
-                    }
-                    break;
-                case TypeKind.Binary: {
-                        Binary r;
-                        if (Binary.TryFromBase64String(s, out r, false)) {
-                            return r;
-                        }
-                    }
-                    break;
-                case TypeKind.Guid: {
-                        Guid r;
-                        if (s.TryInvParse(out r)) {
-                            return r;
-                        }
-                    }
-                    break;
-                case TypeKind.TimeSpan: {
-                        TimeSpan r;
-                        if (s.TryInvParse(out r)) {
-                            return r;
-                        }
-                    }
-                    break;
-                case TypeKind.DateTimeOffset: {
-                        DateTimeOffset r;
-                        if (s.TryInvParse(out r)) {
-                            return r;
-                        }
-                    }
-                    break;
 
-                default:
-                    throw new ArgumentException("Invalid type kind: " + typeKind.ToString());
-            }
-            ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidAtomValue, s, typeKind.ToString()), avNode.TextSpan);
-            return null;
-        }
 
     }
 

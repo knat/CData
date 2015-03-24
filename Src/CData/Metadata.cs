@@ -2,15 +2,17 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Linq;
 
 namespace CData {
     public enum TypeKind : byte {
         None = 0,
         Class = 1,
-        List = 2,
-        AtomSet = 3,
-        ObjectSet = 4,
-        Map = 5,
+        Enum = 2,
+        List = 10,
+        AtomSet = 11,
+        ObjectSet = 12,
+        Map = 13,
         String = 50,
         IgnoreCaseString = 51,
         Decimal = 52,
@@ -40,6 +42,11 @@ namespace CData {
         public bool IsClass {
             get {
                 return Kind == TypeKind.Class;
+            }
+        }
+        public bool IsEnum {
+            get {
+                return Kind == TypeKind.Enum;
             }
         }
         public bool IsList {
@@ -173,15 +180,81 @@ namespace CData {
             { TypeKind.DateTimeOffset, new AtomRefTypeMetadata(TypeKind.DateTimeOffset, true) },
         };
     }
-    public sealed class ClassRefTypeMetadata : TypeMetadata {
-        public ClassRefTypeMetadata(ClassMetadata cls, bool isNullable)
-            : base(TypeKind.Class, isNullable) {
-            Class = cls;
+    public sealed class EntityRefTypeMetadata : TypeMetadata {
+        public EntityRefTypeMetadata(TypeKind kind, bool isNullable, EntityMetadata entity)
+            : base(kind, isNullable) {
+            Entity = entity;
         }
-        public readonly ClassMetadata Class;
+        public readonly EntityMetadata Entity;
     }
 
-    public sealed class ClassMetadata {
+    public abstract class EntityMetadata {
+        private static readonly Dictionary<FullName, EntityMetadata> _map = new Dictionary<FullName, EntityMetadata>();
+        private static void Add(FullName fullName, EntityMetadata entity) {
+            lock (_map) {
+                _map.Add(fullName, entity);
+            }
+        }
+        public static T Get<T>(FullName fullName) where T : EntityMetadata {
+            EntityMetadata entity;
+            lock (_map) {
+                _map.TryGetValue(fullName, out entity);
+            }
+            return entity as T;
+        }
+        protected EntityMetadata(FullName fullName, Type clrType) {
+            Add(fullName, this);
+            FullName = fullName;
+            ClrType = clrType;
+        }
+        public readonly FullName FullName;
+        public readonly Type ClrType;
+    }
+    public struct NameValuePair {
+        public NameValuePair(string name, object value) {
+            Name = name;
+            Value = value;
+        }
+        public readonly string Name;
+        public readonly object Value;
+    }
+    public sealed class EnumMetadata : EntityMetadata {
+        public EnumMetadata(FullName fullName, Type clrType, bool isClrEnum, NameValuePair[] members)
+            : base(fullName, clrType) {
+            IsClrEnum = isClrEnum;
+            if (!isClrEnum) {
+                _clrFieldInfos = clrType.GetTypeInfo().DeclaredFields.ToArray();
+            }
+            _members = members;
+        }
+        public readonly bool IsClrEnum;
+        private readonly FieldInfo[] _clrFieldInfos;//for non-clr enum
+        private readonly NameValuePair[] _members;
+        public object GetMemberValue(string name) {
+            var members = _members;
+            if (members != null) {
+                var length = members.Length;
+                for (var i = 0; i < length; ++i) {
+                    if (members[i].Name == name) {
+                        return members[i].Value;
+                    }
+                }
+            }
+            return null;
+        }
+        public string GetMemberName(object value) {
+            if (IsClrEnum) {
+                return Enum.GetName(ClrType, value);
+            }
+            foreach (var fi in _clrFieldInfos) {
+                if (object.Equals(value, fi.GetValue(null))) {
+                    return fi.Name;
+                }
+            }
+            return null;
+        }
+    }
+    public sealed class ClassMetadata : EntityMetadata {
         private static readonly HashSet<Assembly> _assemblySet = new HashSet<Assembly>();
         public static void Initialize(Assembly assembly) {
             if (assembly == null) throw new ArgumentNullException("assembly");
@@ -207,28 +280,11 @@ namespace CData {
             }
         }
         //
-        private static readonly Dictionary<FullName, ClassMetadata> _clsMap = new Dictionary<FullName, ClassMetadata>();
-        private static void Add(FullName fullName, ClassMetadata cls) {
-            lock (_clsMap) {
-                _clsMap.Add(fullName, cls);
-            }
-        }
-        public static ClassMetadata Get(FullName fullName) {
-            ClassMetadata cls;
-            lock (_clsMap) {
-                _clsMap.TryGetValue(fullName, out cls);
-            }
-            return cls;
-        }
-        //
-        public ClassMetadata(FullName fullName, bool isAbstract, ClassMetadata baseClass, PropertyMetadata[] properties,
-            Type clrType) {
-            Add(fullName, this);
-            FullName = fullName;
+        public ClassMetadata(FullName fullName, Type clrType, bool isAbstract, ClassMetadata baseClass, PropertyMetadata[] properties)
+            : base(fullName, clrType) {
             IsAbstract = isAbstract;
             BaseClass = baseClass;
             _properties = properties;
-            ClrType = clrType;
             TypeInfo ti = clrType.GetTypeInfo();
             Initialize(ti.Assembly);//??
             if (!isAbstract) {
@@ -245,11 +301,9 @@ namespace CData {
             ClrOnLoadingMethod = ti.GetDeclaredMethod("OnLoading");
             ClrOnLoadedMethod = ti.GetDeclaredMethod("OnLoaded");
         }
-        public readonly FullName FullName;
         public readonly bool IsAbstract;
         public readonly ClassMetadata BaseClass;
         private readonly PropertyMetadata[] _properties;
-        public readonly Type ClrType;
         public readonly ConstructorInfo ClrConstructor;//for non abstract class
         public readonly PropertyInfo ClrTextSpanProperty;//for top class
         public readonly MethodInfo ClrOnLoadingMethod;//opt
@@ -264,10 +318,12 @@ namespace CData {
             return false;
         }
         public PropertyMetadata GetPropertyInHierarchy(string name) {
-            if (_properties != null) {
-                foreach (var prop in _properties) {
-                    if (prop.Name == name) {
-                        return prop;
+            var props = _properties;
+            if (props != null) {
+                var length = props.Length;
+                for (var i = 0; i < length; ++i) {
+                    if (props[i].Name == name) {
+                        return props[i];
                     }
                 }
             }

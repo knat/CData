@@ -84,7 +84,6 @@ namespace CData.Compiler {
                 foreach (var ns in nsList) {
                     ns.Resolve();
                 }
-                //
                 foreach (var logicalNs in nsMap.Values) {
                     logicalNs.NamespaceInfo = new NamespaceInfo(logicalNs.Uri);
                 }

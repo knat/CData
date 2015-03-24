@@ -25,9 +25,9 @@ namespace CData {
             if (obj == null) throw new ArgumentNullException("obj");
             if (classMetadata == null) throw new ArgumentNullException("classMetadata");
             if (stringBuilder == null) throw new ArgumentNullException("stringBuilder");
-            SaveObject(true, obj, classMetadata, new SavingContext(stringBuilder, indentString, newLineString));
+            SaveClassValue(true, obj, classMetadata, new SavingContext(stringBuilder, indentString, newLineString));
         }
-        private static void SaveObject(bool isRoot, object obj, ClassMetadata clsMd, SavingContext context) {
+        private static void SaveClassValue(bool isRoot, object obj, ClassMetadata clsMd, SavingContext context) {
             string rootAlias = null;
             if (isRoot) {
                 rootAlias = context.AddUri(clsMd.FullName.Uri);
@@ -44,7 +44,7 @@ namespace CData {
                 foreach (var propMd in propMds) {
                     context.Append(propMd.Name);
                     sb.Append(" = ");
-                    SaveValue(propMd.GetValue(obj), propMd.Type, context);
+                    SaveTypeValue(propMd.GetValue(obj), propMd.Type, context);
                     context.AppendLine();
                 }
             }
@@ -54,7 +54,7 @@ namespace CData {
                 context.InsertRootObjectHead(rootAlias, clsMd.FullName.Name);
             }
         }
-        private static void SaveValue(object value, TypeMetadata typeMd, SavingContext context) {
+        private static void SaveTypeValue(object value, TypeMetadata typeMd, SavingContext context) {
             if (value == null) {
                 context.Append("null");
             }
@@ -65,7 +65,15 @@ namespace CData {
                     SaveAtom(value, typeKind, context.StringBuilder);
                 }
                 else if (typeKind == TypeKind.Class) {
-                    SaveObject(false, value, ((ClassRefTypeMetadata)typeMd).Class, context);
+                    SaveClassValue(false, value, ((EntityRefTypeMetadata)typeMd).Entity as ClassMetadata, context);
+                }
+                else if (typeKind == TypeKind.Enum) {
+                    context.Append('$');
+                    var enumMd = ((EntityRefTypeMetadata)typeMd).Entity as EnumMetadata;
+                    context.Append(enumMd.FullName);
+                    var sb = context.StringBuilder;
+                    sb.Append('.');
+                    sb.Append(enumMd.GetMemberName(value) ?? "null");
                 }
                 else if (typeKind == TypeKind.Map) {
                     var collMd = (CollectionTypeMetadata)typeMd;
@@ -76,13 +84,13 @@ namespace CData {
                     context.AppendLine();
                     context.PushIndent();
                     foreach (var key in collMd.GetMapKeys(value)) {
-                        SaveValue(key, keyMd, context);
+                        SaveTypeValue(key, keyMd, context);
                         context.StringBuilder.Append(" = ");
                         if (valueEnumerator == null) {
                             valueEnumerator = collMd.GetMapValues(value).GetEnumerator();
                         }
                         valueEnumerator.MoveNext();
-                        SaveValue(valueEnumerator.Current, itemMd, context);
+                        SaveTypeValue(valueEnumerator.Current, itemMd, context);
                         context.AppendLine();
                     }
                     context.PopIndent();
@@ -94,7 +102,7 @@ namespace CData {
                     context.AppendLine();
                     context.PushIndent();
                     foreach (var item in (IEnumerable)value) {
-                        SaveValue(item, itemMd, context);
+                        SaveTypeValue(item, itemMd, context);
                         context.AppendLine();
                     }
                     context.PopIndent();

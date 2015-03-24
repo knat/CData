@@ -36,9 +36,29 @@ namespace Test {
             //RoslynTest();
             //Console.WriteLine("fd");
         }
+        public enum MyEnum  {
+            M1 = 1,
+            M2 = 10,
+        }
+        public  class MyClass {
+            //public const string @int = "fd";
+            //public static readonly DateTime M2 = DateTime.Now;
+            public MyEnum Prop1 { get; set; }
+        }
         static void Test() {
-            var ti = typeof(ObjectSet<int, string>).GetTypeInfo();
-            var add = ti.GetDeclaredMethod("Add");
+            var prop1 = typeof(MyClass).GetTypeInfo().GetProperty("Prop1");
+            var myclass = new MyClass();
+            prop1.SetValue(myclass, 1);
+            //var o1 = fis[0].GetValue(null);
+            //var o2 = fis[1].GetValue(null);
+
+            //var name = Enum.GetName(typeof(MyEnum), 16);
+            //object o = MyEnum.M2;
+            //var tm1 = o.GetType();
+            ////var ss = ff.ToString();
+
+            //var ti = typeof(ObjectSet<int, string>).GetTypeInfo();
+            //var add = ti.GetDeclaredMethod("Add");
 
             //var ass1 = typeof(Program).Assembly;
             //var ass2 = typeof(ZZZ).Assembly;

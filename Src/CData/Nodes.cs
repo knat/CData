@@ -34,12 +34,12 @@ namespace CData {
     }
     internal enum AtomValueKind : byte {
         None = 0,
-        String,
-        Boolean,
-        Null,
-        Integer,
-        Decimal,
-        Real,
+        String = 1,
+        Boolean = 2,
+        Null = 3,
+        Integer = 4,
+        Decimal = 5,
+        Real = 6,
     }
     internal struct AtomValueNode {
         public AtomValueNode(AtomValueKind kind, string value, TextSpan textSpan) {

@@ -1,0 +1,16 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<VSTemplate Version="3.0.0" Type="Item" xmlns="http://schemas.microsoft.com/developer/vstemplate/2005">
+    <TemplateData>
+        <Name>CData Contract</Name>
+        <Description>CData Contract</Description>
+        <TemplateID>CDataContract</TemplateID>
+        <ProjectType>CSharp</ProjectType>
+        <NumberOfParentCategoriesToRollUp>1</NumberOfParentCategoriesToRollUp>
+        <DefaultName>File.cdc</DefaultName>
+        <AppliesTo>CSharp + MultiTarget</AppliesTo>
+    </TemplateData>
+    <TemplateContent>
+        <ProjectItem ReplaceParameters="false" ItemType="CDataContract" TargetFileName="$fileinputname$.cdc">CDataContract.cdc</ProjectItem>
+        <ProjectItem ReplaceParameters="false" TargetFileName="__CDataGenerated.cs">__CDataGenerated.cs</ProjectItem>
+    </TemplateContent>
+</VSTemplate>

@@ -81,7 +81,18 @@ namespace CData.Compiler {
         public INamedTypeSymbol CSClassSymbol;//opt
         public abstract TypeInfo CreateType();
     }
-
+    internal sealed class EnumInfo : NamespaceMemberInfo {
+        public EnumInfo(NamespaceInfo ns, string name, AtomInfo underlyingType, List<NameValuePair> memberList)
+            : base(ns, name) {
+            UnderlyingType = underlyingType;
+            MemberList = memberList;
+        }
+        public readonly AtomInfo UnderlyingType;
+        public readonly List<NameValuePair> MemberList;//opt
+        public override TypeInfo CreateType() {
+            throw new NotImplementedException();
+        }
+    }
     internal sealed class AtomInfo : NamespaceMemberInfo {
         public static AtomInfo Get(TypeKind kind) {
             return _map[kind];
@@ -227,7 +238,8 @@ namespace CData.Compiler {
                     propInfo.Generate(memberList);
                 }
             }
-            if (BaseClass == null) {
+            var baseClass = BaseClass;
+            if (baseClass == null) {
                 //>public TextSpan __TextSpan {get; private set;}
                 memberList.Add(CS.Property(null, CS.PublicTokenList, CSEX.TextSpanName, CS.Id(CSEX.TextSpanNameStr), CS.GetPrivateSetAccessorList));
             }
@@ -243,7 +255,7 @@ namespace CData.Compiler {
                 CS.ReturnStm(CS.InvoExpr(CS.MemberAccessExpr(CSEX.SerializerExpr, CS.GenericName("TryLoad", CSFullNameSyntax)),
                     SyntaxFactory.Argument(CS.IdName("filePath")), SyntaxFactory.Argument(CS.IdName("reader")), SyntaxFactory.Argument(CS.IdName("context")),
                     SyntaxFactory.Argument(CS.IdName(CSEX.ThisMetadataNameStr)), CS.OutArgument("result")))));
-            if (BaseClass == null) {
+            if (baseClass == null) {
                 //>public void Save(TextWriter writer, string indentString = "\t", string newLineString = "\n") {
                 //>  CData.Serializer.Save(this, __Metadata, writer, indentString, newLineString);
                 //>}
@@ -270,18 +282,18 @@ namespace CData.Compiler {
 
             //>new public static readonly ClassMetadata __ThisMetadata =
             //>  new ClassMetadata(FullName fullName, bool isAbstract, ClassMetadata baseClass, PropertyMetadata[] properties, Type clrType);
-            memberList.Add(CS.Field(BaseClass == null ? CS.PublicStaticReadOnlyTokenList : CS.NewPublicStaticReadOnlyTokenList,
+            memberList.Add(CS.Field(baseClass == null ? CS.PublicStaticReadOnlyTokenList : CS.NewPublicStaticReadOnlyTokenList,
                 CSEX.ClassMetadataName, CSEX.ThisMetadataNameStr,
                 CS.NewObjExpr(CSEX.ClassMetadataName, CSEX.Literal(FullName),
                     CS.Literal(IsAbstract),
-                    BaseClass == null ? (ExpressionSyntax)CS.NullLiteral : CS.MemberAccessExpr(BaseClass.CSFullExprSyntax, CSEX.ThisMetadataNameStr),
+                    baseClass == null ? (ExpressionSyntax)CS.NullLiteral : CS.MemberAccessExpr(baseClass.CSFullExprSyntax, CSEX.ThisMetadataNameStr),
                     CS.NewArrOrNullExpr(CSEX.PropertyMetadataArrayType, PropertyList == null ? null : PropertyList.Select(i => i.GenerateMetadata())),
                     CS.TypeOfExpr(CSFullNameSyntax)
                 )));
             //>public virtual/override ClassMetadata __Metadata {
             //>    get { return __ThisMetadata; }
             //>}
-            memberList.Add(CS.Property(BaseClass == null ? CS.PublicVirtualTokenList : CS.PublicOverrideTokenList,
+            memberList.Add(CS.Property(baseClass == null ? CS.PublicVirtualTokenList : CS.PublicOverrideTokenList,
                 CSEX.ClassMetadataName, CSEX.MetadataNameStr, true, default(SyntaxTokenList),
                 new StatementSyntax[] { 
                     CS.ReturnStm(CS.IdName(CSEX.ThisMetadataNameStr))
@@ -292,7 +304,7 @@ namespace CData.Compiler {
                 modifiers: IsAbstract ? CS.PublicAbstractPartialTokenList : CS.PublicPartialTokenList,
                 identifier: CS.Id(CS.EscapeId(CSFullName.LastName)),
                 typeParameterList: null,
-                baseList: BaseClass == null ? null : CS.BaseList(BaseClass.CSFullNameSyntax),
+                baseList: baseClass == null ? null : CS.BaseList(baseClass.CSFullNameSyntax),
                 constraintClauses: default(SyntaxList<TypeParameterConstraintClauseSyntax>),
                 members: SyntaxFactory.List(memberList)
                 ));

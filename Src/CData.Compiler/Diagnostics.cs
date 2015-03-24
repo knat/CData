@@ -4,29 +4,26 @@ namespace CData.Compiler {
     internal enum DiagCodeEx {
         None = 0,
         InternalCompilerError = -2000,
-        //common
+        //
         AliasSysReserved,
         UriSystemReserved,
-        DuplicateUriAlias,
-        InvalidUriReference,
         DuplicateImportAlias,
         InvalidNamespaceReference,
-        DuplicateClassName,
+        DuplicateNamespaceMemberName,
+        DuplicateEnumMemberName,
+        InvalidAtomValue,
         DuplicatePropertyName,
-        TypeExpected,
-
-
-        DuplicateIndicator,
-        IndicatorRequiredForNamespace,
+        SpecificTypeExpected,
         InvalidImportAliasReference,
         AmbiguousNameReference,
         InvalidNameReference,
         InvalidClassNameReference,
         InvalidAtomNameReference,
         InvalidPropertyNameReference,
+        CircularReferenceNotAllowed,
+
         KeySelectorRequiredForObjectSet,
         KeySelectorNotAllowedForAtomSet,
-        CircularReferenceNotAllowed,
         BaseClassIsSealed,
         ObjectSetKeyCannotBeNullable,
         InvalidObjectSetKey,
@@ -69,6 +66,44 @@ namespace CData.Compiler {
         private readonly string[] _msgArgs;
         public string GetMessage() {
             switch (Code) {
+                //
+                case DiagCodeEx.AliasSysReserved:
+                    return "Alias 'sys' is reserved.";
+                case DiagCodeEx.UriSystemReserved:
+                    return "Uri '" + Extensions.SystemUri + "' is reserved.";
+                case DiagCodeEx.DuplicateImportAlias:
+                    return "Duplicate import alias '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.InvalidNamespaceReference:
+                    return "Invalid namespace reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.DuplicateNamespaceMemberName:
+                    return "Duplicate namespace member name '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.DuplicateEnumMemberName:
+                    return "Duplicate enum member name '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.InvalidAtomValue:
+                    return "Invalid atom value '{0}' of type '{1}'.".InvFormat(_msgArgs);
+
+                case DiagCodeEx.DuplicatePropertyName:
+                    return "Duplicate property name '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.SpecificTypeExpected:
+                    return "'{0}' type expected.".InvFormat(_msgArgs);
+                case DiagCodeEx.InvalidImportAliasReference:
+                    return "Invalid import alias reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.AmbiguousNameReference:
+                    return "Ambiguous name reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.InvalidNameReference:
+                    return "Invalid name reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.InvalidClassNameReference:
+                    return "Invalid class name reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.InvalidAtomNameReference:
+                    return "Invalid atom name reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.InvalidPropertyNameReference:
+                    return "Invalid property name reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.CircularReferenceNotAllowed:
+                    return "Circular reference not allowed.";
+
+
+
+                //
                 case DiagCodeEx.InvalidContractNamespaceAttribute:
                     return "Invalid ContractNamespaceAttribute.";
                 case DiagCodeEx.InvalidContractNamespaceAttributeUri:
@@ -107,49 +142,6 @@ namespace CData.Compiler {
                     return "Contract field cannot be const.";
                 case DiagCodeEx.InvalidContractPropertyType:
                     return "Invalid contract property/field type {0}. {1} expected.".InvFormat(_msgArgs);
-
-
-
-                //common
-                case DiagCodeEx.AliasSysReserved:
-                    return "Alias 'sys' reserved.";
-                case DiagCodeEx.UriSystemReserved:
-                    return "Uri '" + Extensions.SystemUri + "' reserved.";
-                case DiagCodeEx.DuplicateUriAlias:
-                    return "Duplicate uri alias '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.InvalidUriReference:
-                    return "Invalid uri reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.DuplicateImportAlias:
-                    return "Duplicate import alias '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.InvalidNamespaceReference:
-                    return "Invalid namespace reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.DuplicateClassName:
-                    return "Duplicate class name '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.DuplicatePropertyName:
-                    return "Duplicate property name '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.TypeExpected:
-                    return "'{0}' type expected.".InvFormat(_msgArgs);
-
-
-                //
-                //
-                //
-
-
-                case DiagCodeEx.DuplicateIndicator:
-                    return "Duplicate indicator '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.IndicatorRequiredForNamespace:
-                    return "Indicator required for namespace '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.InvalidImportAliasReference:
-                    return "Invalid import alias reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.AmbiguousNameReference:
-                    return "Ambiguous name reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.InvalidNameReference:
-                    return "Invalid name reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.InvalidClassNameReference:
-                    return "Invalid type name reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.CircularReferenceNotAllowed:
-                    return "Circular reference not allowed.";
 
 
 

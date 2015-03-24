@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <ItemGroup>
+        <AvailableItemName Include="CDataContract" />
+    </ItemGroup>
+    <PropertyGroup>
+        <BuildDependsOn>
+            CDataBuild;
+            $(BuildDependsOn)
+        </BuildDependsOn>
+    </PropertyGroup>
+    <UsingTask TaskName="CData.MSBuild.CDataTask" AssemblyFile="$(MSBuildThisFileDirectory)CData.MSBuild.dll" />
+    <Target Name="CDataBuild">
+        <Message Text="======== Begin CData Build ========" Importance="high" />
+        <XDataTask
+            ProjectDirectory="$(MSBuildProjectDirectory)"
+            ContractFileList="@(CDataContract)"
+            CSFileList="@(Compile)"
+            CSPpList="$(DefineConstants)"
+            CSRefList="@(ReferencePath)"
+            >
+        </XDataTask>
+        <Message Text="======== End CData Build ========" Importance="high" />
+    </Target>
+</Project>

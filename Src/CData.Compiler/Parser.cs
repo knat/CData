@@ -7,6 +7,7 @@ namespace CData.Compiler {
         public const string AbstractKeyword = "abstract";
         public const string AsKeyword = "as";
         public const string ClassKeyword = "class";
+        public const string EnumKeyword = "enum";
         public const string ExtendsKeyword = "extends";
         public const string ImportKeyword = "import";
         public const string ListKeyword = "list";
@@ -20,6 +21,7 @@ namespace CData.Compiler {
             AbstractKeyword,
             AsKeyword,
             ClassKeyword,
+            EnumKeyword,
             ExtendsKeyword,
             ImportKeyword,
             ListKeyword,
@@ -28,6 +30,8 @@ namespace CData.Compiler {
             NullableKeyword,
             SealedKeyword,
             SetKeyword,
+            "true",
+            "false"
         };
     }
     internal sealed class Parser : ParserBase {
@@ -67,7 +71,7 @@ namespace CData.Compiler {
                 ns.Uri = UriExpected();
                 TokenExpected('{');
                 while (Import(ns)) ;
-                while (Class(ns)) ;
+                while (NamespaceMember(ns)) ;
                 TokenExpected('}');
                 Extensions.CreateAndAdd(ref cu.NamespaceList, ns);
                 return true;
@@ -103,16 +107,77 @@ namespace CData.Compiler {
             }
             return false;
         }
-        private bool Class(NamespaceNode ns) {
-            if (Keyword(ParserConstants.ClassKeyword)) {
+        private bool QualifiableName(out QualifiableNameNode result) {
+            NameNode name;
+            if (Name(out name)) {
+                if (Token(':')) {
+                    result = new QualifiableNameNode(name, NameExpected());
+                }
+                else {
+                    result = new QualifiableNameNode(default(NameNode), name);
+                }
+                return true;
+            }
+            result = default(QualifiableNameNode);
+            return false;
+        }
+        private QualifiableNameNode QualifiableNameExpected() {
+            QualifiableNameNode qName;
+            if (!QualifiableName(out qName)) {
+                ErrorDiagAndThrow("Qualifiable name expected.");
+            }
+            return qName;
+        }
+        private void CheckDuplicateNamespaceMember(NamespaceNode ns, NameNode name) {
+            if (ns.MemberList.CountOrZero() > 0) {
+                foreach (var member in ns.MemberList) {
+                    if (member.Name == name) {
+                        ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateNamespaceMemberName, name.Value), name.TextSpan);
+                    }
+                }
+            }
+        }
+        private bool NamespaceMember(NamespaceNode ns) {
+            if (Class(ns)) {
+                return true;
+            }
+            return Enum(ns);
+        }
+        private bool Enum(NamespaceNode ns) {
+            if (Keyword(ParserConstants.EnumKeyword)) {
                 var name = NameExpected();
-                if (ns.MemberList.CountOrZero() > 0) {
-                    foreach (var member in ns.MemberList) {
-                        if (member.Name == name) {
-                            ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateClassName, name.ToString()), name.TextSpan);
+                CheckDuplicateNamespaceMember(ns, name);
+                var en = new EnumNode(ns) { Name = name };
+                KeywordExpected(ParserConstants.AsKeyword);
+                en.UnderlyingQName = QualifiableNameExpected();
+                TokenExpected('{');
+                while (EnumMember(en)) ;
+                TokenExpected('}');
+                Extensions.CreateAndAdd(ref ns.MemberList, en);
+                return true;
+            }
+            return false;
+        }
+        private bool EnumMember(EnumNode en) {
+            NameNode name;
+            if (Name(out name)) {
+                if (en.MemberList.CountOrZero() > 0) {
+                    foreach (var item in en.MemberList) {
+                        if (item.Name == name) {
+                            ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateEnumMemberName, name.ToString()), name.TextSpan);
                         }
                     }
                 }
+                TokenExpected('=');
+                Extensions.CreateAndAdd(ref en.MemberList, new EnumMemberNode(name, NonNullAtomValueExpected()));
+                return true;
+            }
+            return false;
+        }
+        private bool Class(NamespaceNode ns) {
+            if (Keyword(ParserConstants.ClassKeyword)) {
+                var name = NameExpected();
+                CheckDuplicateNamespaceMember(ns, name);
                 var cls = new ClassNode(ns) { Name = name };
                 if (Token('[')) {
                     if (!Keyword(ParserConstants.AbstractKeyword, out cls.AbstractOrSealed)) {
@@ -137,7 +202,7 @@ namespace CData.Compiler {
                 if (cls.PropertyList.CountOrZero() > 0) {
                     foreach (var propitem in cls.PropertyList) {
                         if (propitem.Name == name) {
-                            ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicatePropertyName, name.ToString()), name.TextSpan);
+                            ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicatePropertyName, name.Value), name.TextSpan);
                         }
                     }
                 }
@@ -201,7 +266,7 @@ namespace CData.Compiler {
         private TypeNode TypeExpected(NamespaceNode ns, TypeFlags flags) {
             TypeNode type;
             if (!Type(ns, flags, out type)) {
-                ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.TypeExpected, flags.ToString()));
+                ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.SpecificTypeExpected, flags.ToString()));
             }
             return type;
         }
@@ -278,27 +343,6 @@ namespace CData.Compiler {
             return false;
         }
 
-        private bool QualifiableName(out QualifiableNameNode result) {
-            NameNode name;
-            if (Name(out name)) {
-                if (Token(':')) {
-                    result = new QualifiableNameNode(name, NameExpected());
-                }
-                else {
-                    result = new QualifiableNameNode(default(NameNode), name);
-                }
-                return true;
-            }
-            result = default(QualifiableNameNode);
-            return false;
-        }
-        private QualifiableNameNode QualifiableNameExpected() {
-            QualifiableNameNode qName;
-            if (!QualifiableName(out qName)) {
-                ErrorDiagAndThrow("Qualifiable name expected.");
-            }
-            return qName;
-        }
 
     }
 }

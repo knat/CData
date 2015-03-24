@@ -6,13 +6,9 @@ using System.Reflection;
 using System.Text;
 
 namespace CData {
-    internal static class Extensions {
-        internal const string SystemUri = "https://github.com/knat/CData";
+    public static class Extensions {
+        public const string SystemUri = "https://github.com/knat/CData";
         //
-        //[System.Diagnostics.ConditionalAttribute("DEBUG")]
-        //public static void PublicParameterlessConstructorRequired<T>() where T : new() { }
-        //internal const string DefaultIndentString = "\t";
-        //internal const string DefaultNewLineString = "\n";
         //
         //
         private const int _stringBuilderCount = 4;
@@ -211,6 +207,131 @@ namespace CData {
             return value.ToString(_dtoFormatString, DateTimeFormatInfo.InvariantInfo);
         }
         //
+        internal static object TryParse(TypeKind typeKind, string s, bool isReadOnly = false) {
+            switch (typeKind) {
+                case TypeKind.String:
+                    return s;
+                case TypeKind.IgnoreCaseString:
+                    return new IgnoreCaseString(s, isReadOnly);
+                case TypeKind.Decimal: {
+                        decimal r;
+                        if (s.TryInvParse(out r)) {
+                            return r;
+                        }
+                    }
+                    break;
+                case TypeKind.Int64: {
+                        long r;
+                        if (s.TryInvParse(out r)) {
+                            return r;
+                        }
+                    }
+                    break;
+                case TypeKind.Int32: {
+                        int r;
+                        if (s.TryInvParse(out r)) {
+                            return r;
+                        }
+                    }
+                    break;
+                case TypeKind.Int16: {
+                        short r;
+                        if (s.TryInvParse(out r)) {
+                            return r;
+                        }
+                    }
+                    break;
+                case TypeKind.SByte: {
+                        sbyte r;
+                        if (s.TryInvParse(out r)) {
+                            return r;
+                        }
+                    }
+                    break;
+                case TypeKind.UInt64: {
+                        ulong r;
+                        if (s.TryInvParse(out r)) {
+                            return r;
+                        }
+                    }
+                    break;
+                case TypeKind.UInt32: {
+                        uint r;
+                        if (s.TryInvParse(out r)) {
+                            return r;
+                        }
+                    }
+                    break;
+                case TypeKind.UInt16: {
+                        ushort r;
+                        if (s.TryInvParse(out r)) {
+                            return r;
+                        }
+                    }
+                    break;
+                case TypeKind.Byte: {
+                        byte r;
+                        if (s.TryInvParse(out r)) {
+                            return r;
+                        }
+                    }
+                    break;
+                case TypeKind.Double: {
+                        double r;
+                        if (s.TryInvParse(out r)) {
+                            return r;
+                        }
+                    }
+                    break;
+                case TypeKind.Single: {
+                        float r;
+                        if (s.TryInvParse(out r)) {
+                            return r;
+                        }
+                    }
+                    break;
+                case TypeKind.Boolean: {
+                        bool r;
+                        if (s.TryInvParse(out r)) {
+                            return r;
+                        }
+                    }
+                    break;
+                case TypeKind.Binary: {
+                        Binary r;
+                        if (Binary.TryFromBase64String(s, out r, isReadOnly)) {
+                            return r;
+                        }
+                    }
+                    break;
+                case TypeKind.Guid: {
+                        Guid r;
+                        if (s.TryInvParse(out r)) {
+                            return r;
+                        }
+                    }
+                    break;
+                case TypeKind.TimeSpan: {
+                        TimeSpan r;
+                        if (s.TryInvParse(out r)) {
+                            return r;
+                        }
+                    }
+                    break;
+                case TypeKind.DateTimeOffset: {
+                        DateTimeOffset r;
+                        if (s.TryInvParse(out r)) {
+                            return r;
+                        }
+                    }
+                    break;
+
+                default:
+                    throw new ArgumentException("Invalid type kind: " + typeKind.ToString());
+            }
+            return null;
+        }
+        //
         //
         internal static void GetLiteral(string value, StringBuilder sb) {
             var length = value.Length;
@@ -362,33 +483,5 @@ namespace CData {
             throw new ArgumentException("Cannot get method: " + name);
         }
 
-        //internal static MethodInfo GetClrMethod(TypeInfo ti, string name, Type para1Type, Type para2Type) {
-        //    foreach (var mi in ti.GetDeclaredMethods(name)) {
-        //        var ps = mi.GetParameters();
-        //        if (ps.Length == 2 && ps[0].ParameterType == para1Type && ps[1].ParameterType == para2Type) {
-        //            return mi;
-        //        }
-        //    }
-        //    return null;
-        //}
-        //internal static MethodInfo GetClrMethod(TypeInfo ti, string name, Type declaredParaType) {
-        //    foreach (var mi in ti.GetDeclaredMethods(name)) {
-        //        var ps = mi.GetParameters();
-        //        if (ps.Length == 1){// && ps[0].ParameterType == para1Type && ps[1].ParameterType == para2Type) {
-        //            var paraType=ps[0].ParameterType;
-        //            paraType.IsArray
-        //            return mi;
-        //        }
-        //    }
-        //    return null;
-        //}
-        //internal static readonly Type IEqualityComparerType = typeof(IEqualityComparer<>);
-        //internal static readonly Type IEqualityComparerOfStringType = typeof(IEqualityComparer<string>);
-        //internal static readonly Type ListType = typeof(List<>);
-        //internal static readonly Type HashSetType = typeof(HashSet<>);
-        //internal static readonly Type DictionaryType = typeof(Dictionary<,>);
-        //internal static readonly Type BoolRefType = typeof(bool).MakeByRefType();
-        internal static readonly Type DiagContextType = typeof(DiagContext);
-        //internal static readonly object BoolTrueValue = true;
     }
 }

@@ -9,13 +9,16 @@ namespace CData {
         DuplicateUriAlias,
         InvalidUriReference,
         InvalidClassReference,
-        ClassNotEqualToOrDeriveFrom,
+        ClassNotEqualToOrDeriveFromTheDeclared,
         ClassIsAbstract,
         InvalidPropertyName,
         PropertyMissing,
         NullNotAllowed,
         ValueExpected,
         SpecificValueExpected,
+        InvalidEnumReference,
+        EnumNotEqualToTheDeclared,
+        InvalidEnumMemberName,
         InvalidAtomValue,
         DuplicateSetItem,
         DuplicateMapKey,
@@ -40,8 +43,8 @@ namespace CData {
                     return "Invalid uri reference '{0}'.".InvFormat(_msgArgs);
                 case DiagCode.InvalidClassReference:
                     return "Invalid class reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCode.ClassNotEqualToOrDeriveFrom:
-                    return "Class '{0}' not equal to or derive from '{1}'.".InvFormat(_msgArgs);
+                case DiagCode.ClassNotEqualToOrDeriveFromTheDeclared:
+                    return "Class '{0}' not equal to or derive from the declared class '{1}'.".InvFormat(_msgArgs);
                 case DiagCode.ClassIsAbstract:
                     return "Class '{0}' is abstract.".InvFormat(_msgArgs);
                 case DiagCode.InvalidPropertyName:
@@ -54,6 +57,12 @@ namespace CData {
                     return "Value expetced.";
                 case DiagCode.SpecificValueExpected:
                     return "'{0}' value expetced.".InvFormat(_msgArgs);
+                case DiagCode.InvalidEnumReference:
+                    return "Invalid enum reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCode.EnumNotEqualToTheDeclared:
+                    return "Enum '{0}' not equal to the declared enum '{1}'.".InvFormat(_msgArgs);
+                case DiagCode.InvalidEnumMemberName:
+                    return "Invalid enum member name '{0}'.".InvFormat(_msgArgs);
                 case DiagCode.InvalidAtomValue:
                     return "Invalid atom value '{0}' of type '{1}'.".InvFormat(_msgArgs);
                 case DiagCode.DuplicateSetItem:
