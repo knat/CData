@@ -115,7 +115,7 @@ namespace CData.Compiler {
                     var csCompilationAssSymbol = csCompilation.Assembly;
                     if (CSEX.MapNamespaces(nsMap, csCompilationAssSymbol, true) > 0) {
                         foreach (var logicalNs in nsMap.Values) {
-                            if (logicalNs.CSFullName == null) {
+                            if (logicalNs.DottedName == null) {
                                 DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractNamespaceAttributeRequired, logicalNs.Uri), default(TextSpan));
                             }
                         }
@@ -126,7 +126,7 @@ namespace CData.Compiler {
                         }
                         CSEX.MapClasses(nsMap, csCompilationAssSymbol.GlobalNamespace);
                         foreach (var logicalNs in nsMap.Values) {
-                            logicalNs.NamespaceInfo.SetMembersCSFullName();
+                            logicalNs.NamespaceInfo.SetEntityDottedName();
                         }
                         foreach (var logicalNs in nsMap.Values) {
                             logicalNs.NamespaceInfo.MapAndCheckClassProperties();
@@ -134,7 +134,7 @@ namespace CData.Compiler {
                         List<MemberDeclarationSyntax> csCuMemberList = new List<MemberDeclarationSyntax>();
                         List<TypeOfExpressionSyntax> csClstypeList = new List<TypeOfExpressionSyntax>();
                         foreach (var logicalNs in nsMap.Values) {
-                            logicalNs.NamespaceInfo.Generate(csCuMemberList, csClstypeList);
+                            //logicalNs.NamespaceInfo.Generate(csCuMemberList, csClstypeList);
                         }
                         AttributeListSyntax csAttList = null;
                         if (csClstypeList.Count > 0) {

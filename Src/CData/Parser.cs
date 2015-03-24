@@ -356,7 +356,7 @@ namespace CData {
                 var hasUriAliasingList = UriAliasingList();
                 TokenExpected('{');
                 var fullName = new FullName(GetUri(aliasNode), nameNode.Value);
-                var clsMd = EntityMetadata.Get<ClassMetadata>(fullName);
+                var clsMd = AssemblyMetadata.GetEntity<ClassMetadata>(fullName);
                 if (clsMd == null) {
                     ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidClassReference, fullName.ToString()), nameNode.TextSpan);
                 }
@@ -455,7 +455,7 @@ namespace CData {
                     TokenExpected(':');
                     var nameNode = NameExpected();
                     var fullName = new FullName(uri, nameNode.Value);
-                    var enumMd = EntityMetadata.Get<EnumMetadata>(fullName);
+                    var enumMd = AssemblyMetadata.GetEntity<EnumMetadata>(fullName);
                     if (enumMd == null) {
                         ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidClassReference, fullName.ToString()), nameNode.TextSpan);
                     }

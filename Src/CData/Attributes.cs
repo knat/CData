@@ -11,14 +11,6 @@ namespace CData {
         public ContractClassAttribute(string name) { }
     }
 
-    [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = false, Inherited = false)]
-    public sealed class ContractTypesAttribute : Attribute {
-        public ContractTypesAttribute(Type[] types) {
-            Types = types;
-        }
-        internal readonly Type[] Types;
-    }
-
     [AttributeUsage(AttributeTargets.Property | AttributeTargets.Field, AllowMultiple = false, Inherited = false)]
     public sealed class ContractPropertyAttribute : Attribute {
         public ContractPropertyAttribute(string name) { }

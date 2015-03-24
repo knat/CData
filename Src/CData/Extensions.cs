@@ -398,6 +398,9 @@ namespace CData {
         internal static bool IsAtom(this TypeKind kind) {
             return kind >= AtomTypeStart && kind <= AtomTypeEnd;
         }
+        internal static bool IsSimple(this TypeKind kind) {
+            return IsAtom(kind) || kind == TypeKind.Enum;
+        }
         //
         //
         internal static ConstructorInfo TryGetParameterlessConstructor(TypeInfo ti) {

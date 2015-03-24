@@ -187,23 +187,39 @@ namespace CData {
         }
         public readonly EntityMetadata Entity;
     }
-
-    public abstract class EntityMetadata {
-        private static readonly Dictionary<FullName, EntityMetadata> _map = new Dictionary<FullName, EntityMetadata>();
-        private static void Add(FullName fullName, EntityMetadata entity) {
-            lock (_map) {
-                _map.Add(fullName, entity);
-            }
-        }
-        public static T Get<T>(FullName fullName) where T : EntityMetadata {
+    //
+    public abstract class AssemblyMetadata {
+        //public const string ClassName = "__ContractAssemblyMetadata";
+        //public static void Initialize(Assembly assembly) {
+        //    if (assembly == null) throw new ArgumentNullException("assembly");
+        //    var type = assembly.GetType(ClassName);
+        //    if (type != null) {
+        //        System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(type.TypeHandle);
+        //    }
+        //}
+        //
+        private static readonly Dictionary<FullName, EntityMetadata> _entityMap = new Dictionary<FullName, EntityMetadata>();
+        public static T GetEntity<T>(FullName fullName) where T : EntityMetadata {
             EntityMetadata entity;
-            lock (_map) {
-                _map.TryGetValue(fullName, out entity);
+            lock (_entityMap) {
+                _entityMap.TryGetValue(fullName, out entity);
             }
             return entity as T;
         }
+        protected AssemblyMetadata(EntityMetadata[] entities) {
+            if (entities != null) {
+                lock (_entityMap) {
+                    foreach (var entity in entities) {
+                        _entityMap.Add(entity.FullName, entity);
+                    }
+                }
+            }
+            Entities = entities;
+        }
+        internal readonly EntityMetadata[] Entities;
+    }
+    public abstract class EntityMetadata {
         protected EntityMetadata(FullName fullName, Type clrType) {
-            Add(fullName, this);
             FullName = fullName;
             ClrType = clrType;
         }
@@ -223,12 +239,12 @@ namespace CData {
             : base(fullName, clrType) {
             IsClrEnum = isClrEnum;
             if (!isClrEnum) {
-                _clrFieldInfos = clrType.GetTypeInfo().DeclaredFields.ToArray();
+                _clrFields = clrType.GetTypeInfo().DeclaredFields.ToArray();
             }
             _members = members;
         }
-        public readonly bool IsClrEnum;
-        private readonly FieldInfo[] _clrFieldInfos;//for non-clr enum
+        public readonly bool IsClrEnum;//for Int64 to Byte
+        private readonly FieldInfo[] _clrFields;//for non-clr enum
         private readonly NameValuePair[] _members;
         public object GetMemberValue(string name) {
             var members = _members;
@@ -246,7 +262,7 @@ namespace CData {
             if (IsClrEnum) {
                 return Enum.GetName(ClrType, value);
             }
-            foreach (var fi in _clrFieldInfos) {
+            foreach (var fi in _clrFields) {
                 if (object.Equals(value, fi.GetValue(null))) {
                     return fi.Name;
                 }
@@ -255,38 +271,12 @@ namespace CData {
         }
     }
     public sealed class ClassMetadata : EntityMetadata {
-        private static readonly HashSet<Assembly> _assemblySet = new HashSet<Assembly>();
-        public static void Initialize(Assembly assembly) {
-            if (assembly == null) throw new ArgumentNullException("assembly");
-            bool added;
-            lock (_assemblySet) {
-                added = _assemblySet.Add(assembly);
-            }
-            if (added) {
-                RunClassConstructors(assembly);
-            }
-        }
-        private static void RunClassConstructors(Assembly assembly) {
-            var att = assembly.GetCustomAttribute<ContractTypesAttribute>();
-            if (att != null) {
-                var types = att.Types;
-                if (types != null) {
-                    foreach (var type in types) {
-                        if (type != null) {
-                            System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(type.TypeHandle);
-                        }
-                    }
-                }
-            }
-        }
-        //
         public ClassMetadata(FullName fullName, Type clrType, bool isAbstract, ClassMetadata baseClass, PropertyMetadata[] properties)
             : base(fullName, clrType) {
             IsAbstract = isAbstract;
             BaseClass = baseClass;
             _properties = properties;
             TypeInfo ti = clrType.GetTypeInfo();
-            Initialize(ti.Assembly);//??
             if (!isAbstract) {
                 ClrConstructor = Extensions.GetParameterlessConstructor(ti);
             }

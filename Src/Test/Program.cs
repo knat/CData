@@ -9,9 +9,15 @@ using System.Reflection;
 
 //[assembly: UriNamespaceMap]
 //[assembly: UriNamespaceMap]
-[assembly: ContractTypesAttribute(new Type[] { typeof(int), typeof(string) })]
+//[assembly: ContractTypesAttribute(new Type[] { typeof(int), typeof(string) })]
 
+//public sealed class __ContractAssemblyMetadata : CData.AssemblyMetadata {
+//    public static readonly CData.AssemblyMetadata Instance;
+//    static __ContractAssemblyMetadata() {
 
+//    }
+//    private __ContractAssemblyMetadata() { }
+//}
 class X {
     static X() {
         Console.WriteLine("X");

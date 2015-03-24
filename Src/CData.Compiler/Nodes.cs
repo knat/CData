@@ -12,13 +12,13 @@ namespace CData.Compiler {
             get { return this[0].UriValue; }
         }
         public NamespaceInfo NamespaceInfo;
-        public CSFullName CSFullName {
-            get { return NamespaceInfo.CSFullName; }
-            set { NamespaceInfo.CSFullName = value; }
+        public DottedName DottedName {
+            get { return NamespaceInfo.DottedName; }
+            set { NamespaceInfo.DottedName = value; }
         }
-        public bool IsCSRef {
-            get { return NamespaceInfo.IsCSRef; }
-            set { NamespaceInfo.IsCSRef = value; }
+        public bool IsRef {
+            get { return NamespaceInfo.IsRef; }
+            set { NamespaceInfo.IsRef = value; }
         }
 
         public void CheckDuplicateMembers() {
@@ -179,9 +179,9 @@ namespace CData.Compiler {
         public NamespaceMemberNode(NamespaceNode ns) : base(ns) { }
         public NameNode Name;
         public abstract void Resolve();
-        protected NamespaceMemberInfo _info;
+        protected EntityInfo _info;
         private bool _isProcessing;
-        public NamespaceMemberInfo CreateInfo() {
+        public EntityInfo CreateInfo() {
             if (_info == null) {
                 if (_isProcessing) {
                     DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.CircularReferenceNotAllowed), Name.TextSpan);
@@ -189,13 +189,13 @@ namespace CData.Compiler {
                 _isProcessing = true;
                 var nsInfo = Namespace.LogicalNamespace.NamespaceInfo;
                 var info = CreateInfoCore(nsInfo);
-                nsInfo.MemberList.Add(info);
+                nsInfo.EntityList.Add(info);
                 _info = info;
                 _isProcessing = false;
             }
             return _info;
         }
-        protected abstract NamespaceMemberInfo CreateInfoCore(NamespaceInfo nsInfo);
+        protected abstract EntityInfo CreateInfoCore(NamespaceInfo nsInfo);
     }
 
     internal sealed class AtomNode : NamespaceMemberNode {
@@ -218,7 +218,7 @@ namespace CData.Compiler {
         public override void Resolve() {
             throw new NotImplementedException();
         }
-        protected override NamespaceMemberInfo CreateInfoCore(NamespaceInfo nsInfo) {
+        protected override EntityInfo CreateInfoCore(NamespaceInfo nsInfo) {
             throw new NotImplementedException();
         }
     }
@@ -230,7 +230,7 @@ namespace CData.Compiler {
         public override void Resolve() {
             UnderlyingType = Namespace.ResolveQNameAsAtom(UnderlyingQName);
         }
-        protected override NamespaceMemberInfo CreateInfoCore(NamespaceInfo nsInfo) {
+        protected override EntityInfo CreateInfoCore(NamespaceInfo nsInfo) {
             var underlyingTypeInfo = (AtomInfo)UnderlyingType.CreateInfo();
             List<NameValuePair> memberInfoList = null;
             if (MemberList != null) {
@@ -285,7 +285,7 @@ namespace CData.Compiler {
                 }
             }
         }
-        protected override NamespaceMemberInfo CreateInfoCore(NamespaceInfo nsInfo) {
+        protected override EntityInfo CreateInfoCore(NamespaceInfo nsInfo) {
             ClassInfo baseClassInfo = null;
             if (BaseClass != null) {
                 baseClassInfo = (ClassInfo)BaseClass.CreateInfo();
@@ -401,7 +401,7 @@ namespace CData.Compiler {
             ObjectSetKeySelector selector = null;
             if (IsObjectSet) {
                 selector = new ObjectSetKeySelector();
-                var clsTypeInfo = (ClassRefTypeInfo)itemTypeInfo;
+                var clsTypeInfo = (NamespaceMemberRefTypeInfo)itemTypeInfo;
                 var keyCount = KeyNameList.Count;
                 for (var i = 0; i < keyCount; ++i) {
                     var keyName = KeyNameList[i];
@@ -424,7 +424,7 @@ namespace CData.Compiler {
                             DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ObjectSetKeyMustBeAtom), keyName.TextSpan);
                         }
                         selector.Add(propInfo);
-                        clsTypeInfo = (ClassRefTypeInfo)propTypeInfo;
+                        clsTypeInfo = (NamespaceMemberRefTypeInfo)propTypeInfo;
                     }
                     else {
                         DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ObjectSetKeyMustBeAtom), keyName.TextSpan);

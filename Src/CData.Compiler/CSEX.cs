@@ -68,11 +68,11 @@ namespace CData.Compiler {
                     if (fullNameStr != null) {
                         LogicalNamespace logicalNs;
                         if (nsMap.TryGetValue(uri, out logicalNs)) {
-                            CSFullName fullName;
-                            if (CSFullName.TryParse(fullNameStr, out fullName)) {
-                                if (logicalNs.CSFullName == null) {
-                                    logicalNs.CSFullName = fullName;
-                                    logicalNs.IsCSRef = !isInSource;
+                            DottedName fullName;
+                            if (DottedName.TryParse(fullNameStr, out fullName)) {
+                                if (logicalNs.DottedName == null) {
+                                    logicalNs.DottedName = fullName;
+                                    logicalNs.IsRef = !isInSource;
                                     ++count;
                                 }
                                 else {// if (isInSource) {
@@ -109,7 +109,7 @@ namespace CData.Compiler {
             if (!nsSymbol.IsGlobalNamespace) {
                 foreach (var logicalNs in nsMap.Values) {
                     var nsInfo = logicalNs.NamespaceInfo;
-                    if (nsSymbol.FullNameEquals(nsInfo.CSFullName.NameParts)) {
+                    if (nsSymbol.FullNameEquals(nsInfo.DottedName.NameParts)) {
                         var typeSymbolList = nsSymbol.GetMembers().OfType<INamedTypeSymbol>().Where(i => i.TypeKind == Microsoft.CodeAnalysis.TypeKind.Class).ToList();
                         for (var i = 0; i < typeSymbolList.Count; ) {
                             var typeSymbol = typeSymbolList[i];
@@ -125,11 +125,11 @@ namespace CData.Compiler {
                                 if (clsName == null) {
                                     DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttribute), GetTextSpan(clsAttData));
                                 }
-                                ClassInfo clsInfo = nsInfo.GetClass(clsName);
+                                ClassInfo clsInfo = nsInfo.GetEntity<ClassInfo>(clsName);
                                 if (clsInfo == null) {
                                     DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName, clsName), GetTextSpan(clsAttData));
                                 }
-                                if (clsInfo.CSClassSymbol != null) {
+                                if (clsInfo.Symbol != null) {
                                     DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractClassAttributeName, clsName), GetTextSpan(clsAttData));
                                 }
                                 if (!clsInfo.IsAbstract) {
@@ -137,7 +137,7 @@ namespace CData.Compiler {
                                         DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.NonAbstractParameterlessConstructorContractClassRequired), GetTextSpan(typeSymbol));
                                     }
                                 }
-                                clsInfo.CSClassSymbol = typeSymbol;
+                                clsInfo.Symbol = typeSymbol;
                                 typeSymbolList.RemoveAt(i);
                                 continue;
                             }
@@ -147,9 +147,9 @@ namespace CData.Compiler {
                         foreach (var typeSymbol in typeSymbolList) {
                             if (!typeSymbol.IsGenericType) {
                                 var clsName = typeSymbol.Name;
-                                ClassInfo clsInfo = nsInfo.GetClass(clsName);
+                                ClassInfo clsInfo = nsInfo.GetEntity<ClassInfo>(clsName);
                                 if (clsInfo != null) {
-                                    if (clsInfo.CSClassSymbol == null) {
+                                    if (clsInfo.Symbol == null) {
                                         if (typeSymbol.IsStatic) {
                                             DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractClassCannotBeStatic), GetTextSpan(typeSymbol));
                                         }
@@ -158,7 +158,7 @@ namespace CData.Compiler {
                                                 DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.NonAbstractParameterlessConstructorContractClassRequired), GetTextSpan(typeSymbol));
                                             }
                                         }
-                                        clsInfo.CSClassSymbol = typeSymbol;
+                                        clsInfo.Symbol = typeSymbol;
                                     }
                                 }
                             }

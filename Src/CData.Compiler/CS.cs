@@ -1811,11 +1811,11 @@ namespace CData.Compiler {
         //}
 
     }
-    internal sealed class CSFullName : IEquatable<CSFullName> {
-        public static bool TryParse(string dottedName, out CSFullName result) {
+    internal sealed class DottedName : IEquatable<DottedName> {
+        public static bool TryParse(string dottedNameStr, out DottedName result) {
             result = null;
             List<string> partList = null;
-            foreach (var i in dottedName.Split(_dotCharArray)) {
+            foreach (var i in dottedNameStr.Split(_dotCharArray)) {
                 if (i.Length == 0) {
                     return false;
                 }
@@ -1829,15 +1829,15 @@ namespace CData.Compiler {
                 partList.Add(part);
             }
             partList.Reverse();
-            result = new CSFullName(partList.ToArray());
+            result = new DottedName(partList.ToArray());
             return true;
         }
         private static readonly char[] _dotCharArray = new char[] { '.' };
-        public CSFullName(string[] nameParts) {
+        public DottedName(string[] nameParts) {
             if (nameParts == null || nameParts.Length == 0) throw new ArgumentNullException("nameParts");
             NameParts = nameParts;
         }
-        public CSFullName(CSFullName parent, string name) {
+        public DottedName(DottedName parent, string name) {
             var parentNameParts = parent.NameParts;
             var nameParts = new string[parentNameParts.Length + 1];
             nameParts[0] = name;
@@ -1894,7 +1894,7 @@ namespace CData.Compiler {
 
 
         //
-        public bool Equals(CSFullName other) {
+        public bool Equals(DottedName other) {
             if ((object)this == (object)other) return true;
             if ((object)other == null) return false;
             var xParts = NameParts;
@@ -1908,7 +1908,7 @@ namespace CData.Compiler {
             return true;
         }
         public override bool Equals(object obj) {
-            return Equals(obj as CSFullName);
+            return Equals(obj as DottedName);
         }
         public override int GetHashCode() {
             var parts = NameParts;
@@ -1919,13 +1919,13 @@ namespace CData.Compiler {
             }
             return hash;
         }
-        public static bool operator ==(CSFullName left, CSFullName right) {
+        public static bool operator ==(DottedName left, DottedName right) {
             if ((object)left == null) {
                 return (object)right == null;
             }
             return left.Equals(right);
         }
-        public static bool operator !=(CSFullName left, CSFullName right) {
+        public static bool operator !=(DottedName left, DottedName right) {
             return !(left == right);
         }
 
