@@ -356,7 +356,7 @@ namespace CData {
                 var hasUriAliasingList = UriAliasingList();
                 TokenExpected('{');
                 var fullName = new FullName(GetUri(aliasNode), nameNode.Value);
-                var clsMd = AssemblyMetadata.GetEntity<ClassMetadata>(fullName);
+                var clsMd = AssemblyMetadata.GetGlobalType<ClassMetadata>(fullName);
                 if (clsMd == null) {
                     ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidClassReference, fullName.ToString()), nameNode.TextSpan);
                 }
@@ -392,7 +392,7 @@ namespace CData {
                             ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidPropertyName, propName), propNameNode.TextSpan);
                         }
                         TokenExpected('=');
-                        propMd.SetValue(obj, TypeValueExpected(propMd.Type));
+                        propMd.SetValue(obj, LocalValueExpected(propMd.Type));
                     }
                     else {
                         TextSpan ts;
@@ -417,15 +417,15 @@ namespace CData {
             result = null;
             return false;
         }
-        private object TypeValueExpected(TypeMetadata typeMd) {
+        private object LocalValueExpected(LocalTypeMetadata typeMd) {
             object value;
-            if (TypeValue(typeMd, out value)) {
+            if (LocalValue(typeMd, out value)) {
                 return value;
             }
             ErrorDiagAndThrow(new DiagMsg(DiagCode.ValueExpected));
             return null;
         }
-        private bool TypeValue(TypeMetadata typeMd, out object result) {
+        private bool LocalValue(LocalTypeMetadata typeMd, out object result) {
             var typeKind = typeMd.Kind;
             AtomValueNode avNode;
             if (AtomValue(out avNode)) {
@@ -441,7 +441,7 @@ namespace CData {
                 }
                 result = Extensions.TryParse(typeKind, avNode.Value);
                 if (result == null) {
-                    ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidAtomValue, avNode.Value, typeKind.ToString()), avNode.TextSpan);
+                    ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidAtomValue, typeKind.ToString(), avNode.Value), avNode.TextSpan);
                 }
                 return true;
             }
@@ -455,11 +455,11 @@ namespace CData {
                     TokenExpected(':');
                     var nameNode = NameExpected();
                     var fullName = new FullName(uri, nameNode.Value);
-                    var enumMd = AssemblyMetadata.GetEntity<EnumMetadata>(fullName);
+                    var enumMd = AssemblyMetadata.GetGlobalType<EnumMetadata>(fullName);
                     if (enumMd == null) {
-                        ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidClassReference, fullName.ToString()), nameNode.TextSpan);
+                        ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidEnumReference, fullName.ToString()), nameNode.TextSpan);
                     }
-                    var declaredEnumMd = ((EntityRefTypeMetadata)typeMd).Entity as EnumMetadata;
+                    var declaredEnumMd = ((GlobalTypeRefMetadata)typeMd).GlobalType as EnumMetadata;
                     if (enumMd != declaredEnumMd) {
                         ErrorDiagAndThrow(new DiagMsg(DiagCode.EnumNotEqualToTheDeclared, fullName.ToString(), declaredEnumMd.FullName.ToString()),
                             nameNode.TextSpan);
@@ -474,11 +474,11 @@ namespace CData {
                 }
                 else if (Token('[', out ts)) {
                     var isList = typeKind == TypeKind.List;
-                    var isSet = typeKind == TypeKind.AtomSet || typeKind == TypeKind.ObjectSet;
-                    if (!isList && !isSet) {
+                    var isSet = typeKind == TypeKind.SimpleSet || typeKind == TypeKind.ObjectSet;
+                    if (!(isList || isSet)) {
                         ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), ts);
                     }
-                    var collMd = (CollectionTypeMetadata)typeMd;
+                    var collMd = (CollectionMetadata)typeMd;
                     var collObj = collMd.CreateInstance();
                     var itemMd = collMd.ItemOrValueType;
                     while (true) {
@@ -486,7 +486,7 @@ namespace CData {
                         if (isSet) {
                             ts = GetTextSpan();
                         }
-                        if (TypeValue(itemMd, out itemObj)) {
+                        if (LocalValue(itemMd, out itemObj)) {
                             if (isSet) {
                                 if (!collMd.InvokeBoolAdd(collObj, itemObj)) {
                                     ErrorDiagAndThrow(new DiagMsg(DiagCode.DuplicateSetItem), ts);
@@ -507,19 +507,19 @@ namespace CData {
                     if (typeKind != TypeKind.Map) {
                         ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), ts);
                     }
-                    var collMd = (CollectionTypeMetadata)typeMd;
+                    var collMd = (CollectionMetadata)typeMd;
                     var collObj = collMd.CreateInstance();
                     var keyMd = collMd.MapKeyType;
                     var valueMd = collMd.ItemOrValueType;
                     while (true) {
                         object keyObj;
                         ts = GetTextSpan();
-                        if (TypeValue(keyMd, out keyObj)) {
+                        if (LocalValue(keyMd, out keyObj)) {
                             if (collMd.InvokeContainsKey(collObj, keyObj)) {
                                 ErrorDiagAndThrow(new DiagMsg(DiagCode.DuplicateMapKey), ts);
                             }
                             TokenExpected('=');
-                            collMd.InvokeAdd(collObj, keyObj, TypeValueExpected(valueMd));
+                            collMd.InvokeAdd(collObj, keyObj, LocalValueExpected(valueMd));
                         }
                         else {
                             TokenExpected(']');
@@ -532,7 +532,7 @@ namespace CData {
                     if (typeKind != TypeKind.Class) {
                         ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()));
                     }
-                    return ClassValue(((EntityRefTypeMetadata)typeMd).Entity as ClassMetadata, out result);
+                    return ClassValue(((GlobalTypeRefMetadata)typeMd).GlobalType as ClassMetadata, out result);
                 }
             }
             result = null;

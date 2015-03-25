@@ -18,6 +18,10 @@ namespace CData.Compiler {
             return SyntaxFactory.Identifier(default(SyntaxTriviaList), SyntaxKind.IdentifierToken,
                 escapedId, escapedId.UnescapeId(), default(SyntaxTriviaList));
         }
+        internal static SyntaxToken UnescapedId(string unescapedId) {
+            return SyntaxFactory.Identifier(default(SyntaxTriviaList), SyntaxKind.IdentifierToken,
+               unescapedId.EscapeId(), unescapedId, default(SyntaxTriviaList));
+        }
         internal static IdentifierNameSyntax IdName(string name) {
             return SyntaxFactory.IdentifierName(Id(name));
         }
@@ -1494,6 +1498,15 @@ namespace CData.Compiler {
             }
             return idx == nameParts.Length;
         }
+        internal static bool FullNameEquals(this ITypeSymbol typeSymbol, string[] nameParts, bool isNullable) {
+            if (isNullable) {
+                if (typeSymbol.SpecialType == SpecialType.System_Nullable_T) {
+                    return FullNameEquals(((INamedTypeSymbol)typeSymbol).TypeArguments[0], nameParts);
+                }
+                return false;
+            }
+            return FullNameEquals(typeSymbol, nameParts);
+        }
         internal static bool FullNameEquals(this ISymbol symbol, string[] genericTypeNameParts, string[] typeArgNameParts) {
             if (symbol.FullNameEquals(genericTypeNameParts)) {
                 return ((INamedTypeSymbol)symbol).TypeArguments[0].FullNameEquals(typeArgNameParts);
@@ -1594,7 +1607,6 @@ namespace CData.Compiler {
             }
             return false;
         }
-
 
 
 

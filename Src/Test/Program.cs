@@ -42,7 +42,7 @@ namespace Test {
             //RoslynTest();
             //Console.WriteLine("fd");
         }
-        public enum MyEnum  {
+        public enum MyEnum {
             M1 = 1,
             M2 = 10,
         }
@@ -52,6 +52,17 @@ namespace Test {
             public MyEnum Prop1 { get; set; }
         }
         static void Test() {
+            //object o1 = MyEnum.M1;
+            //object o2 = 1;
+            //var b = o1.Equals(o2);
+            //var b2 = o2.Equals(o1);
+
+            var names = Enum.GetNames(typeof(MyEnum));
+            var values = Enum.GetValues(typeof(MyEnum));
+
+            var xx = values.GetValue(0);
+
+
             var prop1 = typeof(MyClass).GetTypeInfo().GetProperty("Prop1");
             var myclass = new MyClass();
             prop1.SetValue(myclass, 1);

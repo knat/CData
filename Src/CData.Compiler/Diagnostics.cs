@@ -9,25 +9,25 @@ namespace CData.Compiler {
         UriSystemReserved,
         DuplicateImportAlias,
         InvalidNamespaceReference,
-        DuplicateNamespaceMemberName,
+        DuplicateGlobalTypeName,
         DuplicateEnumMemberName,
-        InvalidAtomValue,
         DuplicatePropertyName,
         SpecificTypeExpected,
         InvalidImportAliasReference,
-        AmbiguousNameReference,
-        InvalidNameReference,
-        InvalidClassNameReference,
-        InvalidAtomNameReference,
-        InvalidPropertyNameReference,
+        AmbiguousGlobalTypeReference,
+        InvalidGlobalTypeReference,
+        InvalidClassReference,
+        InvalidAtomReference,
+        InvalidSimpleGlobalTypeReference,
         CircularReferenceNotAllowed,
-
-        KeySelectorRequiredForObjectSet,
-        KeySelectorNotAllowedForAtomSet,
+        InvalidAtomValue,
         BaseClassIsSealed,
+        KeySelectorNotAllowedForSimpleSet,
+        KeySelectorRequiredForObjectSet,
+        InvalidPropertyReference,
         ObjectSetKeyCannotBeNullable,
         InvalidObjectSetKey,
-        ObjectSetKeyMustBeAtom,
+        ObjectSetKeyMustBeSimpleType,
 
         //
         InvalidContractNamespaceAttribute,
@@ -35,16 +35,18 @@ namespace CData.Compiler {
         DuplicateContractNamespaceAttributeUri,
         InvalidContractNamespaceAttributeNamespaceName,
         ContractNamespaceAttributeRequired,
+        //
         InvalidContractClassAttribute,
         InvalidContractClassAttributeName,
         DuplicateContractClassAttributeName,
         ContractClassCannotBeGeneric,
         ContractClassCannotBeStatic,
         NonAbstractParameterlessConstructorContractClassRequired,
+        //
         InvalidContractPropertyAttribute,
         InvalidContractPropertyAttributeName,
         DuplicateContractPropertyAttributeName,
-        ContractPropertyOrFieldCannotBeStatic,
+        ContractPropertyCannotBeStatic,
         ContractPropertyMustHaveGetterAndSetter,
         ContractPropertyCannotBeIndexer,
         ContractFieldCannotBeConst,
@@ -75,33 +77,44 @@ namespace CData.Compiler {
                     return "Duplicate import alias '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.InvalidNamespaceReference:
                     return "Invalid namespace reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.DuplicateNamespaceMemberName:
-                    return "Duplicate namespace member name '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.DuplicateGlobalTypeName:
+                    return "Duplicate global type name '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.DuplicateEnumMemberName:
                     return "Duplicate enum member name '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.InvalidAtomValue:
-                    return "Invalid atom value '{0}' of type '{1}'.".InvFormat(_msgArgs);
-
                 case DiagCodeEx.DuplicatePropertyName:
                     return "Duplicate property name '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.SpecificTypeExpected:
-                    return "'{0}' type expected.".InvFormat(_msgArgs);
+                    return "{0} type expected.".InvFormat(_msgArgs);
                 case DiagCodeEx.InvalidImportAliasReference:
                     return "Invalid import alias reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.AmbiguousNameReference:
-                    return "Ambiguous name reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.InvalidNameReference:
-                    return "Invalid name reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.InvalidClassNameReference:
-                    return "Invalid class name reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.InvalidAtomNameReference:
-                    return "Invalid atom name reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.InvalidPropertyNameReference:
-                    return "Invalid property name reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.AmbiguousGlobalTypeReference:
+                    return "Ambiguous global type reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.InvalidGlobalTypeReference:
+                    return "Invalid global type reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.InvalidClassReference:
+                    return "Invalid class reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.InvalidAtomReference:
+                    return "Invalid atom reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.InvalidSimpleGlobalTypeReference:
+                    return "Invalid simple global type(atom or enum) reference '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.CircularReferenceNotAllowed:
                     return "Circular reference not allowed.";
-
-
+                case DiagCodeEx.InvalidAtomValue:
+                    return "Invalid atom '{0}' value '{1}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.BaseClassIsSealed:
+                    return "Base class is sealed.";
+                case DiagCodeEx.KeySelectorNotAllowedForSimpleSet:
+                    return "Key selector not allowed for simple set.";
+                case DiagCodeEx.KeySelectorRequiredForObjectSet:
+                    return "Key selector required for object set.";
+                case DiagCodeEx.InvalidPropertyReference:
+                    return "Invalid property reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.ObjectSetKeyCannotBeNullable:
+                    return "Object set key cannot be nullable.";
+                case DiagCodeEx.InvalidObjectSetKey:
+                    return "Invalid object set key.";
+                case DiagCodeEx.ObjectSetKeyMustBeSimpleType:
+                    return "Object set key must be simple type.";
 
                 //
                 case DiagCodeEx.InvalidContractNamespaceAttribute:
@@ -114,6 +127,7 @@ namespace CData.Compiler {
                     return "Invalid ContractNamespaceAttribute namespaceName '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.ContractNamespaceAttributeRequired:
                     return "ContractNamespaceAttribute required for uri '{0}'.".InvFormat(_msgArgs);
+                //
                 case DiagCodeEx.InvalidContractClassAttribute:
                     return "Invalid ContractClassAttribute.";
                 case DiagCodeEx.InvalidContractClassAttributeName:
@@ -126,18 +140,19 @@ namespace CData.Compiler {
                     return "Contract class cannot be static.";
                 case DiagCodeEx.NonAbstractParameterlessConstructorContractClassRequired:
                     return "Non-abstract parameterless-constructor contract class required.";
+                //
                 case DiagCodeEx.InvalidContractPropertyAttribute:
                     return "Invalid ContractPropertyAttribute.";
                 case DiagCodeEx.InvalidContractPropertyAttributeName:
                     return "Invalid ContractPropertyAttribute name '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.DuplicateContractPropertyAttributeName:
                     return "Duplicate ContractPropertyAttribute name '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.ContractPropertyOrFieldCannotBeStatic:
-                    return "Contract property or field cannot be static.";
+                case DiagCodeEx.ContractPropertyCannotBeStatic:
+                    return "Contract property/field cannot be static.";
                 case DiagCodeEx.ContractPropertyMustHaveGetterAndSetter:
                     return "Contract property must have getter and setter.";
                 case DiagCodeEx.ContractPropertyCannotBeIndexer:
-                    return "Contract property cannot be indexer";
+                    return "Contract property cannot be indexer.";
                 case DiagCodeEx.ContractFieldCannotBeConst:
                     return "Contract field cannot be const.";
                 case DiagCodeEx.InvalidContractPropertyType:

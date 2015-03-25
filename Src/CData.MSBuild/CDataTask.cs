@@ -84,7 +84,7 @@ namespace CData.MSBuild {
                 //
                 DiagContext diagContext;
                 string code;
-                var res = CData.Compiler.CDataCompiler.Compile(contractFileList, csFileList, csPpList, csRefList, out diagContext, out code);
+                var res = CData.Compiler.CDataCompiler.Compile(contractFileList, csFileList, csPpList, csRefList,null, out diagContext, out code);
                 var diagStore = new DiagStore();
                 if (diagContext != null) {
                     foreach (var diag in diagContext) {

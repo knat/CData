@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace CData.Compiler {
     public static class CDataCompiler {
         public static bool Compile(List<string> contractFileList,
-            List<string> csFileList, List<string> csPpList, List<MetadataReference> csRefList,
+            List<string> csFileList, List<string> csPpList, List<MetadataReference> csRefList, string assemblyName,
             out DiagContext context, out string code) {
             context = null;
             code = GeneratedFileBanner;
@@ -31,7 +31,7 @@ namespace CData.Compiler {
                         }
                     }
                 }
-                return CompileCore((DiagContextEx)context, cuList, csFileList, csPpList, csRefList, ref code);
+                return CompileCore((DiagContextEx)context, cuList, csFileList, csPpList, csRefList, assemblyName, ref code);
             }
             catch (Exception ex) {
                 context.AddDiag(DiagSeverity.Error, (int)DiagCodeEx.InternalCompilerError, "Internal compiler error: " + ex.ToString(), default(TextSpan));
@@ -45,24 +45,19 @@ namespace CData.Compiler {
 
 ";
         private static readonly CSharpCompilationOptions _compilationOptions = new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary);
-
         private static bool CompileCore(DiagContextEx context, List<CompilationUnitNode> cuList,
-            List<string> csFileList, List<string> csPpList, List<MetadataReference> csRefList,
-            ref string code) {
+            List<string> csFileList, List<string> csPpList, List<MetadataReference> csRefList, string assemblyName, ref string code) {
             try {
                 DiagContextEx.Current = context;
                 var nsList = new List<NamespaceNode>();
-                if (cuList != null) {
-                    foreach (var cu in cuList) {
-                        if (cu.NamespaceList != null) {
-                            nsList.AddRange(cu.NamespaceList);
-                        }
+                foreach (var cu in cuList) {
+                    if (cu.NamespaceList != null) {
+                        nsList.AddRange(cu.NamespaceList);
                     }
                 }
                 if (nsList.Count == 0) {
                     return true;
                 }
-                //
                 var nsMap = new LogicalNamespaceMap();
                 foreach (var ns in nsList) {
                     var uri = ns.UriValue;
@@ -74,12 +69,11 @@ namespace CData.Compiler {
                     logicalNS.Add(ns);
                     ns.LogicalNamespace = logicalNS;
                 }
-                //
                 foreach (var ns in nsList) {
                     ns.ResolveImports(nsMap);
                 }
                 foreach (var logicalNs in nsMap.Values) {
-                    logicalNs.CheckDuplicateMembers();
+                    logicalNs.CheckDuplicateGlobalTypes();
                 }
                 foreach (var ns in nsList) {
                     ns.Resolve();
@@ -92,18 +86,18 @@ namespace CData.Compiler {
                 }
                 //
                 if (csFileList.CountOrZero() > 0) {
-                    var csParseOpts = new CSharpParseOptions(preprocessorSymbols: csPpList, documentationMode: DocumentationMode.None);
-                    var csCompilation = CSharpCompilation.Create(
+                    var parseOpts = new CSharpParseOptions(preprocessorSymbols: csPpList, documentationMode: DocumentationMode.None);
+                    var compilation = CSharpCompilation.Create(
                         assemblyName: "__TEMP__",
                         syntaxTrees: csFileList.Select(csFile => CSharpSyntaxTree.ParseText(text: File.ReadAllText(csFile),
-                            options: csParseOpts, path: csFile)),
+                            options: parseOpts, path: csFile)),
                         references: csRefList,
                         options: _compilationOptions);
                     List<IAssemblySymbol> refAssSymbolList = null;
                     if (csRefList != null) {
                         foreach (var csRef in csRefList) {
                             if (csRef.Properties.Kind == MetadataImageKind.Assembly) {
-                                var assSymbol = csCompilation.GetAssemblyOrModuleSymbol(csRef) as IAssemblySymbol;
+                                var assSymbol = compilation.GetAssemblyOrModuleSymbol(csRef) as IAssemblySymbol;
                                 if (assSymbol != null) {
                                     if (CSEX.MapNamespaces(nsMap, assSymbol, false) > 0) {
                                         Extensions.CreateAndAdd(ref refAssSymbolList, assSymbol);
@@ -112,8 +106,8 @@ namespace CData.Compiler {
                             }
                         }
                     }
-                    var csCompilationAssSymbol = csCompilation.Assembly;
-                    if (CSEX.MapNamespaces(nsMap, csCompilationAssSymbol, true) > 0) {
+                    var compilationAssSymbol = compilation.Assembly;
+                    if (CSEX.MapNamespaces(nsMap, compilationAssSymbol, true) > 0) {
                         foreach (var logicalNs in nsMap.Values) {
                             if (logicalNs.DottedName == null) {
                                 DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractNamespaceAttributeRequired, logicalNs.Uri), default(TextSpan));
@@ -124,28 +118,30 @@ namespace CData.Compiler {
                                 CSEX.MapClasses(nsMap, refAssSymbol.GlobalNamespace);
                             }
                         }
-                        CSEX.MapClasses(nsMap, csCompilationAssSymbol.GlobalNamespace);
+                        CSEX.MapClasses(nsMap, compilationAssSymbol.GlobalNamespace);
                         foreach (var logicalNs in nsMap.Values) {
-                            logicalNs.NamespaceInfo.SetEntityDottedName();
+                            logicalNs.NamespaceInfo.SetGlobalTypeDottedNames();
                         }
                         foreach (var logicalNs in nsMap.Values) {
                             logicalNs.NamespaceInfo.MapAndCheckClassProperties();
                         }
-                        List<MemberDeclarationSyntax> csCuMemberList = new List<MemberDeclarationSyntax>();
-                        List<TypeOfExpressionSyntax> csClstypeList = new List<TypeOfExpressionSyntax>();
+                        List<MemberDeclarationSyntax> cuMemberSyntaxList = new List<MemberDeclarationSyntax>();
+                        List<ExpressionSyntax> globalTypeMdSyntaxList = new List<ExpressionSyntax>();
+                        var userAssemblyMetadataName = CSEX.UserAssemblyMetadataName(assemblyName);
+                        var assMdExpr = CS.MemberAccessExpr(CS.GlobalAliasQualifiedName(userAssemblyMetadataName), "Instance");
                         foreach (var logicalNs in nsMap.Values) {
-                            //logicalNs.NamespaceInfo.Generate(csCuMemberList, csClstypeList);
+                            logicalNs.NamespaceInfo.GetSyntax(cuMemberSyntaxList, assMdExpr, globalTypeMdSyntaxList);
                         }
                         AttributeListSyntax csAttList = null;
-                        if (csClstypeList.Count > 0) {
-                            //>[assembly: ContractTypesAttribute(new Type[] {... })]
-                            csAttList = CS.AttributeList("assembly", CSEX.ContractTypesAttributeName,
-                                SyntaxFactory.AttributeArgument(CS.NewArrExpr(CS.SystemTypeArrayType, csClstypeList)));
+                        if (globalTypeMdSyntaxList.Count > 0) {
+                            ////>[assembly: ContractTypesAttribute(new Type[] {... })]
+                            //csAttList = CS.AttributeList("assembly", CSEX.ContractTypesAttributeName,
+                            //    SyntaxFactory.AttributeArgument(CS.NewArrExpr(CS.SystemTypeArrayType, csClstypeList)));
                         }
                         code = GeneratedFileBanner +
                             SyntaxFactory.CompilationUnit(default(SyntaxList<ExternAliasDirectiveSyntax>), default(SyntaxList<UsingDirectiveSyntax>),
                             csAttList == null ? default(SyntaxList<AttributeListSyntax>) : SyntaxFactory.SingletonList(csAttList),
-                            SyntaxFactory.List(csCuMemberList)).NormalizeWhitespace().ToString();
+                            SyntaxFactory.List(cuMemberSyntaxList)).NormalizeWhitespace().ToString();
                     }
                 }
                 return true;

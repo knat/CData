@@ -45,7 +45,7 @@ namespace CData {
                 foreach (var propMd in propMds) {
                     context.Append(propMd.Name);
                     sb.Append(" = ");
-                    SaveTypeValue(propMd.GetValue(obj), propMd.Type, context);
+                    SaveLocalValue(propMd.GetValue(obj), propMd.Type, context);
                     context.AppendLine();
                 }
             }
@@ -55,7 +55,7 @@ namespace CData {
                 context.InsertRootObjectHead(rootAlias, clsMd.FullName.Name);
             }
         }
-        private static void SaveTypeValue(object value, TypeMetadata typeMd, SavingContext context) {
+        private static void SaveLocalValue(object value, LocalTypeMetadata typeMd, SavingContext context) {
             if (value == null) {
                 context.Append("null");
             }
@@ -63,47 +63,47 @@ namespace CData {
                 var typeKind = typeMd.Kind;
                 if (typeKind.IsAtom()) {
                     context.Append(null);
-                    SaveAtom(value, typeKind, context.StringBuilder);
+                    SaveAtomValue(value, typeKind, context.StringBuilder);
                 }
                 else if (typeKind == TypeKind.Class) {
-                    SaveClassValue(false, value, ((EntityRefTypeMetadata)typeMd).Entity as ClassMetadata, context);
+                    SaveClassValue(false, value, ((GlobalTypeRefMetadata)typeMd).GlobalType as ClassMetadata, context);
                 }
                 else if (typeKind == TypeKind.Enum) {
                     context.Append('$');
-                    var enumMd = ((EntityRefTypeMetadata)typeMd).Entity as EnumMetadata;
+                    var enumMd = ((GlobalTypeRefMetadata)typeMd).GlobalType as EnumMetadata;
                     context.Append(enumMd.FullName);
                     var sb = context.StringBuilder;
                     sb.Append('.');
                     sb.Append(enumMd.GetMemberName(value) ?? "null");
                 }
                 else if (typeKind == TypeKind.Map) {
-                    var collMd = (CollectionTypeMetadata)typeMd;
+                    var collMd = (CollectionMetadata)typeMd;
                     var keyMd = collMd.MapKeyType;
-                    var itemMd = collMd.ItemOrValueType;
+                    var valueMd = collMd.ItemOrValueType;
                     IEnumerator valueEnumerator = null;
                     context.Append("#[");
                     context.AppendLine();
                     context.PushIndent();
                     foreach (var key in collMd.GetMapKeys(value)) {
-                        SaveTypeValue(key, keyMd, context);
+                        SaveLocalValue(key, keyMd, context);
                         context.StringBuilder.Append(" = ");
                         if (valueEnumerator == null) {
                             valueEnumerator = collMd.GetMapValues(value).GetEnumerator();
                         }
                         valueEnumerator.MoveNext();
-                        SaveTypeValue(valueEnumerator.Current, itemMd, context);
+                        SaveLocalValue(valueEnumerator.Current, valueMd, context);
                         context.AppendLine();
                     }
                     context.PopIndent();
                     context.Append(']');
                 }
                 else {
-                    var itemMd = ((CollectionTypeMetadata)typeMd).ItemOrValueType;
+                    var itemMd = ((CollectionMetadata)typeMd).ItemOrValueType;
                     context.Append('[');
                     context.AppendLine();
                     context.PushIndent();
                     foreach (var item in (IEnumerable)value) {
-                        SaveTypeValue(item, itemMd, context);
+                        SaveLocalValue(item, itemMd, context);
                         context.AppendLine();
                     }
                     context.PopIndent();
@@ -111,7 +111,7 @@ namespace CData {
                 }
             }
         }
-        private static void SaveAtom(object value, TypeKind typeKind, StringBuilder sb) {
+        private static void SaveAtomValue(object value, TypeKind typeKind, StringBuilder sb) {
             switch (typeKind) {
                 case TypeKind.String:
                     Extensions.GetLiteral(((string)value), sb);

@@ -401,6 +401,12 @@ namespace CData {
         internal static bool IsSimple(this TypeKind kind) {
             return IsAtom(kind) || kind == TypeKind.Enum;
         }
+        internal static bool IsClrEnum(this TypeKind kind) {
+            return kind >= TypeKind.Int64 && kind <= TypeKind.Byte;
+        }
+        internal static bool IsClrRef(this TypeKind kind) {
+            return kind == TypeKind.Class || kind == TypeKind.String || kind == TypeKind.IgnoreCaseString || kind == TypeKind.Binary;
+        }
         //
         //
         internal static ConstructorInfo TryGetParameterlessConstructor(TypeInfo ti) {

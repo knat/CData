@@ -16,10 +16,10 @@ namespace CData {
         NullNotAllowed,
         ValueExpected,
         SpecificValueExpected,
+        InvalidAtomValue,
         InvalidEnumReference,
         EnumNotEqualToTheDeclared,
         InvalidEnumMemberName,
-        InvalidAtomValue,
         DuplicateSetItem,
         DuplicateMapKey,
 
@@ -56,15 +56,15 @@ namespace CData {
                 case DiagCode.ValueExpected:
                     return "Value expetced.";
                 case DiagCode.SpecificValueExpected:
-                    return "'{0}' value expetced.".InvFormat(_msgArgs);
+                    return "{0} value expetced.".InvFormat(_msgArgs);
+                case DiagCode.InvalidAtomValue:
+                    return "Invalid atom '{0}' value '{1}'.".InvFormat(_msgArgs);
                 case DiagCode.InvalidEnumReference:
                     return "Invalid enum reference '{0}'.".InvFormat(_msgArgs);
                 case DiagCode.EnumNotEqualToTheDeclared:
                     return "Enum '{0}' not equal to the declared enum '{1}'.".InvFormat(_msgArgs);
                 case DiagCode.InvalidEnumMemberName:
                     return "Invalid enum member name '{0}'.".InvFormat(_msgArgs);
-                case DiagCode.InvalidAtomValue:
-                    return "Invalid atom value '{0}' of type '{1}'.".InvFormat(_msgArgs);
                 case DiagCode.DuplicateSetItem:
                     return "Duplicate set item.";
                 case DiagCode.DuplicateMapKey:
