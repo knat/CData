@@ -132,16 +132,22 @@ namespace CData.Compiler {
                         foreach (var logicalNs in nsMap.Values) {
                             logicalNs.NamespaceInfo.GetSyntax(cuMemberSyntaxList, assMdExpr, globalTypeMdSyntaxList);
                         }
-                        AttributeListSyntax csAttList = null;
                         if (globalTypeMdSyntaxList.Count > 0) {
-                            ////>[assembly: ContractTypesAttribute(new Type[] {... })]
-                            //csAttList = CS.AttributeList("assembly", CSEX.ContractTypesAttributeName,
-                            //    SyntaxFactory.AttributeArgument(CS.NewArrExpr(CS.SystemTypeArrayType, csClstypeList)));
+                            //>public sealed class AssemblyMetadata_XX : AssemblyMetadata {
+                            //>  public static readonly AssemblyMetadata Instance = new AssemblyMetadata_XX(new GlobalTypeMetadata[]{ ... });
+                            //>  private AssemblyMetadata_XX(GlobalTypeMetadata[] globalTypes):base(globalTypes) { }
+                            //>}
+                            cuMemberSyntaxList.Add(CS.Class(null, CS.PublicSealedTokenList, userAssemblyMetadataName, new[] { CSEX.AssemblyMetadataName },
+                                CS.Field(CS.PublicStaticReadOnlyTokenList, CSEX.AssemblyMetadataName, "Instance",
+                                    CS.NewObjExpr(CS.IdName(userAssemblyMetadataName), CS.NewArrExpr(CSEX.GlobalTypeMetadataArrayType, globalTypeMdSyntaxList))),
+                                CS.Constructor(CS.PrivateTokenList, userAssemblyMetadataName,
+                                    new[] { CS.Parameter(CSEX.GlobalTypeMetadataArrayType, "globalTypes") },
+                                    CS.ConstructorInitializer(true, CS.IdName("globalTypes")))
+                                ));
                         }
                         code = GeneratedFileBanner +
                             SyntaxFactory.CompilationUnit(default(SyntaxList<ExternAliasDirectiveSyntax>), default(SyntaxList<UsingDirectiveSyntax>),
-                            csAttList == null ? default(SyntaxList<AttributeListSyntax>) : SyntaxFactory.SingletonList(csAttList),
-                            SyntaxFactory.List(cuMemberSyntaxList)).NormalizeWhitespace().ToString();
+                            default(SyntaxList<AttributeListSyntax>), SyntaxFactory.List(cuMemberSyntaxList)).NormalizeWhitespace().ToString();
                     }
                 }
                 return true;

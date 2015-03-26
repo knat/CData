@@ -51,7 +51,7 @@ namespace CData.Compiler {
         ContractPropertyCannotBeIndexer,
         ContractFieldCannotBeConst,
         InvalidContractPropertyType,
-
+        InvalidContractPropertyTypeOrExplicitTypeExpected,
 
 
     }
@@ -156,9 +156,9 @@ namespace CData.Compiler {
                 case DiagCodeEx.ContractFieldCannotBeConst:
                     return "Contract field cannot be const.";
                 case DiagCodeEx.InvalidContractPropertyType:
-                    return "Invalid contract property/field type {0}. {1} expected.".InvFormat(_msgArgs);
-
-
+                    return "Invalid contract property/field{0} type. {1} expected.".InvFormat(_msgArgs);
+                case DiagCodeEx.InvalidContractPropertyTypeOrExplicitTypeExpected:
+                    return "Invalid contract property/field{0} type. {1} expected, or you must declare the C# partial class explicitly.".InvFormat(_msgArgs);
 
                 default:
                     throw new InvalidOperationException("Invalid code: " + Code.ToString());
@@ -183,7 +183,7 @@ namespace CData.Compiler {
         //        throw _contextException;
         //    }
         //}
-        //private static void WarningDiag(DiagMsgEx diagMsg, TextSpan textSpan) {
+        //internal static void WarningDiag(DiagMsgEx diagMsg, TextSpan textSpan) {
         //    Current.AddDiag(DiagSeverity.Warning, (int)diagMsg.Code, diagMsg.GetMessage(), textSpan);
         //}
 

@@ -46,7 +46,7 @@ namespace CData.Compiler {
         //
         internal static readonly string[] IgnoreCaseStringNameParts = new string[] { "IgnoreCaseString", "CData" };
         internal static readonly string[] BinaryNameParts = new string[] { "Binary", "CData" };
-        internal static readonly string[] IOjectSet2NameParts = new string[] { "IOjectSet`2", "CData" };
+        internal static readonly string[] IObjectSet2NameParts = new string[] { "IObjectSet`2", "CData" };
         internal static readonly string[] ContractNamespaceAttributeNameParts = new string[] { "ContractNamespaceAttribute", "CData" };
         internal static readonly string[] ContractClassAttributeNameParts = new string[] { "ContractClassAttribute", "CData" };
         internal static readonly string[] ContractPropertyAttributeNameParts = new string[] { "ContractPropertyAttribute", "CData" };
@@ -177,6 +177,8 @@ namespace CData.Compiler {
                     return typeSymbol.SpecialType == SpecialType.System_String;
                 case TypeKind.IgnoreCaseString:
                     return typeSymbol.FullNameEquals(IgnoreCaseStringNameParts);
+                case TypeKind.Decimal:
+                    return typeSymbol.SpecialType == SpecialType.System_Decimal;
                 case TypeKind.Int64:
                     return typeSymbol.SpecialType == SpecialType.System_Int64;
                 case TypeKind.Int32:
@@ -212,7 +214,7 @@ namespace CData.Compiler {
             }
         }
         internal static bool IsAtomType(TypeKind typeKind, bool isNullable, ITypeSymbol typeSymbol) {
-            if (!isNullable || typeKind.IsClrRef()) {
+            if (!isNullable || typeKind.IsClrRefAtom()) {
                 return IsAtomType(typeKind, typeSymbol);
             }
             if (typeSymbol.SpecialType == SpecialType.System_Nullable_T) {
@@ -226,6 +228,8 @@ namespace CData.Compiler {
                     return CS.Literal((string)value);
                 case TypeKind.IgnoreCaseString:
                     return Literal((IgnoreCaseString)value);
+                case TypeKind.Decimal:
+                    return CS.Literal((decimal)value);
                 case TypeKind.Int64:
                     return CS.Literal((long)value);
                 case TypeKind.Int32:
@@ -251,17 +255,16 @@ namespace CData.Compiler {
                 case TypeKind.Binary:
                     return Literal((Binary)value);
                 case TypeKind.Guid:
-                    return CS.Literal((Guid)value);;
+                    return CS.Literal((Guid)value); ;
                 case TypeKind.TimeSpan:
-                    return CS.Literal((TimeSpan)value);;
+                    return CS.Literal((TimeSpan)value); ;
                 case TypeKind.DateTimeOffset:
-                    return CS.Literal((DateTimeOffset)value);;
+                    return CS.Literal((DateTimeOffset)value); ;
                 default:
                     throw new ArgumentException("Invalid type kind: " + typeKind.ToString());
             }
 
         }
-
         internal static string ToIdString(string s) {
             if (s == null || s.Length == 0) return s;
             var sb = Extensions.AcquireStringBuilder();
@@ -275,15 +278,20 @@ namespace CData.Compiler {
             }
             return sb.ToStringAndRelease();
         }
-        internal static string UserAssemblyMetadataName(string assName) {
-            return "AssemblyMetadata_" + ToIdString(assName);
-        }
-
         internal static AliasQualifiedNameSyntax CDataName {
             get { return CS.GlobalAliasQualifiedName("CData"); }
         }
-        internal static QualifiedNameSyntax ObjectSetOf(TypeSyntax keyType, TypeSyntax objectType) {
-            return SyntaxFactory.QualifiedName(CDataName, CS.GenericName("ObjectSet", keyType, objectType));
+        internal static string UserAssemblyMetadataName(string assName) {
+            return "AssemblyMetadata_" + ToIdString(assName);
+        }
+        internal static QualifiedNameSyntax AssemblyMetadataName {
+            get { return CS.QualifiedName(CDataName, "AssemblyMetadata"); }
+        }
+        internal static QualifiedNameSyntax GlobalTypeMetadataName {
+            get { return CS.QualifiedName(CDataName, "GlobalTypeMetadata"); }
+        }
+        internal static ArrayTypeSyntax GlobalTypeMetadataArrayType {
+            get { return CS.OneDimArrayType(GlobalTypeMetadataName); }
         }
         internal static QualifiedNameSyntax EnumMetadataName {
             get { return CS.QualifiedName(CDataName, "EnumMetadata"); }
@@ -291,23 +299,20 @@ namespace CData.Compiler {
         internal static QualifiedNameSyntax ClassMetadataName {
             get { return CS.QualifiedName(CDataName, "ClassMetadata"); }
         }
-        internal static QualifiedNameSyntax ClassRefTypeMetadataName {
-            get { return CS.QualifiedName(CDataName, "ClassRefTypeMetadata"); }
-        }
         internal static QualifiedNameSyntax PropertyMetadataName {
             get { return CS.QualifiedName(CDataName, "PropertyMetadata"); }
         }
         internal static ArrayTypeSyntax PropertyMetadataArrayType {
             get { return CS.OneDimArrayType(PropertyMetadataName); }
         }
-        internal static QualifiedNameSyntax CollectionTypeMetadataName {
-            get { return CS.QualifiedName(CDataName, "CollectionTypeMetadata"); }
+        internal static QualifiedNameSyntax GlobalTypeRefMetadataName {
+            get { return CS.QualifiedName(CDataName, "GlobalTypeRefMetadata"); }
         }
-        internal static QualifiedNameSyntax AtomRefTypeMetadataName {
-            get { return CS.QualifiedName(CDataName, "AtomRefTypeMetadata"); }
+        internal static MemberAccessExpressionSyntax GlobalTypeRefMetadataExpr {
+            get { return CS.MemberAccessExpr(CDataName, "GlobalTypeRefMetadata"); }
         }
-        internal static MemberAccessExpressionSyntax AtomRefTypeMetadataExpr {
-            get { return CS.MemberAccessExpr(CDataName, "AtomRefTypeMetadata"); }
+        internal static QualifiedNameSyntax CollectionMetadataName {
+            get { return CS.QualifiedName(CDataName, "CollectionMetadata"); }
         }
         internal static ExpressionSyntax Literal(TypeKind value) {
             return CS.MemberAccessExpr(CS.MemberAccessExpr(CDataName, "TypeKind"), value.ToString());
@@ -330,11 +335,10 @@ namespace CData.Compiler {
         internal static ExpressionSyntax Literal(Binary value) {
             return CS.NewObjExpr(BinaryName, CS.Literal(value.ToBytes()), CS.Literal(value.IsReadOnly));
         }
+        internal static QualifiedNameSyntax ObjectSetOf(TypeSyntax keyType, TypeSyntax objectType) {
+            return SyntaxFactory.QualifiedName(CDataName, CS.GenericName("ObjectSet", keyType, objectType));
+        }
 
-        
-        internal const string ThisMetadataNameStr = "__ThisMetadata";
-        internal const string MetadataNameStr = "__Metadata";
-        internal const string TextSpanNameStr = "__TextSpan";
         internal static QualifiedNameSyntax DiagContextName {
             get { return CS.QualifiedName(CDataName, "DiagContext"); }
         }
@@ -344,10 +348,6 @@ namespace CData.Compiler {
         internal static MemberAccessExpressionSyntax SerializerExpr {
             get { return CS.MemberAccessExpr(CDataName, "Serializer"); }
         }
-        internal static QualifiedNameSyntax ContractTypesAttributeName {
-            get { return CS.QualifiedName(CDataName, "ContractTypesAttribute"); }
-        }
-
 
 
 

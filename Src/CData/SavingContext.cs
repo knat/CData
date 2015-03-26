@@ -91,7 +91,7 @@ namespace CData {
             _aliasUriList.Add(new AliasUri(alias, uri));
             return alias;
         }
-        public void Append(FullName fullName) {
+        public void AppendFullName(FullName fullName) {
             Append(AddUri(fullName.Uri));
             var sb = StringBuilder;
             sb.Append(':');

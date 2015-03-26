@@ -467,7 +467,7 @@ namespace CData.Compiler {
                     var keyName = KeyNameList[i];
                     var propInfo = globalTypeRefInfo.Class.GetPropertyInHierarchy(keyName.Value);
                     if (propInfo == null) {
-                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidPropertyReference), keyName.TextSpan);
+                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidPropertyReference, keyName.Value), keyName.TextSpan);
                     }
                     var propTypeInfo = propInfo.Type;
                     if (propTypeInfo.IsNullable) {

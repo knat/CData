@@ -71,7 +71,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="CData.targets">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
       <SubType>Designer</SubType>
     </None>
     <None Include="packages.config" />

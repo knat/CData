@@ -193,46 +193,41 @@ namespace CData {
         public readonly object Value;
     }
     public sealed class EnumMetadata : GlobalTypeMetadata {
-        public EnumMetadata(FullName fullName, Type clrType, bool isClrEnum)
+        public EnumMetadata(FullName fullName, Type clrType, string[] names)
             : base(TypeKind.Enum, fullName, clrType) {
-            IsClrEnum = isClrEnum;
-            NameValuePair[] members;
-            if (isClrEnum) {
-                var names = Enum.GetNames(clrType);
-                var values = Enum.GetValues(clrType);
+            if (names != null) {
                 var length = names.Length;
-                members = new NameValuePair[length];
-                for (var i = 0; i < length; ++i) {
-                    members[i] = new NameValuePair(names[i], values.GetValue(i));
+                if (length > 0) {
+                    var ti = clrType.GetTypeInfo();
+                    var members = new NameValuePair[length];
+                    for (var i = 0; i < length; ++i) {
+                        members[i] = new NameValuePair(names[i], Extensions.GetField(ti, names[i]).GetValue(null));
+                    }
+                    _members = members;
                 }
             }
-            else {
-                var list = new List<NameValuePair>();
-                foreach (var fi in clrType.GetTypeInfo().DeclaredFields) {
-                    list.Add(new NameValuePair(fi.Name, fi.GetValue(null)));
-                }
-                members = list.ToArray();
-            }
-            _members = members;
         }
-        public readonly bool IsClrEnum;//true for Int64 to Byte
         private readonly NameValuePair[] _members;
         public object GetMemberValue(string name) {
             var members = _members;
-            var length = members.Length;
-            for (var i = 0; i < length; ++i) {
-                if (members[i].Name == name) {
-                    return members[i].Value;
+            if (members != null) {
+                var length = members.Length;
+                for (var i = 0; i < length; ++i) {
+                    if (members[i].Name == name) {
+                        return members[i].Value;
+                    }
                 }
             }
             return null;
         }
         public string GetMemberName(object value) {
             var members = _members;
-            var length = members.Length;
-            for (var i = 0; i < length; ++i) {
-                if (members[i].Value.Equals(value)) {
-                    return members[i].Name;
+            if (members != null) {
+                var length = members.Length;
+                for (var i = 0; i < length; ++i) {
+                    if (members[i].Value.Equals(value)) {
+                        return members[i].Name;
+                    }
                 }
             }
             return null;
@@ -254,10 +249,10 @@ namespace CData {
                 ClrConstructor = Extensions.GetParameterlessConstructor(ti);
             }
             if (baseClass == null) {
-                ClrTextSpanProperty = Extensions.GetProperty(ti, "__TextSpan");
+                ClrTextSpanProperty = Extensions.GetProperty(ti, Extensions.TextSpanNameStr);
             }
-            ClrOnLoadingMethod = ti.GetDeclaredMethod("OnLoading");
-            ClrOnLoadedMethod = ti.GetDeclaredMethod("OnLoaded");
+            ClrOnLoadingMethod = ti.GetDeclaredMethod(Extensions.OnLoadedNameStr);
+            ClrOnLoadedMethod = ti.GetDeclaredMethod(Extensions.OnLoadedNameStr);
         }
         public readonly bool IsAbstract;
         public readonly ClassMetadata BaseClass;

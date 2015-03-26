@@ -140,6 +140,9 @@ namespace CData.Compiler {
         internal static SyntaxTokenList PublicStaticTokenList {
             get { return SyntaxFactory.TokenList(PublicToken, StaticToken); }
         }
+        internal static SyntaxTokenList PublicStaticPartialTokenList {
+            get { return SyntaxFactory.TokenList(PublicToken, StaticToken, PartialToken); }
+        }
         internal static SyntaxTokenList PublicStaticReadOnlyTokenList {
             get { return SyntaxFactory.TokenList(PublicToken, StaticToken, ReadOnlyToken); }
         }
@@ -1611,13 +1614,6 @@ namespace CData.Compiler {
 
 
 
-        //internal static string ToFullNameString(this ISymbol symbol) {
-        //    return symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        //}
-
-
-
-
 
         //
         //
@@ -1825,6 +1821,7 @@ namespace CData.Compiler {
     }
     internal sealed class DottedName : IEquatable<DottedName> {
         public static bool TryParse(string dottedNameStr, out DottedName result) {
+            if (dottedNameStr == null) throw new ArgumentNullException("dottedNameStr");
             result = null;
             List<string> partList = null;
             foreach (var i in dottedNameStr.Split(_dotCharArray)) {
@@ -1856,6 +1853,9 @@ namespace CData.Compiler {
             Array.Copy(parentNameParts, 0, nameParts, 1, parentNameParts.Length);
             NameParts = nameParts;
         }
+        public DottedName Clone() {
+            return new DottedName((string[])NameParts.Clone());
+        }
         public readonly string[] NameParts;//eg: {"List`1", "Generic", "Collections", "System"}
         public string LastName {
             get { return NameParts[0]; }
@@ -1869,6 +1869,22 @@ namespace CData.Compiler {
         }
         public override string ToString() {
             return string.Join(".", Names);
+        }
+        private NameSyntax _nonGlobalFullNameSyntax;//@NS1.NS2.Type
+        internal NameSyntax NonGlobalFullNameSyntax {
+            get {
+                if (_nonGlobalFullNameSyntax == null) {
+                    foreach (var name in Names) {
+                        if (_nonGlobalFullNameSyntax == null) {
+                            _nonGlobalFullNameSyntax = CS.IdName(name.EscapeId());
+                        }
+                        else {
+                            _nonGlobalFullNameSyntax = CS.QualifiedName(_nonGlobalFullNameSyntax, name.EscapeId());
+                        }
+                    }
+                }
+                return _nonGlobalFullNameSyntax;
+            }
         }
 
         private NameSyntax _fullNameSyntax;//global::@NS1.NS2.Type

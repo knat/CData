@@ -34,7 +34,7 @@ namespace CData {
                 rootAlias = context.AddUri(clsMd.FullName.Uri);
             }
             else {
-                context.Append(clsMd.FullName);
+                context.AppendFullName(clsMd.FullName);
             }
             var sb = context.StringBuilder;
             sb.Append(" {");
@@ -69,12 +69,18 @@ namespace CData {
                     SaveClassValue(false, value, ((GlobalTypeRefMetadata)typeMd).GlobalType as ClassMetadata, context);
                 }
                 else if (typeKind == TypeKind.Enum) {
-                    context.Append('$');
                     var enumMd = ((GlobalTypeRefMetadata)typeMd).GlobalType as EnumMetadata;
-                    context.Append(enumMd.FullName);
-                    var sb = context.StringBuilder;
-                    sb.Append('.');
-                    sb.Append(enumMd.GetMemberName(value) ?? "null");
+                    var memberName = enumMd.GetMemberName(value);
+                    if (memberName == null) {
+                        context.Append("null");
+                    }
+                    else {
+                        context.Append('$');
+                        context.AppendFullName(enumMd.FullName);
+                        var sb = context.StringBuilder;
+                        sb.Append('.');
+                        sb.Append(memberName);
+                    }
                 }
                 else if (typeKind == TypeKind.Map) {
                     var collMd = (CollectionMetadata)typeMd;

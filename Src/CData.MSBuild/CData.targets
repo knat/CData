@@ -4,22 +4,23 @@
         <AvailableItemName Include="CDataContract" />
     </ItemGroup>
     <PropertyGroup>
-        <BuildDependsOn>
+        <CompileDependsOn>
             CDataBuild;
-            $(BuildDependsOn)
-        </BuildDependsOn>
+            $(CompileDependsOn)
+        </CompileDependsOn>
     </PropertyGroup>
     <UsingTask TaskName="CData.MSBuild.CDataTask" AssemblyFile="$(MSBuildThisFileDirectory)CData.MSBuild.dll" />
     <Target Name="CDataBuild">
         <Message Text="======== Begin CData Build ========" Importance="high" />
-        <XDataTask
+        <CDataTask
             ProjectDirectory="$(MSBuildProjectDirectory)"
             ContractFileList="@(CDataContract)"
             CSFileList="@(Compile)"
             CSPpList="$(DefineConstants)"
             CSRefList="@(ReferencePath)"
+            AssemblyName="$(AssemblyName)"
             >
-        </XDataTask>
+        </CDataTask>
         <Message Text="======== End CData Build ========" Importance="high" />
     </Target>
 </Project>
