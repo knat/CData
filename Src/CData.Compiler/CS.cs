@@ -273,6 +273,20 @@ namespace CData.Compiler {
             if (value == null) return NullLiteral;
             return SyntaxFactory.LiteralExpression(SyntaxKind.StringLiteralExpression, SyntaxFactory.Literal(value));
         }
+        internal static PredefinedTypeSyntax CharType {
+            get { return SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.CharKeyword)); }
+        }
+        internal static NullableTypeSyntax CharNullableType {
+            get { return SyntaxFactory.NullableType(CharType); }
+        }
+        internal static ArrayTypeSyntax CharArrayType {
+            get { return OneDimArrayType(CharType); }
+        }
+        internal static ExpressionSyntax Literal(char value) {
+            return SyntaxFactory.LiteralExpression(SyntaxKind.CharacterLiteralExpression, SyntaxFactory.Literal(value));
+        }
+
+
         //
         internal static PredefinedTypeSyntax IntType {
             get { return SyntaxFactory.PredefinedType(SyntaxFactory.Token(SyntaxKind.IntKeyword)); }

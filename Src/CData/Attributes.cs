@@ -16,4 +16,9 @@ namespace CData {
         public ContractPropertyAttribute(string name) { }
     }
 
+    [AttributeUsage(AttributeTargets.Assembly, AllowMultiple = true, Inherited = false)]
+    public sealed class __CompilerContractNamespaceAttribute : Attribute {
+        public __CompilerContractNamespaceAttribute(string uri, string namespaceName, string data) { }
+    }
+
 }

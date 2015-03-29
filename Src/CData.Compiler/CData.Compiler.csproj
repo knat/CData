@@ -54,12 +54,14 @@
   <ItemGroup>
     <Compile Include="Compiler.cs" />
     <Compile Include="CS.cs" />
-    <Compile Include="CSEX.cs" />
+    <Compile Include="EX.cs" />
     <Compile Include="Diagnostics.cs" />
     <Compile Include="Parser.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Nodes.cs" />
     <Compile Include="Infos.cs" />
+    <Compile Include="Md.cs" />
+    <Compile Include="MdGenerated.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\CData\CData.csproj">

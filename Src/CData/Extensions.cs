@@ -17,7 +17,7 @@ namespace CData {
         internal static StringBuilder AcquireStringBuilder() {
             var sbs = _stringBuilders;
             StringBuilder sb = null;
-            lock (_stringBuilders) {
+            lock (sbs) {
                 for (var i = 0; i < _stringBuilderCount; ++i) {
                     sb = sbs[i];
                     if (sb != null) {
@@ -35,7 +35,7 @@ namespace CData {
         internal static void ReleaseStringBuilder(this StringBuilder sb) {
             if (sb != null && sb.Capacity <= _stringBuilderCapacity * 8) {
                 var sbs = _stringBuilders;
-                lock (_stringBuilders) {
+                lock (sbs) {
                     for (var i = 0; i < _stringBuilderCount; ++i) {
                         if (sbs[i] == null) {
                             sbs[i] = sb;
@@ -55,6 +55,14 @@ namespace CData {
         }
         //
         //
+        internal static bool TryInvParse(this string s, out char result) {
+            if (s.Length == 1) {
+                result = s[0];
+                return true;
+            }
+            result = default(char);
+            return false;
+        }
         internal static bool TryInvParse(this string s, out decimal result) {
             return decimal.TryParse(s, NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint, NumberFormatInfo.InvariantInfo, out result);
         }
@@ -213,6 +221,13 @@ namespace CData {
                     return s;
                 case TypeKind.IgnoreCaseString:
                     return new IgnoreCaseString(s, isReadOnly);
+                case TypeKind.Char: {
+                        char r;
+                        if (s.TryInvParse(out r)) {
+                            return r;
+                        }
+                    }
+                    break;
                 case TypeKind.Decimal: {
                         decimal r;
                         if (s.TryInvParse(out r)) {
@@ -357,7 +372,11 @@ namespace CData {
             GetLiteral(value, sb);
             return sb.ToStringAndRelease();
         }
-
+        internal static void GetLiteral(char value, StringBuilder sb) {
+            sb.Append(@"'\u");
+            sb.Append(((int)value).ToString("X4", CultureInfo.InvariantCulture));
+            sb.Append('\'');
+        }
         //
         internal static int AggregateHash(int hash, int newValue) {
             unchecked {
@@ -382,15 +401,15 @@ namespace CData {
             }
         }
         //
-        internal static void CreateAndAdd<T>(ref List<T> list, T item) {
-            if (list == null) {
-                list = new List<T>();
-            }
-            list.Add(item);
-        }
-        internal static int CountOrZero<T>(this List<T> list) {
-            return list == null ? 0 : list.Count;
-        }
+        //internal static void CreateAndAdd<T>(ref List<T> list, T item) {
+        //    if (list == null) {
+        //        list = new List<T>();
+        //    }
+        //    list.Add(item);
+        //}
+        //internal static int CountOrZero<T>(this List<T> list) {
+        //    return list == null ? 0 : list.Count;
+        //}
 
         //
         internal const TypeKind AtomTypeStart = TypeKind.String;

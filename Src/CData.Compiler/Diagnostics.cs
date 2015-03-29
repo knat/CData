@@ -7,13 +7,13 @@ namespace CData.Compiler {
         //
         AliasSysReserved,
         UriSystemReserved,
-        DuplicateImportAlias,
+        DuplicateNamespaceAlias,
         InvalidNamespaceReference,
         DuplicateGlobalTypeName,
         DuplicateEnumMemberName,
         DuplicatePropertyName,
         SpecificTypeExpected,
-        InvalidImportAliasReference,
+        InvalidNamespaceAliasReference,
         AmbiguousGlobalTypeReference,
         InvalidGlobalTypeReference,
         InvalidClassReference,
@@ -35,13 +35,15 @@ namespace CData.Compiler {
         DuplicateContractNamespaceAttributeUri,
         InvalidContractNamespaceAttributeNamespaceName,
         ContractNamespaceAttributeRequired,
+        Invalid__CompilerContractNamespaceAttribute,
         //
         InvalidContractClassAttribute,
         InvalidContractClassAttributeName,
         DuplicateContractClassAttributeName,
         ContractClassCannotBeGeneric,
         ContractClassCannotBeStatic,
-        NonAbstractParameterlessConstructorContractClassRequired,
+        NonAbstractContractClassRequired,
+        ParameterlessConstructorRequired,
         //
         InvalidContractPropertyAttribute,
         InvalidContractPropertyAttributeName,
@@ -73,8 +75,8 @@ namespace CData.Compiler {
                     return "Alias 'sys' is reserved.";
                 case DiagCodeEx.UriSystemReserved:
                     return "Uri '" + Extensions.SystemUri + "' is reserved.";
-                case DiagCodeEx.DuplicateImportAlias:
-                    return "Duplicate import alias '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.DuplicateNamespaceAlias:
+                    return "Duplicate namespace alias '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.InvalidNamespaceReference:
                     return "Invalid namespace reference '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.DuplicateGlobalTypeName:
@@ -85,8 +87,8 @@ namespace CData.Compiler {
                     return "Duplicate property name '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.SpecificTypeExpected:
                     return "{0} type expected.".InvFormat(_msgArgs);
-                case DiagCodeEx.InvalidImportAliasReference:
-                    return "Invalid import alias reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.InvalidNamespaceAliasReference:
+                    return "Invalid namespace alias reference '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.AmbiguousGlobalTypeReference:
                     return "Ambiguous global type reference '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.InvalidGlobalTypeReference:
@@ -127,6 +129,8 @@ namespace CData.Compiler {
                     return "Invalid ContractNamespaceAttribute namespaceName '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.ContractNamespaceAttributeRequired:
                     return "ContractNamespaceAttribute required for uri '{0}'.".InvFormat(_msgArgs);
+                case DiagCodeEx.Invalid__CompilerContractNamespaceAttribute:
+                    return "Invalid __CompilerContractNamespaceAttribute. uri: '{0}', namespaceName: '{1}', assembly: '{1}'. Make sure one contract namespace is implemented in only one assembly, or you should rebuild that assembly.".InvFormat(_msgArgs);
                 //
                 case DiagCodeEx.InvalidContractClassAttribute:
                     return "Invalid ContractClassAttribute.";
@@ -138,8 +142,10 @@ namespace CData.Compiler {
                     return "Contract class cannot be generic.";
                 case DiagCodeEx.ContractClassCannotBeStatic:
                     return "Contract class cannot be static.";
-                case DiagCodeEx.NonAbstractParameterlessConstructorContractClassRequired:
-                    return "Non-abstract parameterless-constructor contract class required.";
+                case DiagCodeEx.NonAbstractContractClassRequired:
+                    return "Non-abstract class required.";
+                case DiagCodeEx.ParameterlessConstructorRequired:
+                    return "Parameterless constructor required.";
                 //
                 case DiagCodeEx.InvalidContractPropertyAttribute:
                     return "Invalid ContractPropertyAttribute.";

@@ -29,22 +29,23 @@ namespace CData {
         None = 0,
         String = 1,
         IgnoreCaseString = 2,
-        Decimal = 3,
-        Int64 = 4,
-        Int32 = 5,
-        Int16 = 6,
-        SByte = 7,
-        UInt64 = 8,
-        UInt32 = 9,
-        UInt16 = 10,
-        Byte = 11,
-        Double = 12,
-        Single = 13,
-        Boolean = 14,
-        Binary = 15,
-        Guid = 16,
-        TimeSpan = 17,
-        DateTimeOffset = 18,
+        Char = 3,
+        Decimal = 4,
+        Int64 = 5,
+        Int32 = 6,
+        Int16 = 7,
+        SByte = 8,
+        UInt64 = 9,
+        UInt32 = 10,
+        UInt16 = 11,
+        Byte = 12,
+        Double = 13,
+        Single = 14,
+        Boolean = 15,
+        Binary = 16,
+        Guid = 17,
+        TimeSpan = 18,
+        DateTimeOffset = 19,
         Class = 50,
         Enum = 51,
         List = 70,
@@ -79,8 +80,7 @@ namespace CData {
             ClrAddMethod = Extensions.GetMethodInHierarchy(ti, "Add");
             if (kind == TypeKind.Map) {
                 ClrContainsKeyMethod = Extensions.GetMethodInHierarchy(ti, "ContainsKey");
-                ClrKeysProperty = Extensions.GetPropertyInHierarchy(ti, "Keys");
-                ClrValuesProperty = Extensions.GetPropertyInHierarchy(ti, "Values");
+                ClrGetEnumeratorMethod = Extensions.GetMethodInHierarchy(ti, "GetEnumerator");
             }
             else if (kind == TypeKind.ObjectSet) {
                 ClrKeySelectorProperty = Extensions.GetPropertyInHierarchy(ti, "KeySelector");
@@ -93,8 +93,7 @@ namespace CData {
         public readonly ConstructorInfo ClrConstructor;
         public readonly MethodInfo ClrAddMethod;
         public readonly MethodInfo ClrContainsKeyMethod;//for map
-        public readonly PropertyInfo ClrKeysProperty;//for map
-        public readonly PropertyInfo ClrValuesProperty;//for map
+        public readonly MethodInfo ClrGetEnumeratorMethod;//for map
         public readonly PropertyInfo ClrKeySelectorProperty;//for object set
         public object CreateInstance() {
             var obj = ClrConstructor.Invoke(null);
@@ -115,11 +114,8 @@ namespace CData {
         public void InvokeAdd(object obj, object key, object value) {
             ClrAddMethod.Invoke(obj, new object[] { key, value });
         }
-        public IEnumerable GetMapKeys(object obj) {
-            return (IEnumerable)ClrKeysProperty.GetValue(obj);
-        }
-        public IEnumerable GetMapValues(object obj) {
-            return (IEnumerable)ClrValuesProperty.GetValue(obj);
+        public IDictionaryEnumerator GetMapEnumerator(object obj) {
+            return ClrGetEnumeratorMethod.Invoke(obj, null) as IDictionaryEnumerator;
         }
     }
     public sealed class GlobalTypeRefMetadata : LocalTypeMetadata {
@@ -137,6 +133,7 @@ namespace CData {
         private static readonly Dictionary<TypeKind, GlobalTypeRefMetadata> _atomMap = new Dictionary<TypeKind, GlobalTypeRefMetadata> {
             { TypeKind.String, new GlobalTypeRefMetadata(TypeKind.String , false) },
             { TypeKind.IgnoreCaseString, new GlobalTypeRefMetadata(TypeKind.IgnoreCaseString, false) },
+            { TypeKind.Char, new GlobalTypeRefMetadata(TypeKind.Char , false) },
             { TypeKind.Decimal, new GlobalTypeRefMetadata(TypeKind.Decimal, false) },
             { TypeKind.Int64, new GlobalTypeRefMetadata(TypeKind.Int64, false) },
             { TypeKind.Int32, new GlobalTypeRefMetadata(TypeKind.Int32, false) },
@@ -157,6 +154,7 @@ namespace CData {
         private static readonly Dictionary<TypeKind, GlobalTypeRefMetadata> _nullableAtomMap = new Dictionary<TypeKind, GlobalTypeRefMetadata> {
             { TypeKind.String, new GlobalTypeRefMetadata(TypeKind.String, true) },
             { TypeKind.IgnoreCaseString, new GlobalTypeRefMetadata(TypeKind.IgnoreCaseString, true) },
+            { TypeKind.Char, new GlobalTypeRefMetadata(TypeKind.Char , true) },
             { TypeKind.Decimal, new GlobalTypeRefMetadata(TypeKind.Decimal, true) },
             { TypeKind.Int64, new GlobalTypeRefMetadata(TypeKind.Int64, true) },
             { TypeKind.Int32, new GlobalTypeRefMetadata(TypeKind.Int32, true) },
@@ -176,15 +174,13 @@ namespace CData {
         };
     }
     public abstract class GlobalTypeMetadata : TypeMetadata {
-        protected GlobalTypeMetadata(TypeKind kind, FullName fullName, Type clrType)
+        protected GlobalTypeMetadata(TypeKind kind, FullName fullName)
             : base(kind) {
             FullName = fullName;
-            ClrType = clrType;
         }
         public readonly FullName FullName;
-        public readonly Type ClrType;
     }
-    internal struct NameValuePair {
+    public struct NameValuePair {
         public NameValuePair(string name, object value) {
             Name = name;
             Value = value;
@@ -193,19 +189,9 @@ namespace CData {
         public readonly object Value;
     }
     public sealed class EnumMetadata : GlobalTypeMetadata {
-        public EnumMetadata(FullName fullName, Type clrType, string[] names)
-            : base(TypeKind.Enum, fullName, clrType) {
-            if (names != null) {
-                var length = names.Length;
-                if (length > 0) {
-                    var ti = clrType.GetTypeInfo();
-                    var members = new NameValuePair[length];
-                    for (var i = 0; i < length; ++i) {
-                        members[i] = new NameValuePair(names[i], Extensions.GetField(ti, names[i]).GetValue(null));
-                    }
-                    _members = members;
-                }
-            }
+        public EnumMetadata(FullName fullName, NameValuePair[] members)
+            : base(TypeKind.Enum, fullName) {
+            _members = members;
         }
         private readonly NameValuePair[] _members;
         public object GetMemberValue(string name) {
@@ -234,11 +220,12 @@ namespace CData {
         }
     }
     public sealed class ClassMetadata : GlobalTypeMetadata {
-        public ClassMetadata(FullName fullName, Type clrType, bool isAbstract, ClassMetadata baseClass, PropertyMetadata[] properties)
-            : base(TypeKind.Class, fullName, clrType) {
+        public ClassMetadata(FullName fullName, bool isAbstract, ClassMetadata baseClass, PropertyMetadata[] properties, Type clrType)
+            : base(TypeKind.Class, fullName) {
             IsAbstract = isAbstract;
             BaseClass = baseClass;
             _properties = properties;
+            ClrType = clrType;
             TypeInfo ti = clrType.GetTypeInfo();
             if (properties != null) {
                 foreach (var prop in properties) {
@@ -249,15 +236,18 @@ namespace CData {
                 ClrConstructor = Extensions.GetParameterlessConstructor(ti);
             }
             if (baseClass == null) {
+                ClrMetadataProperty = Extensions.GetProperty(ti, Extensions.MetadataNameStr);
                 ClrTextSpanProperty = Extensions.GetProperty(ti, Extensions.TextSpanNameStr);
             }
-            ClrOnLoadingMethod = ti.GetDeclaredMethod(Extensions.OnLoadedNameStr);
+            ClrOnLoadingMethod = ti.GetDeclaredMethod(Extensions.OnLoadingNameStr);
             ClrOnLoadedMethod = ti.GetDeclaredMethod(Extensions.OnLoadedNameStr);
         }
         public readonly bool IsAbstract;
         public readonly ClassMetadata BaseClass;
         private readonly PropertyMetadata[] _properties;
+        public readonly Type ClrType;
         public readonly ConstructorInfo ClrConstructor;//for non abstract class
+        public readonly PropertyInfo ClrMetadataProperty;//for top class
         public readonly PropertyInfo ClrTextSpanProperty;//for top class
         public readonly MethodInfo ClrOnLoadingMethod;//opt
         public readonly MethodInfo ClrOnLoadedMethod;//opt
@@ -309,15 +299,18 @@ namespace CData {
             return propList;
         }
         public object CreateInstance() {
+            //FormatterServices.GetUninitializedObject()
             return ClrConstructor.Invoke(null);
         }
+        public ClassMetadata GetMetadata(object obj) {
+            var md = this;
+            for (; md.BaseClass != null; md = md.BaseClass) ;
+            return (ClassMetadata)md.ClrMetadataProperty.GetValue(obj);
+        }
         public void SetTextSpan(object obj, TextSpan value) {
-            if (BaseClass != null) {
-                BaseClass.SetTextSpan(obj, value);
-            }
-            else {
-                ClrTextSpanProperty.SetValue(obj, value);
-            }
+            var md = this;
+            for (; md.BaseClass != null; md = md.BaseClass) ;
+            md.ClrTextSpanProperty.SetValue(obj, value);
         }
         public bool InvokeOnLoad(bool isLoading, object obj, DiagContext context) {
             if (BaseClass != null) {

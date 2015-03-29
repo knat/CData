@@ -47,6 +47,7 @@ namespace CData {
         VerbatimName,// @name
         StringValue,
         VerbatimStringValue,// @"..."
+        CharValue,// 'c'
         IntegerValue,// +-123
         DecimalValue,// +-123.45
         RealValue,// +-123.45Ee+-12
@@ -147,7 +148,7 @@ namespace CData {
             InVerbatimName,
             InStringValue,
             InVerbatimStringValue,
-            //InCharValue,
+            InCharValue,
             InNumericValueInteger,
             InNumericValueFraction,
             InNumericValueExponent,
@@ -269,36 +270,36 @@ namespace CData {
                         AdvanceChar();
                     }
                 }
-                //else if (stateKind == StateKind.InCharValue) {
-                //    if (ch == '\\') {
-                //        AdvanceChar();
-                //        Token errToken;
-                //        if (!ProcessCharEscSeq(sb, out errToken)) {
-                //            return errToken;
-                //        }
-                //    }
-                //    else if (ch == '\'') {
-                //        if (sb.Length == 1) {
-                //            AdvanceChar();
-                //            return CreateToken(TokenKind.CharValue, state, sb.ToString());
-                //        }
-                //        else {
-                //            return CreateErrorToken("Character expected.");
-                //        }
-                //    }
-                //    else if (IsNewLine(ch) || ch == char.MaxValue) {
-                //        return CreateErrorToken("' expected.");
-                //    }
-                //    else {
-                //        if (sb.Length == 0) {
-                //            sb.Append(ch);
-                //            AdvanceChar();
-                //        }
-                //        else {
-                //            return CreateErrorToken("' expected.");
-                //        }
-                //    }
-                //}
+                else if (stateKind == StateKind.InCharValue) {
+                    if (ch == '\\') {
+                        AdvanceChar();
+                        Token errToken;
+                        if (!ProcessCharEscSeq(sb, out errToken)) {
+                            return errToken;
+                        }
+                    }
+                    else if (ch == '\'') {
+                        if (sb.Length == 1) {
+                            AdvanceChar();
+                            return CreateToken(TokenKind.CharValue, state, sb.ToString());
+                        }
+                        else {
+                            return CreateErrorToken("Character expected.");
+                        }
+                    }
+                    else if (IsNewLine(ch) || ch == char.MaxValue) {
+                        return CreateErrorToken("' expected.");
+                    }
+                    else {
+                        if (sb.Length == 0) {
+                            sb.Append(ch);
+                            AdvanceChar();
+                        }
+                        else {
+                            return CreateErrorToken("' expected.");
+                        }
+                    }
+                }
                 else if (stateKind == StateKind.InNumericValueInteger) {
                     if (IsDecDigit(ch)) {
                         sb.Append(ch);
@@ -434,11 +435,11 @@ namespace CData {
                     AdvanceChar();
                     sb = GetStringBuilder();
                 }
-                //else if (ch == '\'') {
-                //    state = CreateState(StateKind.InCharValue);
-                //    AdvanceChar();
-                //    sb = GetStringBuilder();
-                //}
+                else if (ch == '\'') {
+                    state = CreateState(StateKind.InCharValue);
+                    AdvanceChar();
+                    sb = GetStringBuilder();
+                }
                 else if (IsDecDigit(ch)) {
                     state = CreateState(StateKind.InNumericValueInteger);
                     AdvanceChar();
@@ -485,34 +486,10 @@ namespace CData {
                         sb.Append(ch);
                         sb.Append(nextch);
                     }
-                    //else if (nextch == '.') {
-                    //    state = CreateState(StateKind.None);
-                    //    AdvanceChar();
-                    //    AdvanceChar();
-                    //    return CreateToken(TokenKind.DotDot, state);
-                    //}
                     else {
                         return CreateTokenAndAdvanceChar(ch);
                     }
                 }
-                //else if (ch == '#') {
-                //    var nextch = GetNextChar();
-                //    if (nextch == '[') {
-                //        state = CreateState(StateKind.None);
-                //        AdvanceChar();
-                //        AdvanceChar();
-                //        return CreateToken(TokenKind.HashOpenBracket, state);
-                //    }
-                //    else if (nextch == '{') {
-                //        state = CreateState(StateKind.None);
-                //        AdvanceChar();
-                //        AdvanceChar();
-                //        return CreateToken(TokenKind.HashOpenBrace, state);
-                //    }
-                //    else {
-                //        return CreateTokenAndAdvanceChar(ch);
-                //    }
-                //}
                 else if (ch == '#') {
                     var nextch = GetNextChar();
                     if (nextch == '[') {
@@ -525,18 +502,6 @@ namespace CData {
                         return CreateTokenAndAdvanceChar(ch);
                     }
                 }
-                //else if (ch == '?') {
-                //    var nextch = GetNextChar();
-                //    if (nextch == '{') {
-                //        state = CreateState(StateKind.None);
-                //        AdvanceChar();
-                //        AdvanceChar();
-                //        return CreateToken(TokenKind.QuestionOpenBrace, state);
-                //    }
-                //    else {
-                //        return CreateTokenAndAdvanceChar(ch);
-                //    }
-                //}
                 else {
                     return CreateTokenAndAdvanceChar(ch);
                 }

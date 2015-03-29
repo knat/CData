@@ -72,7 +72,7 @@ namespace CData.Compiler {
                 while (Import(ns)) ;
                 while (GlobalType(ns)) ;
                 TokenExpected('}');
-                Extensions.CreateAndAdd(ref cu.NamespaceList, ns);
+                cu.NamespaceList.Add(ns);
                 return true;
             }
             return false;
@@ -93,15 +93,15 @@ namespace CData.Compiler {
                     if (alias.Value == "sys") {
                         ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.AliasSysReserved), alias.TextSpan);
                     }
-                    if (ns.ImportList.CountOrZero() > 0) {
+                    if (ns.ImportList.Count > 0) {
                         foreach (var import in ns.ImportList) {
                             if (import.Alias == alias) {
-                                ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateImportAlias, alias.Value), alias.TextSpan);
+                                ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateNamespaceAlias, alias.Value), alias.TextSpan);
                             }
                         }
                     }
                 }
-                Extensions.CreateAndAdd(ref ns.ImportList, new ImportNode(uri, alias));
+                ns.ImportList.Add(new ImportNode(uri, alias));
                 return true;
             }
             return false;
@@ -128,9 +128,9 @@ namespace CData.Compiler {
             return qName;
         }
         private void CheckDuplicateGlobalType(NamespaceNode ns, NameNode name) {
-            if (ns.GlobalTypeList.CountOrZero() > 0) {
-                foreach (var entity in ns.GlobalTypeList) {
-                    if (entity.Name == name) {
+            if (ns.GlobalTypeList.Count > 0) {
+                foreach (var globalType in ns.GlobalTypeList) {
+                    if (globalType.Name == name) {
                         ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateGlobalTypeName, name.Value), name.TextSpan);
                     }
                 }
@@ -152,7 +152,7 @@ namespace CData.Compiler {
                 var en = new EnumNode(ns, name, atomQName);
                 while (EnumMember(en)) ;
                 TokenExpected('}');
-                Extensions.CreateAndAdd(ref ns.GlobalTypeList, en);
+                ns.GlobalTypeList.Add(en);
                 return true;
             }
             return false;
@@ -160,7 +160,7 @@ namespace CData.Compiler {
         private bool EnumMember(EnumNode en) {
             NameNode name;
             if (Name(out name)) {
-                if (en.MemberList.CountOrZero() > 0) {
+                if (en.MemberList.Count > 0) {
                     foreach (var item in en.MemberList) {
                         if (item.Name == name) {
                             ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateEnumMemberName, name.Value), name.TextSpan);
@@ -168,7 +168,7 @@ namespace CData.Compiler {
                     }
                 }
                 TokenExpected('=');
-                Extensions.CreateAndAdd(ref en.MemberList, new EnumMemberNode(name, NonNullAtomValueExpected()));
+                en.MemberList.Add(new EnumMemberNode(name, NonNullAtomValueExpected()));
                 return true;
             }
             return false;
@@ -192,7 +192,7 @@ namespace CData.Compiler {
                 var cls = new ClassNode(ns, name, abstractOrSealed, baseClassQName);
                 while (Property(ns, cls)) ;
                 TokenExpected('}');
-                Extensions.CreateAndAdd(ref ns.GlobalTypeList, cls);
+                ns.GlobalTypeList.Add(cls);
                 return true;
             }
             return false;
@@ -200,7 +200,7 @@ namespace CData.Compiler {
         private bool Property(NamespaceNode ns, ClassNode cls) {
             NameNode name;
             if (Name(out name)) {
-                if (cls.PropertyList.CountOrZero() > 0) {
+                if (cls.PropertyList.Count > 0) {
                     foreach (var item in cls.PropertyList) {
                         if (item.Name == name) {
                             ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicatePropertyName, name.Value), name.TextSpan);
@@ -208,10 +208,8 @@ namespace CData.Compiler {
                     }
                 }
                 KeywordExpected(ParserConstants.AsKeyword);
-                Extensions.CreateAndAdd(ref cls.PropertyList,
-                    new PropertyNode(ns, name,
-                        LocalTypeExpected(ns, LocalTypeFlags.GlobalTypeRef | LocalTypeFlags.Nullable | LocalTypeFlags.List | LocalTypeFlags.Set | LocalTypeFlags.Map)
-                    ));
+                cls.PropertyList.Add(new PropertyNode(ns, name,
+                    LocalTypeExpected(ns, LocalTypeFlags.GlobalTypeRef | LocalTypeFlags.Nullable | LocalTypeFlags.List | LocalTypeFlags.Set | LocalTypeFlags.Map)));
                 return true;
             }
             return false;

@@ -202,6 +202,9 @@ namespace CData {
                 case TokenKind.VerbatimStringValue:
                     kind = AtomValueKind.String;
                     break;
+                case TokenKind.CharValue:
+                    kind = AtomValueKind.Char;
+                    break;
                 case TokenKind.Name:
                     if (tokenValue == "null") {
                         kind = AtomValueKind.Null;
@@ -368,10 +371,10 @@ namespace CData {
                     ErrorDiagAndThrow(new DiagMsg(DiagCode.ClassIsAbstract, fullName.ToString()), nameNode.TextSpan);
                 }
                 var obj = clsMd.CreateInstance();
+                clsMd.SetTextSpan(obj, nameNode.TextSpan);
                 if (!clsMd.InvokeOnLoad(true, obj, _context)) {
                     Throw();
                 }
-                clsMd.SetTextSpan(obj, nameNode.TextSpan);
                 List<PropertyMetadata> propMdList = null;
                 clsMd.GetPropertiesInHierarchy(ref propMdList);
                 while (true) {

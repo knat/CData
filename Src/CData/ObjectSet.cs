@@ -12,11 +12,12 @@ namespace CData {
         bool Remove(TKey key);
     }
     public class ObjectSet<TKey, TObject> : IObjectSet<TKey, TObject> {
-        public ObjectSet() : this(null, null) { }
-        public ObjectSet(Func<TObject, TKey> keySelector) : this(keySelector, null) { }
-        public ObjectSet(Func<TObject, TKey> keySelector, IEqualityComparer<TKey> keyComparer) {
+        public ObjectSet() : this(null, null, null) { }
+        public ObjectSet(Func<TObject, TKey> keySelector, IEnumerable<TObject> objs = null) : this(keySelector, null, objs) { }
+        public ObjectSet(Func<TObject, TKey> keySelector, IEqualityComparer<TKey> keyComparer, IEnumerable<TObject> objs = null) {
             _keySelector = keySelector;
             _dict = new Dictionary<TKey, TObject>(keyComparer);
+            AddRange(objs);
         }
         private readonly Dictionary<TKey, TObject> _dict;
         private Func<TObject, TKey> _keySelector;
@@ -53,6 +54,13 @@ namespace CData {
         }
         void ICollection<TObject>.Add(TObject obj) {
             Add(obj);
+        }
+        public void AddRange(IEnumerable<TObject> objs) {
+            if (objs != null) {
+                foreach (var obj in objs) {
+                    Add(obj);
+                }
+            }
         }
         public TObject this[TKey key] {
             get {

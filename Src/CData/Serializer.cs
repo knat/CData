@@ -25,7 +25,6 @@ namespace CData {
         public static void Save(object obj, ClassMetadata classMetadata, StringBuilder stringBuilder, string indentString = "\t", string newLineString = "\n") {
             if (obj == null) throw new ArgumentNullException("obj");
             if (classMetadata == null) throw new ArgumentNullException("classMetadata");
-            if (stringBuilder == null) throw new ArgumentNullException("stringBuilder");
             SaveClassValue(true, obj, classMetadata, new SavingContext(stringBuilder, indentString, newLineString));
         }
         private static void SaveClassValue(bool isRoot, object obj, ClassMetadata clsMd, SavingContext context) {
@@ -34,6 +33,7 @@ namespace CData {
                 rootAlias = context.AddUri(clsMd.FullName.Uri);
             }
             else {
+                clsMd = clsMd.GetMetadata(obj);
                 context.AppendFullName(clsMd.FullName);
             }
             var sb = context.StringBuilder;
@@ -86,19 +86,21 @@ namespace CData {
                     var collMd = (CollectionMetadata)typeMd;
                     var keyMd = collMd.MapKeyType;
                     var valueMd = collMd.ItemOrValueType;
-                    IEnumerator valueEnumerator = null;
                     context.Append("#[");
                     context.AppendLine();
                     context.PushIndent();
-                    foreach (var key in collMd.GetMapKeys(value)) {
-                        SaveLocalValue(key, keyMd, context);
-                        context.StringBuilder.Append(" = ");
-                        if (valueEnumerator == null) {
-                            valueEnumerator = collMd.GetMapValues(value).GetEnumerator();
+                    IDictionaryEnumerator mapEnumerator = collMd.GetMapEnumerator(value);
+                    if (mapEnumerator != null) {
+                        while (mapEnumerator.MoveNext()) {
+                            SaveLocalValue(mapEnumerator.Key, keyMd, context);
+                            context.StringBuilder.Append(" = ");
+                            SaveLocalValue(mapEnumerator.Value, valueMd, context);
+                            context.AppendLine();
                         }
-                        valueEnumerator.MoveNext();
-                        SaveLocalValue(valueEnumerator.Current, valueMd, context);
-                        context.AppendLine();
+                        var disposable = mapEnumerator as IDisposable;
+                        if (disposable != null) {
+                            disposable.Dispose();
+                        }
                     }
                     context.PopIndent();
                     context.Append(']');
@@ -120,10 +122,16 @@ namespace CData {
         private static void SaveAtomValue(object value, TypeKind typeKind, StringBuilder sb) {
             switch (typeKind) {
                 case TypeKind.String:
-                    Extensions.GetLiteral(((string)value), sb);
+                    Extensions.GetLiteral((string)value, sb);
                     break;
                 case TypeKind.IgnoreCaseString:
                     Extensions.GetLiteral(((IgnoreCaseString)value).Value, sb);
+                    break;
+                case TypeKind.Char:
+                    Extensions.GetLiteral((char)value, sb);
+                    break;
+                case TypeKind.Decimal:
+                    sb.Append(((decimal)value).ToInvString());
                     break;
                 case TypeKind.Int64:
                     sb.Append(((long)value).ToInvString());

@@ -1,68 +1,35 @@
 ﻿using System;
 using System.Linq;
+using System.IO;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace CData.Compiler {
-    internal static class CSEX {
-        internal static TextSpan GetTextSpan(AttributeData attData) {
-            if (attData != null) {
-                return GetTextSpan(attData.ApplicationSyntaxReference);
-            }
-            return default(TextSpan);
-        }
-        internal static TextSpan GetTextSpan(SyntaxReference sr) {
-            if (sr != null) {
-                return GetTextSpan(sr.GetSyntax().GetLocation());
-            }
-            return default(TextSpan);
-        }
-        internal static TextSpan GetTextSpan(ISymbol symbol) {
-            if (symbol != null) {
-                var locations = symbol.Locations;
-                if (locations.Length > 0) {
-                    return GetTextSpan(locations[0]);
-                }
-            }
-            return default(TextSpan);
-        }
-        internal static TextSpan GetTextSpan(Location location) {
-            if (location != null && location.IsInSource) {
-                var csLineSpan = location.GetLineSpan();
-                if (csLineSpan.IsValid) {
-                    var csTextSpan = location.SourceSpan;
-                    return new TextSpan(csLineSpan.Path, csTextSpan.Start, csTextSpan.Length,
-                        ToTextPosition(csLineSpan.StartLinePosition), ToTextPosition(csLineSpan.EndLinePosition));
-                }
-            }
-            return default(TextSpan);
-        }
-        private static TextPosition ToTextPosition(this LinePosition csPosition) {
-            return new TextPosition(csPosition.Line + 1, csPosition.Character + 1);
-        }
-        //
-        //
+    internal static class EX {
         internal static readonly string[] IgnoreCaseStringNameParts = new string[] { "IgnoreCaseString", "CData" };
         internal static readonly string[] BinaryNameParts = new string[] { "Binary", "CData" };
         internal static readonly string[] IObjectSet2NameParts = new string[] { "IObjectSet`2", "CData" };
         internal static readonly string[] ContractNamespaceAttributeNameParts = new string[] { "ContractNamespaceAttribute", "CData" };
+        internal static readonly string[] __CompilerContractNamespaceAttributeNameParts = new string[] { "__CompilerContractNamespaceAttribute", "CData" };
         internal static readonly string[] ContractClassAttributeNameParts = new string[] { "ContractClassAttribute", "CData" };
         internal static readonly string[] ContractPropertyAttributeNameParts = new string[] { "ContractPropertyAttribute", "CData" };
 
-        internal static int MapNamespaces(LogicalNamespaceMap nsMap, IAssemblySymbol assSymbol, bool isInSource) {
+        internal static int MapNamespaces(LogicalNamespaceMap nsMap, IAssemblySymbol assSymbol, bool isRef) {
             var count = 0;
             foreach (AttributeData attData in assSymbol.GetAttributes()) {
-                if (attData.AttributeClass.FullNameEquals(ContractNamespaceAttributeNameParts)) {
+                if (attData.AttributeClass.FullNameEquals(isRef ? __CompilerContractNamespaceAttributeNameParts : ContractNamespaceAttributeNameParts)) {
                     var ctorArgs = attData.ConstructorArguments;
                     string uri = null, dottedNameStr = null;
-                    if (ctorArgs.Length == 2) {
+                    var ctorArgsLength = ctorArgs.Length;
+                    if (ctorArgsLength >= 2) {
                         uri = ctorArgs[0].Value as string;
                         if (uri != null) {
                             dottedNameStr = ctorArgs[1].Value as string;
                         }
                     }
+                    var success = false;
                     if (dottedNameStr != null) {
                         LogicalNamespace logicalNs;
                         if (nsMap.TryGetValue(uri, out logicalNs)) {
@@ -70,32 +37,57 @@ namespace CData.Compiler {
                             if (DottedName.TryParse(dottedNameStr, out dottedName)) {
                                 if (logicalNs.DottedName == null) {
                                     logicalNs.DottedName = dottedName;
-                                    logicalNs.IsRef = !isInSource;
+                                    logicalNs.IsRef = isRef;
                                     ++count;
+                                    if (isRef) {
+                                        string mdData = null;
+                                        if (ctorArgsLength >= 3) {
+                                            mdData = ctorArgs[2].Value as string;
+                                        }
+                                        if (mdData != null) {
+                                            using (var sr = new StringReader(mdData)) {
+                                                var diagCtx = new DiagContext();
+                                                MdNamespace mdNs;
+                                                if (MdNamespace.TryLoad("__CompilerContractNamespaceAttribute", sr, diagCtx, out mdNs)) {
+                                                    if (logicalNs.NamespaceInfo.Set(mdNs)) {
+                                                        success = true;
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
-                                else {// if (isInSource) {
+                                else if (!isRef) {
                                     DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractNamespaceAttributeUri, uri),
                                         GetTextSpan(attData));
                                 }
                             }
-                            else {//if (isInSource) {
+                            else if (!isRef) {
                                 DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttributeNamespaceName, dottedNameStr),
                                     GetTextSpan(attData));
                             }
                         }
-                        else if (isInSource) {
-                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttributeUri, uri),
-                                GetTextSpan(attData));
+                        else {
+                            if (!isRef) {
+                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttributeUri, uri),
+                                    GetTextSpan(attData));
+                            }
+                            success = true;
                         }
                     }
-                    else if (isInSource) {
+                    else if (!isRef) {
                         DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttribute),
                             GetTextSpan(attData));
+                    }
+                    if (isRef && !success) {
+                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.Invalid__CompilerContractNamespaceAttribute,
+                            uri, dottedNameStr, assSymbol.Identity.Name), default(TextSpan));
                     }
                 }
             }
             return count;
         }
+
         internal static string GetFirstArgumentAsString(AttributeData attData) {
             var ctorArgs = attData.ConstructorArguments;
             if (ctorArgs.Length > 0) {
@@ -131,8 +123,12 @@ namespace CData.Compiler {
                                     DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractClassAttributeName, clsName), GetTextSpan(clsAttData));
                                 }
                                 if (!clsInfo.IsAbstract) {
-                                    if (typeSymbol.IsAbstract || !typeSymbol.HasParameterlessConstructor()) {
-                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.NonAbstractParameterlessConstructorContractClassRequired),
+                                    if (typeSymbol.IsAbstract) {
+                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.NonAbstractContractClassRequired),
+                                            GetTextSpan(typeSymbol));
+                                    }
+                                    if (!typeSymbol.HasParameterlessConstructor()) {
+                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ParameterlessConstructorRequired),
                                             GetTextSpan(typeSymbol));
                                     }
                                 }
@@ -153,8 +149,12 @@ namespace CData.Compiler {
                                             DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractClassCannotBeStatic), GetTextSpan(typeSymbol));
                                         }
                                         if (!clsInfo.IsAbstract) {
-                                            if (typeSymbol.IsAbstract || !typeSymbol.HasParameterlessConstructor()) {
-                                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.NonAbstractParameterlessConstructorContractClassRequired),
+                                            if (typeSymbol.IsAbstract) {
+                                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.NonAbstractContractClassRequired),
+                                                    GetTextSpan(typeSymbol));
+                                            }
+                                            if (!typeSymbol.HasParameterlessConstructor()) {
+                                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ParameterlessConstructorRequired),
                                                     GetTextSpan(typeSymbol));
                                             }
                                         }
@@ -170,13 +170,51 @@ namespace CData.Compiler {
                 MapClasses(nsMap, subNsSymbol);
             }
         }
-
+        #region
+        internal static TextSpan GetTextSpan(AttributeData attData) {
+            if (attData != null) {
+                return GetTextSpan(attData.ApplicationSyntaxReference);
+            }
+            return default(TextSpan);
+        }
+        internal static TextSpan GetTextSpan(SyntaxReference sr) {
+            if (sr != null) {
+                return GetTextSpan(sr.GetSyntax().GetLocation());
+            }
+            return default(TextSpan);
+        }
+        internal static TextSpan GetTextSpan(ISymbol symbol) {
+            if (symbol != null) {
+                var locations = symbol.Locations;
+                if (locations.Length > 0) {
+                    return GetTextSpan(locations[0]);
+                }
+            }
+            return default(TextSpan);
+        }
+        internal static TextSpan GetTextSpan(Location location) {
+            if (location != null && location.IsInSource) {
+                var csLineSpan = location.GetLineSpan();
+                if (csLineSpan.IsValid) {
+                    var csTextSpan = location.SourceSpan;
+                    return new TextSpan(csLineSpan.Path, csTextSpan.Start, csTextSpan.Length,
+                        ToTextPosition(csLineSpan.StartLinePosition), ToTextPosition(csLineSpan.EndLinePosition));
+                }
+            }
+            return default(TextSpan);
+        }
+        private static TextPosition ToTextPosition(this LinePosition csPosition) {
+            return new TextPosition(csPosition.Line + 1, csPosition.Character + 1);
+        }
+        #endregion
         private static bool IsAtomType(TypeKind typeKind, ITypeSymbol typeSymbol) {
             switch (typeKind) {
                 case TypeKind.String:
                     return typeSymbol.SpecialType == SpecialType.System_String;
                 case TypeKind.IgnoreCaseString:
                     return typeSymbol.FullNameEquals(IgnoreCaseStringNameParts);
+                case TypeKind.Char:
+                    return typeSymbol.SpecialType == SpecialType.System_Char;
                 case TypeKind.Decimal:
                     return typeSymbol.SpecialType == SpecialType.System_Decimal;
                 case TypeKind.Int64:
@@ -222,12 +260,14 @@ namespace CData.Compiler {
             }
             return false;
         }
-        internal static ExpressionSyntax Literal(TypeKind typeKind, object value) {
+        internal static ExpressionSyntax AtomValueLiteral(TypeKind typeKind, object value) {
             switch (typeKind) {
                 case TypeKind.String:
                     return CS.Literal((string)value);
                 case TypeKind.IgnoreCaseString:
                     return Literal((IgnoreCaseString)value);
+                case TypeKind.Char:
+                    return CS.Literal((char)value);
                 case TypeKind.Decimal:
                     return CS.Literal((decimal)value);
                 case TypeKind.Int64:
@@ -263,8 +303,11 @@ namespace CData.Compiler {
                 default:
                     throw new ArgumentException("Invalid type kind: " + typeKind.ToString());
             }
-
         }
+        //internal static ExpressionSyntax NameValuePairLiteral(NameValuePair value, TypeKind kind) {
+        //    return CS.NewObjExpr(NameValuePairName, CS.Literal(value.Name), AtomValueLiteral(kind, value.Value));
+        //}
+
         internal static string ToIdString(string s) {
             if (s == null || s.Length == 0) return s;
             var sb = Extensions.AcquireStringBuilder();
@@ -284,6 +327,9 @@ namespace CData.Compiler {
         internal static string UserAssemblyMetadataName(string assName) {
             return "AssemblyMetadata_" + ToIdString(assName);
         }
+        internal static QualifiedNameSyntax __CompilerContractNamespaceAttributeName {
+            get { return CS.QualifiedName(CDataName, "__CompilerContractNamespaceAttribute"); }
+        }
         internal static QualifiedNameSyntax AssemblyMetadataName {
             get { return CS.QualifiedName(CDataName, "AssemblyMetadata"); }
         }
@@ -295,6 +341,12 @@ namespace CData.Compiler {
         }
         internal static QualifiedNameSyntax EnumMetadataName {
             get { return CS.QualifiedName(CDataName, "EnumMetadata"); }
+        }
+        internal static QualifiedNameSyntax NameValuePairName {
+            get { return CS.QualifiedName(CDataName, "NameValuePair"); }
+        }
+        internal static ArrayTypeSyntax NameValuePairArrayType {
+            get { return CS.OneDimArrayType(NameValuePairName); }
         }
         internal static QualifiedNameSyntax ClassMetadataName {
             get { return CS.QualifiedName(CDataName, "ClassMetadata"); }

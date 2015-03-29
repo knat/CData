@@ -28,18 +28,16 @@ namespace CData.MSBuild {
 
         public override bool Execute() {
             try {
-                List<string> contractFileList = null;
-                List<string> csFileList = null;
-                List<string> csPpList = null;
-                List<MetadataReference> csRefList = null;
-                if (ContractFileList != null && ContractFileList.Length > 0) {
-                    contractFileList = new List<string>();
+                List<string> contractFileList = new List<string>();
+                List<string> csFileList = new List<string>();
+                List<string> csPpList = new List<string>();
+                List<MetadataReference> csRefList = new List<MetadataReference>();
+                if (ContractFileList != null) {
                     foreach (var item in ContractFileList) {
                         contractFileList.Add(item.GetMetadata("FullPath"));
                     }
                 }
-                if (CSFileList != null && CSFileList.Length > 0) {
-                    csFileList = new List<string>();
+                if (CSFileList != null) {
                     foreach (var item in CSFileList) {
                         var path = item.GetMetadata("FullPath");
                         if (!path.EndsWith(_genedFileName, StringComparison.OrdinalIgnoreCase)) {
@@ -47,19 +45,15 @@ namespace CData.MSBuild {
                         }
                     }
                 }
-                if (CSPpList != null && CSPpList.Length > 0) {
+                if (CSPpList != null) {
                     foreach (var s in CSPpList.Split(_csPpSeparators, StringSplitOptions.RemoveEmptyEntries)) {
                         var s2 = s.Trim();
                         if (s2.Length > 0) {
-                            if (csPpList == null) {
-                                csPpList = new List<string>();
-                            }
                             csPpList.Add(s2);
                         }
                     }
                 }
-                if (CSRefList != null && CSRefList.Length > 0) {
-                    csRefList = new List<MetadataReference>();
+                if (CSRefList != null) {
                     foreach (var item in CSRefList) {
                         var path = item.ItemSpec;
                         var aliasesStr = item.GetMetadata("Aliases");
