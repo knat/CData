@@ -51,7 +51,7 @@ a0:DataSet <a0 = @"http://example.com/business/api" a1 = @"http://example.com/bu
 }
 ```
 
-类值（class value）即对象（object），一个CData数据文件必须包含且仅包含一个根对象，每个对象必须标明它所属的类，在契约中，类型被包含在名称空间中的，在数据中，先声明名称空间的URI，然后通过别名（alias，如上例中的`a0`，`a1`）来引用该URI。`URI别名:类型名`（如`a0:DataSet`，`a1:Customer`，`a1:Reputation`）即明确指明了一个类型。对象的`{}`中包含了属性，属性通过`属性名 = 值`来表达。数值原子值和布林原子值可以直接写出（如`1`，`123.99`，`true`），其它原子值通过字符串来表达（如`"2015-03-31T10:26:50.4939151+08:00"`）。映射值（map value）使用`#[]`表达，其中包含键-值（`键 = 值`）对，列表值（list value）和 集合值（set value）使用`[]`表达，其中包含条目。有一个特殊的值，null值，可以赋值给可空类型（如属性`OrderList`的类型是可空类型），null值不能赋值给非空类型。
+类值（class value）即对象（object），一个CData数据文件必须包含且仅包含一个根对象，每个对象必须标明它所属的类，在契约中，类型被包含在名称空间中的，在数据中，先声明名称空间的URI，然后通过别名（alias，如上例中的`a0`，`a1`）来引用该URI。`URI别名:类型名`（如`a0:DataSet`，`a1:Customer`，`a1:Reputation`）即明确指明了一个类型。对象的`{}`中包含了属性，属性通过`属性名 = 值`来表达。数值原子值和布林原子值可以直接写出（如`1`，`436.99`，`true`），其它原子值通过字符串来表达（如`"2015-03-31T10:26:50.4939151+08:00"`）。映射值（map value）使用`#[]`表达，其中包含键-值（`键 = 值`）对，列表值（list value）和 集合值（set value）使用`[]`表达，其中包含条目。有一个特殊的值，null值，可以赋值给可空类型（如属性`OrderList`的类型是可空类型），null值不能赋值给非空类型。
 
 CData的契约/数据是平台无关的抽象的中立语言/协议，对CData编程就涉及到具体的平台。当前CData仅支持C#，支持Java，C++等主流的面向对象语言是完全可能的，欢迎有兴趣的朋友来实现。本文虽以C#来讲解CData的编程，但我认为原理是普适的。
 
@@ -76,14 +76,17 @@ namespace Example.Business
         public int Id { get; set; }
         public string Name { get; set; }
         public DateTimeOffset RegDate { get; set; }
-        public static bool TryLoad(string filePath, TextReader reader, CData.DiagContext context, out Person result);
-        public void Save(TextWriter writer, string indentString = "\t", string newLineString = "\n");
+        public static bool TryLoad(string filePath, TextReader reader,
+            CData.DiagContext context, out Person result);
+        public void Save(TextWriter writer, string indentString = "\t",
+            string newLineString = "\n");
     }
     public partial class Customer : Person
     {
         public int Reputation { get; set; }
         public List<Order> OrderList { get; set; }
-        public static bool TryLoad(string filePath, TextReader reader, CData.DiagContext context, out Customer result);
+        public static bool TryLoad(string filePath, TextReader reader,
+            CData.DiagContext context, out Customer result);
     }
     public static partial class Reputation
     {
@@ -97,14 +100,17 @@ namespace Example.Business
     {
         public decimal Amount { get; set; }
         public bool IsUrgent { get; set; }
-        public static bool TryLoad(string filePath, TextReader reader, CData.DiagContext context, out Order result);
-        public void Save(TextWriter writer, string indentString = "\t", string newLineString = "\n");
+        public static bool TryLoad(string filePath, TextReader reader,
+            CData.DiagContext context, out Order result);
+        public void Save(TextWriter writer, string indentString = "\t",
+            string newLineString = "\n");
     }
     public partial class Supplier : Person
     {
         public string BankAccount { get; set; }
         public HashSet<int> ProductIdSet { get; set; }
-        public static bool TryLoad(string filePath, TextReader reader, CData.DiagContext context, out Supplier result);
+        public static bool TryLoad(string filePath, TextReader reader,
+            CData.DiagContext context, out Supplier result);
     }
 }
 
@@ -113,8 +119,10 @@ namespace Example.Business.API
     public partial class DataSet
     {
         public Dictionary<int, Person> PersonMap { get; set; }
-        public static bool TryLoad(string filePath, TextReader reader, CData.DiagContext context, out DataSet result);
-        public void Save(TextWriter writer, string indentString = "\t", string newLineString = "\n");
+        public static bool TryLoad(string filePath, TextReader reader,
+            CData.DiagContext context, out DataSet result);
+        public void Save(TextWriter writer, string indentString = "\t",
+            string newLineString = "\n");
     }
 }
 ```
@@ -126,14 +134,17 @@ namespace Example.Business.API
 ```C#
 DataSet ds = new DataSet {
     PersonMap = new Dictionary<int, Person> {
-        {1, new Customer { Id = 1, Name = "Tank", RegDate = DateTimeOffset.Now, OrderList = new List<Order> {
+        {1, new Customer { Id = 1, Name = "Tank", RegDate = DateTimeOffset.Now,
+                OrderList = new List<Order> {
                     new Order { Amount = 436.99M, IsUrgent = true},
                     new Order { Amount = 98.77M, IsUrgent = false},
-                }
-            }
+                } }
         },
-        {2, new Customer { Id = 2, Name = "Mike", RegDate = DateTimeOffset.UtcNow, OrderList = null } },
-        {3, new Supplier { Id = 3, Name = "Eric", RegDate = DateTimeOffset.UtcNow - TimeSpan.FromHours(543), 
+        {2, new Customer { Id = 2, Name = "Mike", RegDate = DateTimeOffset.UtcNow,
+                OrderList = null }
+        },
+        {3, new Supplier { Id = 3, Name = "Eric",
+                RegDate = DateTimeOffset.UtcNow - TimeSpan.FromHours(543), 
                 BankAccount="11223344", ProductIdSet = new HashSet<int> {1, 3, 7} }
         },
     }
@@ -156,7 +167,7 @@ using (var reader = new StreamReader("DataSet.txt")) {
 
 DataSet.txt的内容在前面已经列出。
 
-介绍到这里，相信读者对CData应该有些感觉。首先需要重复的是，进行数据交换绝对存在契约，也许是口头约定，要么是书面文档，或者使用机器可懂的契约语言。其次，因为契约是平台无关的抽象的数据描述，这就需要把抽象的契约映射到具体的编程语言上去，使用机器可懂的契约语言可以让契约编译器在编译阶段进行或检查映射，从而减少运行时刻出错的可能以及提高效率，并且编译器可以生成部分代码（即元编程），这让编程变得轻松。也就是，CData是一个静态强类型系统，静态的含义是映射是在编译阶段完成的，强类型的含义是CData进行严格的类型匹配（比如在数据中，对象必须标明自己所属的类）。与此相反，JSON是个动态弱类型系统。静态强类型与动态弱类型各有优缺点，前者缺点是有时不够灵活，后者的缺点是太灵活:)。主流的面向对象编程语言如C#，Java，C++等都是静态强类型系统（或以之为主），CData与这些静态强类型编程语言在精神上是一致的。
+介绍到这里，相信读者对CData应该有些感觉。首先需要重复的是，进行数据交换绝对存在契约，也许是口头约定，要么是书面文档，或者使用机器可懂的契约语言。其次，因为契约是平台无关的抽象的数据描述，这就需要把抽象的契约映射到具体的编程语言上去，使用机器可懂的契约语言可以让契约编译器在编译阶段进行或检查映射，从而减少运行时刻出错的可能以及提高效率，并且编译器可以生成部分代码，这让编程变得轻松。也就是，CData是一个静态强类型系统，静态的含义是映射是在编译阶段完成的，强类型的含义是CData进行严格的类型匹配（比如在数据中，对象必须标明自己所属的类）。与此相反，JSON是个动态弱类型系统。静态强类型与动态弱类型各有优缺点，前者缺点是有时不够灵活，后者的缺点是太灵活:)。主流的面向对象编程语言如C#，Java，C++等都是静态强类型系统（或以之为主），CData与这些静态强类型编程语言在精神上是一致的。
 
 使用CData进行数据交换需要使用一个新的设计模式：契约先行（contract-first）。比如你打算实现一套web api，首先把需要交换的数据用CData契约语言表达出来，然后将契约与自己的程序代码进行映射，接着把契约文件包含在你的SDK中并发布出去，这样你的用户可以使用该契约与他们的代码进行映射，你们使用CData数据格式交换数据。
 
@@ -263,8 +274,7 @@ class Program {
                 {1, new Customer { Id = 1, Name = "Tank", RegDate = DateTimeOffset.Now, OrderList = new List<Order> {
                             new Order { Amount = 436.99M, IsUrgent = true},
                             new Order { Amount = 98.77M, IsUrgent = false},
-                        }
-                    }
+                        } }
                 },
                 {2, new Customer { Id = 2, Name = "Mike", RegDate = DateTimeOffset.UtcNow, OrderList = null } },
                 {3, new Supplier { Id = 3, Name = "Eric", RegDate = DateTimeOffset.UtcNow - TimeSpan.FromHours(543), 
@@ -299,7 +309,7 @@ class Program {
 
 6) 如果编译成功，__CDataGenerated.cs将包含生成的代码，打开并查看生成的代码，秘密都在元数据中，感兴趣的朋友可以去研究[CData运行库的源码](https://github.com/knat/CData/tree/master/Src/CData)。
 
-### 契约语言(the contract language)与数据格式（the data format）
+### 契约语言和数据格式
 
 一个契约文件包含零到多个名称空间（namespace），名称空间由URI标识，URI对编译器来说是不透明值，多个具有完全相等URI的名称空间会被合并成一个逻辑名称空间，名称空间的成员包括类（class）和枚举（enum），在一个名称空间中，每个成员必须拥有唯一的名字：
 
@@ -375,7 +385,7 @@ namespace "urn:foo"
 
 预定义的原子类型：
 
-| 名称 | 说明 | 字面格式(literal format)示例 | 
+| 名称 | 说明 | 字面格式（literal format）示例 | 
 | ---- | ---- | ---- |
 | String | Unicode字符串 | 常规式：`"abcd\r\nefg\t\u0041\u0042"` 逐字（verbatim）式：`@"d:\dir\file.txt,""\r\n"` |
 | IgnoreCaseString | 同String，比较相等时忽略大小写 | 同String |
@@ -397,64 +407,64 @@ namespace "urn:foo"
 | TimeSpan | 时间间隔 | `"73.14:08:16.367"`：73天14小时8分16.367秒 `"-00:00:05"`：负5秒 |
 | DateTimeOffset | 日期时间及时区 | `"2015-01-24T15:32:03.418+07:00"` `"2015-01-01T00:00:00+00:00"` |
 
-在数据中，原子值（atom value）用上述的字面格式表达。
+原子值（atom value）用上述的字面格式表达。
 
 枚举类型（enum type）本质上是原子类型，它为一些原子值命了名。在声明枚举类型时，在`as`关键字后指定原子类型的引用，可以是任意原子类型，然后在大括号中为每个原子值取一个唯一的名字：
 
 ```
-    enum Reputation as Int32
-    {
-        None = 0
-        Bronze = 1
-        Silver = 2
-        Gold = 3
-        Bad = -1
-    }
-    enum ShakespeareQuotes as String
-    {
-        ToBeOrNotToBe = "To be, or not to be: that is the question."
-        Mortals = "Lord, what fools these mortals be!"
-        Gold = "All that glisters is not gold."
-    }
-    enum COMInterfaceGuids as Guid
-    {
-        IUnknown = "00000000-0000-0000-C000-000000000046"
-        IClassFactory = "00000001-0000-0000-C000-000000000046"
-        IMalloc = "00000002-0000-0000-C000-000000000046"
-        IMarshal = "00000003-0000-0000-C000-000000000046"
-    }
+enum Reputation as Int32
+{
+    None = 0
+    Bronze = 1
+    Silver = 2
+    Gold = 3
+    Bad = -1
+}
+enum ShakespeareQuotes as String
+{
+    ToBeOrNotToBe = "To be, or not to be: that is the question."
+    Mortals = "Lord, what fools these mortals be!"
+    Gold = "All that glisters is not gold."
+}
+enum COMInterfaceGuids as Guid
+{
+    IUnknown = "00000000-0000-0000-C000-000000000046"
+    IClassFactory = "00000001-0000-0000-C000-000000000046"
+    IMalloc = "00000002-0000-0000-C000-000000000046"
+    IMarshal = "00000003-0000-0000-C000-000000000046"
+}
 ```
 
 在数据中，枚举值（enum value）用格式`$UriAlias:EnumName.MemberName`来表达，如`$a1:Reputation.Bronze`，`$a1:ShakespeareQuotes.ToBeOrNotToBe`。
 
 原子类型和枚举类型统称为简单类型（simple type）。
 
-类类型（class type）是复杂类型，包含零到多个的唯一命名的属性（property），类可以标注为`abstract`，表明该类是抽象的，不能被实例化：
+类类型（class type）是复杂类型，包含零到多个的唯一命名的属性（property），类可以标注为`abstract`，抽象类不能拥有值，即在数据中，一个对象不能表明它是一个抽象类的值：
 
 ```
-    class Contact[abstract]
-    {
-        Id as Int32
-        Name as String
-        RegDate as DateTimeOffset
-    }
+class Contact[abstract]
+{
+    Id as Int32
+    Name as String
+    RegDate as DateTimeOffset
+}
 ```
 
 使用`extends`从父类派生出子类，子类继承了父类的属性，子类的属性不能与父类的属性重名：
 
 ```
-    class Customer extends Contact
-    {
-        Reputation as Reputation
-        OrderList as nullable<list<Order>>
-    }
+class Customer extends Contact
+{
+    Reputation as Reputation
+    OrderList as nullable<list<Order>>
+}
 ```
 
 可以把一个类标注为`sealed`，则它不能被派生：
 
 ```
-    class VipCustomer[sealed] extends Customer {}
-    class SuperCustomer extends VipCustomer {} //错误：VipCustomer is sealed
+class VipCustomer[sealed] extends Customer {}
+class SuperCustomer extends VipCustomer {} //错误：VipCustomer is sealed
 ```
 
 类值（class value）即对象（object）。一个数据文件必须包括一个且仅一个根对象。下面是一个数据文件的示例：
@@ -475,29 +485,29 @@ uriAlias1:ClassName1 <uriAlias1 = "urn:foo" uriAlias2 = @"urn:bar"> {
 
 ```
 //数据
-        a1:Customer {
-            Name = @"Mike"
-            Id = 2
-            Reputation = $a1:Reputation.None
-            OrderList = null
-            RegDate = "2015-03-08T14:53:43.2508966+00:00"
-        }//正确：除了属性的顺序不一致，其余的完全匹配
+a1:Customer {
+    Name = @"Mike"
+    Id = 2
+    Reputation = $a1:Reputation.None
+    OrderList = null
+    RegDate = "2015-03-08T14:53:43.2508966+00:00"
+}//正确：除了属性的顺序不一致，其余的完全匹配
 
-        a1:Customer {
-            Id = 2
-            Name = @"Mike"
-            Reputation = $a1:Reputation.None
-            RegDate = "2015-03-08T14:53:43.2508966+00:00"
-        }//错误：属性'OrderList'缺失
+a1:Customer {
+    Id = 2
+    Name = @"Mike"
+    Reputation = $a1:Reputation.None
+    RegDate = "2015-03-08T14:53:43.2508966+00:00"
+}//错误：属性'OrderList'缺失
 
-        a1:Customer {
-            Name = @"Mike"
-            Id = 2
-            Reputation = $a1:Reputation.None
-            RegDate = "2015-03-08T14:53:43.2508966+00:00"
-            OrderList = null
-            Property1 = 1
-        }//错误：未知的属性'property1'
+a1:Customer {
+    Name = @"Mike"
+    Id = 2
+    Reputation = $a1:Reputation.None
+    RegDate = "2015-03-08T14:53:43.2508966+00:00"
+    OrderList = null
+    Property1 = 1
+}//错误：未知的属性'property1'
 ```
 
 CData的类型系统是这样的：
@@ -549,7 +559,7 @@ ProductIdList as list<Int32>
 
 ```
 //数据
-ProductIdList = [2 2 3 5 2 7 11] //列表的条目可能重复
+ProductIdList = [2 2 3 5 2 7 11] //列表的条目可以重复
 ```
 
 映射类型（map type）是一个键-值对（key-value pair）的无序集合，键必须唯一，键必须是简单类型（原子或枚举类型）的引用，值可以是任意局部类型。例：
@@ -588,7 +598,7 @@ ProductIdSet = [
 ]
 ```
 
-对象集合类型（object set type）的条目必须是类类型（class type）的引用，通过指定类的某个属性作为键来判断一个对象是否与另一个对象相等，这需要指定键选择器（key selector）。例：
+对象集合类型（object set type）的条目必须是类类型（class type）的引用，通过指定类中某个具有简单类型的属性作为键来判断一个对象是否与另一个对象相等，这通过键选择器（key selector）来达到。例：
 
 ```
 PersonSet as set<Person\Id>
@@ -916,9 +926,9 @@ Console.WriteLine(person.GetType());//Example.Business.Customer
 diagCtx.Reset();
 ```
 
-`TryLoad`方法的第一个参数`filePath`只是一个不透明的标识，数据是从第二个参数`reader`中读取的。若装载成功，`TryLoad`返回true，否则返回false，`DiagContext`中包含了诊断（diagnostic）信息。可以调用`DiagContext.Reset()`方法以重用它。
+`TryLoad`方法的第一个参数`filePath`只是一个不透明的标识，数据是从第二个参数`reader`中读取的。若装载成功，`TryLoad`返回true，否则返回false，`DiagContext`中将包含了诊断（diagnostic）信息。可以调用`DiagContext.Reset()`方法以重用它。
 
-可以定义`OnLoading`和`OnLoaded`方法实现自定义的数据验证，它们接受`CData.DiagContext`或其派生类作为参数，若它们返回false，则`TryLoad`方法会立即停止并返回false。`OnLoading`方法在对象刚刚被创建后被调用，`OnLoaded`方法在对象被赋完值后被调用：
+可以在C#类型中定义`OnLoading`和`OnLoaded`方法实现自定义的数据验证，它们接受`CData.DiagContext`或其派生类作为参数，若它们返回false，则`TryLoad`方法会立即停止并返回false。`OnLoading`方法在对象刚刚被创建后被调用，`OnLoaded`方法在对象被赋完值后被调用：
 
 ```C#
 public class MyDiagContext : DiagContext {
@@ -963,6 +973,7 @@ using (var reader = new StreamReader("customerTank.txt"))
 {
     if (!Person.TryLoad("customerTank.txt", reader, myDiagCtx, out person))
     {
+        //...
 ```
 
 ### 欢迎任何疑问、建议、bug反馈及捐助
@@ -1090,7 +1101,8 @@ null-value:
 'null'
 ;
 atom-value:
-string-value-token | char-value-token | integer-value-token | decimal-value-token | real-value-token | 'true' | 'false'
+string-value-token | char-value-token | integer-value-token | decimal-value-token
+    | real-value-token | 'true' | 'false'
 ;
 enum-value:
 '$' qualified-name '.' name-token
@@ -1135,7 +1147,8 @@ enum-member:
 name-token '=' atom-value
 ;
 atom-value:
-string-value-token | char-value-token | integer-value-token | decimal-value-token | real-value-token | 'true' | 'false'
+string-value-token | char-value-token | integer-value-token | decimal-value-token
+    | real-value-token | 'true' | 'false'
 ;
 class:
 'class' name-token class-annotation? '{' property* '}'
