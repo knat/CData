@@ -122,14 +122,20 @@ namespace CData.Compiler {
                         List<ExpressionSyntax> globalTypeMdSyntaxList = new List<ExpressionSyntax>();
                         var userAssemblyMetadataName = EX.UserAssemblyMetadataName(assemblyName);
                         var assMdExpr = CS.MemberAccessExpr(CS.GlobalAliasQualifiedName(userAssemblyMetadataName), "Instance");
+                        System.Text.StringBuilder sb = null;
                         foreach (var logicalNs in nsMap.Values) {
                             var nsInfo = logicalNs.NamespaceInfo;
                             string uri, csns;
                             var mdns = nsInfo.GetMdNamespace(out uri, out csns);
                             if (mdns != null) {
-                                var sb = Extensions.AcquireStringBuilder();
+                                if (sb == null) {
+                                    sb = new System.Text.StringBuilder(1024 * 2);
+                                }
+                                else {
+                                    sb.Clear();
+                                }
                                 mdns.Save(sb);
-                                var data = sb.ToStringAndRelease();
+                                var data = sb.ToString();
                                 cuCompierAttList.Add(CS.AttributeList("assembly", EX.__CompilerContractNamespaceAttributeName,
                                     SyntaxFactory.AttributeArgument(CS.Literal(uri)),
                                     SyntaxFactory.AttributeArgument(CS.Literal(csns)),

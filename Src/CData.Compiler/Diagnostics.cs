@@ -164,7 +164,7 @@ namespace CData.Compiler {
                 case DiagCodeEx.InvalidContractPropertyType:
                     return "Invalid contract property/field{0} type. {1} expected.".InvFormat(_msgArgs);
                 case DiagCodeEx.InvalidContractPropertyTypeOrExplicitTypeExpected:
-                    return "Invalid contract property/field{0} type. {1} expected, or you must declare the C# partial class explicitly.".InvFormat(_msgArgs);
+                    return "Invalid contract property/field{0} type. {1} expected, or you should declare the C# partial class explicitly.".InvFormat(_msgArgs);
 
                 default:
                     throw new InvalidOperationException("Invalid code: " + Code.ToString());

@@ -88,8 +88,16 @@ namespace CData {
                 _bytes[index] = value;
             }
         }
+        public void AddRange(byte[] array) {
+            if (array == null) throw new ArgumentNullException("array");
+            AddRange(array, 0, array.Length);
+        }
         public void AddRange(byte[] array, int arrayIndex, int length) {
             InsertRange(_count, array, arrayIndex, length);
+        }
+        public void InsertRange(int index, byte[] array) {
+            if (array == null) throw new ArgumentNullException("array");
+            InsertRange(index, array, 0, array.Length);
         }
         public void InsertRange(int index, byte[] array, int arrayIndex, int length) {
             ThrowIfReadOnly();

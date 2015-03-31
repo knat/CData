@@ -6,7 +6,7 @@
         <TemplateID>CDataContract</TemplateID>
         <ProjectType>CSharp</ProjectType>
         <NumberOfParentCategoriesToRollUp>1</NumberOfParentCategoriesToRollUp>
-        <DefaultName>File.cdc</DefaultName>
+        <DefaultName>Contract.cdc</DefaultName>
         <AppliesTo>CSharp + MultiTarget</AppliesTo>
     </TemplateData>
     <TemplateContent>
