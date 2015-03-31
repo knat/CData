@@ -13,13 +13,16 @@ class Program {
     static void Main() {
         DataSet ds = new DataSet {
             PersonMap = new Dictionary<int, Person> {
-                {1, new Customer { Id = 1, Name = "Tank", RegDate = DateTimeOffset.Now, OrderList = new List<Order> {
+                {1, new Customer { Id = 1, Name = "Tank", RegDate = DateTimeOffset.Now,
+                        Reputation = Reputation.Bronze,
+                        OrderList = new List<Order> {
                             new Order { Amount = 436.99M, IsUrgent = true},
                             new Order { Amount = 98.77M, IsUrgent = false},
                         }
                     }
                 },
-                {2, new Customer { Id = 2, Name = "Mike", RegDate = DateTimeOffset.UtcNow, OrderList = null } },
+                {2, new Customer { Id = 2, Name = "Mike", RegDate = DateTimeOffset.UtcNow,
+                        Reputation = Reputation.None, OrderList = null } },
                 {3, new Supplier { Id = 3, Name = "Eric", RegDate = DateTimeOffset.UtcNow - TimeSpan.FromHours(543), 
                         BankAccount="11223344", ProductIdSet = new HashSet<int> {1, 3, 7} }
                 },

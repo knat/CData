@@ -16,8 +16,8 @@ a0:DataSet <a0 = @"http://example.com/business/api" a1 = @"http://example.com/bu
         1 = a1:Customer {
             Id = 1
             Name = @"Tank"
-            RegDate = "2015-03-31T10:26:50.4939151+08:00"
-            Reputation = $a1:Reputation.None
+            RegDate = "2015-04-01T00:22:31.6436484+08:00"
+            Reputation = $a1:Reputation.Bronze
             OrderList = [
                 a1:Order {
                     Amount = 436.99
@@ -32,14 +32,14 @@ a0:DataSet <a0 = @"http://example.com/business/api" a1 = @"http://example.com/bu
         2 = a1:Customer {
             Id = 2
             Name = @"Mike"
-            RegDate = "2015-03-31T02:26:50.4939151+00:00"
+            RegDate = "2015-03-31T16:22:31.6456485+00:00"
             Reputation = $a1:Reputation.None
             OrderList = null
         }
         3 = a1:Supplier {
             Id = 3
             Name = @"Eric"
-            RegDate = "2015-03-08T11:26:50.4939151+00:00"
+            RegDate = "2015-03-09T01:22:31.6466486+00:00"
             BankAccount = @"11223344"
             ProductIdSet = [
                 1
@@ -51,7 +51,7 @@ a0:DataSet <a0 = @"http://example.com/business/api" a1 = @"http://example.com/bu
 }
 ```
 
-类值（class value）即对象（object），一个CData数据文件必须包含且仅包含一个根对象，每个对象必须标明它所属的类，在契约中，类型被包含在名称空间中的，在数据中，先声明名称空间的URI，然后通过别名（alias，如上例中的`a0`，`a1`）来引用该URI。`URI别名:类型名`（如`a0:DataSet`，`a1:Customer`，`a1:Reputation`）即明确指明了一个类型。对象的`{}`中包含了属性，属性通过`属性名 = 值`来表达。数值原子值和布林原子值可以直接写出（如`1`，`436.99`，`true`），其它原子值通过字符串来表达（如`"2015-03-31T10:26:50.4939151+08:00"`）。映射值（map value）使用`#[]`表达，其中包含键-值（`键 = 值`）对，列表值（list value）和 集合值（set value）使用`[]`表达，其中包含条目。有一个特殊的值，null值，可以赋值给可空类型（如属性`OrderList`的类型是可空类型），null值不能赋值给非空类型。
+类值（class value）即对象（object），一个CData数据文件必须包含且仅包含一个根对象，每个对象必须标明它所属的类，在契约中，类型被包含在名称空间中的，在数据中，先声明名称空间的URI，然后通过别名（alias，如上例中的`a0`，`a1`）来引用该URI。`URI别名:类型名`（如`a0:DataSet`，`a1:Customer`，`a1:Reputation`）即明确指明了一个类型。对象的`{}`中包含了属性，属性通过`属性名 = 值`来表达。数值原子值和布林原子值可以直接写出（如`1`，`436.99`，`true`），其它原子值通过字符串来表达（如`"2015-04-01T00:22:31.6436484+08:00"`）。映射值（map value）使用`#[]`表达，其中包含键-值（`键 = 值`）对，列表值（list value）和 集合值（set value）使用`[]`表达，其中包含条目。有一个特殊的值，null值，可以赋值给可空类型（如属性`OrderList`的类型是可空类型），null值不能赋值给非空类型。
 
 CData的契约和数据是平台无关的抽象的中立语言和协议，对CData编程就涉及到具体的平台。当前CData仅支持C#，支持Java，C++等主流的面向对象语言是完全可能的，欢迎有兴趣的朋友来实现。本文虽以C#来讲解CData的编程，但我认为原理是普适的。
 
@@ -135,16 +135,16 @@ namespace Example.Business.API
 DataSet ds = new DataSet {
     PersonMap = new Dictionary<int, Person> {
         {1, new Customer { Id = 1, Name = "Tank", RegDate = DateTimeOffset.Now,
+                Reputation = Reputation.Bronze,
                 OrderList = new List<Order> {
                     new Order { Amount = 436.99M, IsUrgent = true},
                     new Order { Amount = 98.77M, IsUrgent = false},
-                } }
+                }
+            }
         },
         {2, new Customer { Id = 2, Name = "Mike", RegDate = DateTimeOffset.UtcNow,
-                OrderList = null }
-        },
-        {3, new Supplier { Id = 3, Name = "Eric",
-                RegDate = DateTimeOffset.UtcNow - TimeSpan.FromHours(543), 
+                Reputation = Reputation.None, OrderList = null } },
+        {3, new Supplier { Id = 3, Name = "Eric", RegDate = DateTimeOffset.UtcNow - TimeSpan.FromHours(543), 
                 BankAccount="11223344", ProductIdSet = new HashSet<int> {1, 3, 7} }
         },
     }
@@ -271,12 +271,16 @@ class Program {
     static void Main() {
         DataSet ds = new DataSet {
             PersonMap = new Dictionary<int, Person> {
-                {1, new Customer { Id = 1, Name = "Tank", RegDate = DateTimeOffset.Now, OrderList = new List<Order> {
+                {1, new Customer { Id = 1, Name = "Tank", RegDate = DateTimeOffset.Now,
+                        Reputation = Reputation.Bronze,
+                        OrderList = new List<Order> {
                             new Order { Amount = 436.99M, IsUrgent = true},
                             new Order { Amount = 98.77M, IsUrgent = false},
-                        } }
+                        }
+                    }
                 },
-                {2, new Customer { Id = 2, Name = "Mike", RegDate = DateTimeOffset.UtcNow, OrderList = null } },
+                {2, new Customer { Id = 2, Name = "Mike", RegDate = DateTimeOffset.UtcNow,
+                        Reputation = Reputation.None, OrderList = null } },
                 {3, new Supplier { Id = 3, Name = "Eric", RegDate = DateTimeOffset.UtcNow - TimeSpan.FromHours(543), 
                         BankAccount="11223344", ProductIdSet = new HashSet<int> {1, 3, 7} }
                 },
