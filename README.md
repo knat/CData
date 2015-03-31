@@ -2,11 +2,11 @@
 
 ### 介绍
 
-在进行数据交换前，双方一定对要交换的数据的结构和类型达成了一致，即建立了一个数据契约（data contract），我们通常用汉语英语等人类语言来书写数据契约文档，比如“此API返回一个名-值对的无序集合，第一个名字叫Id，类型是int32，第二个名字叫FullName，类型是string，...”，数据契约也可能只是开发人员间在口头约定（这很糟糕）。CData发明了一门机器可懂的数据契约语言，等一下，“机器可懂的数据契约语言”，那不就是纲要（schema）嘛，比如XML Schema，对，在本文中，契约（contract）和纲要（schema）是同义词，但我认为契约更容易被理解。XML Schema复杂笨重，它是一群科学家化的工程师（IBM盛产此物种）造出来的看上去很美实际却没啥用的象牙塔。CData契约语言（the CData contract language）轻盈灵动，完全接地气，下面是一个电子商务网站CData数据契约的示例：
+在进行数据交换前，双方一定对数据的结构和类型达成了一致，即建立了一个数据契约（data contract），我们通常用汉语英语等人类语言来书写数据契约文档，比如“此API返回一个名-值对的无序集合，第一个名字叫Id，类型是int32，第二个名字叫FullName，类型是string，...”，数据契约也可能只是开发人员间在口头约定（这很糟糕）。CData发明了一门机器可懂的数据契约语言，等一下，“机器可懂的数据契约语言”，那不就是纲要（schema）嘛，比如XML Schema，对，在本文中，契约（contract）和纲要（schema）是同义词，但我认为契约更容易被理解。XML Schema复杂笨重，它是一群科学家化的工程师（IBM盛产此物种）造出来的看上去很美实际却没啥用（或很难用）的象牙塔。CData契约语言（the CData contract language）轻盈灵动，完全接地气，下面是一个电子商务网站CData数据契约的示例：
 
 ![](Docs/Biz.png)
 
-CData契约语言是从面向对象编程语言中抽象出来的数据描述语言，除了语法上稍微有点怪异，程序员应该能立即产生感性上认识。契约定义了类型（type），这包括系统预定义的原子类型（atom type，如`Int32`，`String`，`DateTimeOffset`，`Boolean`等），以及用户定义的类类型（class type，如`Person`，`Customer`）和枚举类型（enum type，如`Reputation`）。类（class）由零到多个唯一命名的属性（property）组成，属性是倒置式声明的（`名称 as 类型`），其实，我觉得C语言家族的`类型 名称`才是倒置式的、反直觉的，`名称 as 类型`是正置式的、符合直觉的。属性的类型可以引用原子或用户类型，也可以定义匿名的数据容器类型：列表类型（list type，`list<>`）是一个有序列表，其条目可以重复；集合类型（set type，`set<>`）是一个无序集合，其条目不能重复；映射类型（map type，`map<,>`）是一个键-值对（key-value pair）的无序集合，键必须唯一。 可空类型（nullable type，`nullable<>`）指示包含的类型可以接受null值，否则不能接受null值。类可以标注为抽象（abstract）的，它不能拥有值，一个类可以从另一个类派生。枚举类型本质上是原子类型，它的每个成员为一个原子值（atom value）取了个名字。一组类型被放置在一个名称空间（namespace）中，名称空间由URI标识。一个名称空间中的成员可以引用另一个名称空间的成员，这需要使用导入（import）指令。
+CData契约语言是从面向对象编程语言中抽象出来的数据描述语言，除了语法上稍微有点怪异，程序员应该能立即产生感性上认识。契约定义了类型（type），这包括系统预定义的原子类型（atom type，如`Int32`，`String`，`DateTimeOffset`，`Boolean`等），以及用户定义的类类型（class type，如`Person`，`Customer`）和枚举类型（enum type，如`Reputation`）。类（class）由零到多个唯一命名的属性（property）组成，属性是倒置式声明的（`名称 as 类型`），其实，我觉得C语言家族的`类型 名称`才是倒置式的、反直觉的，`名称 as 类型`是正置式的、符合直觉的。属性的类型可以引用原子或用户类型，也可以定义匿名的数据容器类型：列表类型（list type，`list<>`）是一个有序列表，其条目可以重复；集合类型（set type，`set<>`）是一个无序集合，其条目不能重复；映射类型（map type，`map<,>`）是一个键-值对（key-value pair）的无序集合，键必须唯一。 可空类型（nullable type，`nullable<>`）可以接受null值，否则不能接受null值。类可以标注为抽象（abstract）的，它不能拥有值，一个类可以从另一个类派生。枚举类型本质上是原子类型，它的每个成员为一个原子值（atom value）取了个名字。一组类型被放置在一个名称空间（namespace）中，名称空间由不透明的URI标识。一个名称空间中的成员可以引用另一个名称空间的成员，这需要使用导入（import）指令。
 
 契约定义了类型，类型的值（value）即数据（data），契约与数据的关系如同蛋糕模具与蛋糕的关系。CData定义了自己的基于文本的数据格式（the CData data format）。下面的数据符合上面的契约：
 
@@ -53,7 +53,7 @@ a0:DataSet <a0 = @"http://example.com/business/api" a1 = @"http://example.com/bu
 
 类值（class value）即对象（object），一个CData数据文件必须包含且仅包含一个根对象，每个对象必须标明它所属的类，在契约中，类型被包含在名称空间中的，在数据中，先声明名称空间的URI，然后通过别名（alias，如上例中的`a0`，`a1`）来引用该URI。`URI别名:类型名`（如`a0:DataSet`，`a1:Customer`，`a1:Reputation`）即明确指明了一个类型。对象的`{}`中包含了属性，属性通过`属性名 = 值`来表达。数值原子值和布林原子值可以直接写出（如`1`，`436.99`，`true`），其它原子值通过字符串来表达（如`"2015-03-31T10:26:50.4939151+08:00"`）。映射值（map value）使用`#[]`表达，其中包含键-值（`键 = 值`）对，列表值（list value）和 集合值（set value）使用`[]`表达，其中包含条目。有一个特殊的值，null值，可以赋值给可空类型（如属性`OrderList`的类型是可空类型），null值不能赋值给非空类型。
 
-CData的契约/数据是平台无关的抽象的中立语言/协议，对CData编程就涉及到具体的平台。当前CData仅支持C#，支持Java，C++等主流的面向对象语言是完全可能的，欢迎有兴趣的朋友来实现。本文虽以C#来讲解CData的编程，但我认为原理是普适的。
+CData的契约和数据是平台无关的抽象的中立语言和协议，对CData编程就涉及到具体的平台。当前CData仅支持C#，支持Java，C++等主流的面向对象语言是完全可能的，欢迎有兴趣的朋友来实现。本文虽以C#来讲解CData的编程，但我认为原理是普适的。
 
 契约的类型需要被映射到C#的类型上，因为存在机器可懂的契约语言，映射可以在编译阶段由契约编译器（the contract compiler）自动或半自动完成。使用`CData.ContractNamespaceAttribute`将一个契约名称空间映射到一个C#名称空间：
 
@@ -167,7 +167,7 @@ using (var reader = new StreamReader("DataSet.txt")) {
 
 DataSet.txt的内容在前面已经列出。
 
-介绍到这里，相信读者对CData应该有些感觉。首先需要重复的是，进行数据交换绝对存在契约，也许是口头约定，要么是书面文档，或者使用机器可懂的契约语言。其次，因为契约是平台无关的抽象的数据描述，这就需要把抽象的契约映射到具体的编程语言上去，使用机器可懂的契约语言可以让契约编译器在编译阶段进行或检查映射，从而减少运行时刻出错的可能以及提高效率，并且编译器可以生成部分代码，这让编程变得轻松。也就是，CData是一个静态强类型系统，静态的含义是映射是在编译阶段完成的，强类型的含义是CData进行严格的类型匹配（比如在数据中，对象必须标明自己所属的类）。与此相反，JSON是个动态弱类型系统。静态强类型与动态弱类型各有优缺点，前者缺点是有时不够灵活，后者的缺点是太灵活:)。主流的面向对象编程语言如C#，Java，C++等都是静态强类型系统（或以之为主），CData与这些静态强类型编程语言在精神上是一致的。
+介绍到这里，相信读者对CData应该有些感觉。首先需要重复的是，进行数据交换绝对存在契约，也许是口头约定，要么是书面文档，或者使用机器可懂的契约语言。其次，因为契约是平台无关的抽象的数据描述，这就需要把抽象的契约映射到具体的编程语言上去，使用机器可懂的契约语言可以让契约编译器在编译阶段进行或检查映射，从而减少运行时刻出错的可能以及提高效率，并且编译器可以生成部分代码，这让编程变得轻松。也就是，CData是一个静态强类型系统，静态的含义是映射是在编译阶段完成的，强类型的含义是CData进行严格的类型匹配（比如在数据中，对象必须标明自己所属的类）。与之相反，JSON是个动态弱类型系统。静态强类型与动态弱类型各有优缺点，前者缺点是有时不够灵活，后者的缺点是太灵活:)。主流的面向对象编程语言如C#，Java，C++等都是静态强类型系统（或以之为主），CData与这些静态强类型编程语言在精神上是一致的。
 
 使用CData进行数据交换需要使用一个新的设计模式：契约先行（contract-first）。比如你打算实现一套web api，首先把需要交换的数据用CData契约语言表达出来，然后将契约与自己的程序代码进行映射，接着把契约文件包含在你的SDK中并发布出去，这样你的用户可以使用该契约与他们的代码进行映射，你们使用CData数据格式交换数据。
 
@@ -481,7 +481,7 @@ uriAlias1:ClassName1 <uriAlias1 = "urn:foo" uriAlias2 = @"urn:bar"> {
 
 对象必须标明它是哪个非抽象类的值。
 
-对象的属性顺序可以和类的属性顺序不一致，但对象的属性名必须和类的属性名完全匹配，且不能多也不能少：
+对象的属性顺序可以和类的属性顺序不一致，但对象的属性名必须和类的属性名完全匹配，不能多也不能少：
 
 ```
 //数据
@@ -506,8 +506,8 @@ a1:Customer {
     Reputation = $a1:Reputation.None
     RegDate = "2015-03-08T14:53:43.2508966+00:00"
     OrderList = null
-    Property1 = 1
-}//错误：未知的属性'property1'
+    Property1 = 1 //错误：未知的属性'property1'
+}
 ```
 
 CData的类型系统是这样的：
@@ -824,7 +824,7 @@ P3 as list<Int32>
 //C#
 public class MyCollection<T> : ICollection<T> { ... }
 
-public MyCollection<int> P1 { get; set ; }
+public MyCollection<int> P1 { get; set; }
 public List<int> P2 { get; set; }
 public ICollection<int> P3 { get; set; } //序列化引擎将创建List<int>对象并赋值给它
 ```
@@ -893,10 +893,10 @@ PersonSet2 as set<Person\Id>
 ```C#
 //C#
 public ObjectSet<int, Person> PersonSet { get; set; }
-public IObjectSet<int, Person> PersonSet2 { get; set; } //序列化引擎将创建ObjectSet<int, Person>对象并赋值给它
+public IObjectSet<int, Person> PersonSet2 { get; set; } //序列化引擎将创建CData.ObjectSet<int, Person>对象并赋值给它
 ```
 
-使用契约编译器生成的`Save`方法将C#对象保存（序列化）成文本，可以指定缩进和换行字符串：
+使用契约编译器生成的`Save`实例方法将C#对象保存（序列化）成文本，可以指定缩进和换行字符串：
 
 ```C#
 Customer customerTank = ...;
@@ -957,11 +957,11 @@ partial class Customer {
         Console.WriteLine("Customer.OnLoaded()");
         if (Reputation == Business.Reputation.Bad) {
             diagCtx.AddDiag(DiagSeverity.Error, 1, "Bad reputation customer not allowed.", __TextSpan);
-            return false; //若添加了错误诊断，一定要返回false
+            return false; //若添加了错误诊断，应该返回false
         }
         else if (Reputation == Business.Reputation.None) {
-            diagCtx.AddDiag(DiagSeverity.Warning, 2, "This customer is unknown.", __TextSpan);
-            return true; //若没添加错误诊断，需要返回true
+            diagCtx.AddDiag(DiagSeverity.Warning, 2, "The customer is unknown.", __TextSpan);
+            return true; //若没添加错误诊断，应该返回true
         }
         return true;
     }
