@@ -377,8 +377,9 @@ namespace "urn:foo"
 
 | 名称 | 说明 | 字面格式(literal format)示例 | 
 | ---- | ---- | ---- |
-| String | Unicode字符串 | 常规式：`"abcd\r\nefg\t\u0041\u0042"`；逐字（verbatim）式：`@"d:\dir\file.txt,""\r\n"` |
-| IgnoreCaseString | 同String，只是在比较相等时忽略大小写 | 同String |
+| String | Unicode字符串 | 常规式：`"abcd\r\nefg\t\u0041\u0042"`；
+                逐字（verbatim）式：`@"d:\dir\file.txt,""\r\n"` |
+| IgnoreCaseString | 同String，比较相等时忽略大小写 | 同String |
 | Char | 单个unicode字符 | `'a'` `'\u0041'` |
 | Decimal | 128比特定点数，28位精度 | `42` `-42.42` `+.42` |
 | Int64 | 64比特有符号整数 | `42` `-42` |
