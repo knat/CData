@@ -1,5 +1,4 @@
-﻿
-//Biz.cdc
+﻿//Biz.cdc
 namespace "http://example.com/business"
 {
     class Person[abstract]
