@@ -18,9 +18,9 @@ namespace CData {
         }
         public static void Save(object obj, ClassMetadata classMetadata, TextWriter writer, string indentString = "\t", string newLineString = "\n") {
             if (writer == null) throw new ArgumentNullException("writer");
-            var sb = new StringBuilder(1024 * 2);
+            var sb = StringBuilderBuffer.Acquire();
             Save(obj, classMetadata, sb, indentString, newLineString);
-            writer.Write(sb.ToString());
+            writer.Write(sb.ToStringAndRelease());
         }
         public static void Save(object obj, ClassMetadata classMetadata, StringBuilder stringBuilder, string indentString = "\t", string newLineString = "\n") {
             if (obj == null) throw new ArgumentNullException("obj");
