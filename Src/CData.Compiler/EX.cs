@@ -310,7 +310,7 @@ namespace CData.Compiler {
 
         internal static string ToIdString(string s) {
             if (s == null || s.Length == 0) return s;
-            var sb = Extensions.AcquireStringBuilder();
+            var sb = StringBuilderBuffer.Acquire();
             foreach (var ch in s) {
                 if (SyntaxFacts.IsIdentifierPartCharacter(ch)) {
                     sb.Append(ch);

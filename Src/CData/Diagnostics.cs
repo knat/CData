@@ -132,7 +132,7 @@ namespace CData {
         }
         public override string ToString() {
             if (IsValid) {
-                var sb = Extensions.AcquireStringBuilder();
+                var sb = StringBuilderBuffer.Acquire();
                 sb.Append(Severity.ToString());
                 sb.Append(' ');
                 sb.Append(Code.ToInvString());

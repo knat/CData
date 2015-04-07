@@ -11,47 +11,8 @@ namespace CData {
         //
         //
         //
-        private const int _stringBuilderCount = 4;
-        private const int _stringBuilderCapacity = 128;
-        private static readonly StringBuilder[] _stringBuilders = new StringBuilder[_stringBuilderCount];
-        internal static StringBuilder AcquireStringBuilder() {
-            var sbs = _stringBuilders;
-            StringBuilder sb = null;
-            lock (sbs) {
-                for (var i = 0; i < _stringBuilderCount; ++i) {
-                    sb = sbs[i];
-                    if (sb != null) {
-                        sbs[i] = null;
-                        break;
-                    }
-                }
-            }
-            if (sb != null) {
-                sb.Clear();
-                return sb;
-            }
-            return new StringBuilder(_stringBuilderCapacity);
-        }
-        internal static void ReleaseStringBuilder(this StringBuilder sb) {
-            if (sb != null && sb.Capacity <= _stringBuilderCapacity * 8) {
-                var sbs = _stringBuilders;
-                lock (sbs) {
-                    for (var i = 0; i < _stringBuilderCount; ++i) {
-                        if (sbs[i] == null) {
-                            sbs[i] = sb;
-                            return;
-                        }
-                    }
-                }
-            }
-        }
-        internal static string ToStringAndRelease(this StringBuilder sb) {
-            var str = sb.ToString();
-            ReleaseStringBuilder(sb);
-            return str;
-        }
         internal static string InvFormat(this string format, params string[] args) {
-            return AcquireStringBuilder().AppendFormat(CultureInfo.InvariantCulture, format, args).ToStringAndRelease();
+            return StringBuilderBuffer.Acquire().AppendFormat(CultureInfo.InvariantCulture, format, args).ToStringAndRelease();
         }
         //
         //
@@ -368,7 +329,7 @@ namespace CData {
             }
         }
         internal static string ToLiteral(this string value) {
-            var sb = AcquireStringBuilder();
+            var sb = StringBuilderBuffer.Acquire();
             GetLiteral(value, sb);
             return sb.ToStringAndRelease();
         }

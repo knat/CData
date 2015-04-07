@@ -8,9 +8,9 @@ namespace CData {
         private static readonly Dictionary<FullName, GlobalTypeMetadata> _globalTypeMap = new Dictionary<FullName, GlobalTypeMetadata>();
         public static T GetGlobalType<T>(FullName fullName) where T : GlobalTypeMetadata {
             GlobalTypeMetadata globalType;
-            lock (_globalTypeMap) {
+            //lock (_globalTypeMap) {
                 _globalTypeMap.TryGetValue(fullName, out globalType);
-            }
+            //}
             return globalType as T;
         }
         protected AssemblyMetadata(GlobalTypeMetadata[] globalTypes) {

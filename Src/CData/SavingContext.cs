@@ -98,7 +98,7 @@ namespace CData {
             sb.Append(fullName.Name);
         }
         public void InsertRootObjectHead(string alias, string name) {
-            var sb = Extensions.AcquireStringBuilder();
+            var sb = StringBuilderBuffer.Acquire();
             sb.Append(alias);
             sb.Append(':');
             sb.Append(name);
