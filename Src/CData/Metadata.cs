@@ -76,14 +76,14 @@ namespace CData {
             ObjectSetKeySelector = objectSetKeySelector;
             ClrType = clrType;
             var ti = clrType.GetTypeInfo();
-            ClrConstructor = Extensions.GetParameterlessConstructor(ti);
-            ClrAddMethod = Extensions.GetMethodInHierarchy(ti, "Add");
+            ClrConstructor = ReflectionExtensions.GetParameterlessConstructor(ti);
+            ClrAddMethod = ReflectionExtensions.GetMethodInHierarchy(ti, "Add");
             if (kind == TypeKind.Map) {
-                ClrContainsKeyMethod = Extensions.GetMethodInHierarchy(ti, "ContainsKey");
-                ClrGetEnumeratorMethod = Extensions.GetMethodInHierarchy(ti, "GetEnumerator");
+                ClrContainsKeyMethod = ReflectionExtensions.GetMethodInHierarchy(ti, "ContainsKey");
+                ClrGetEnumeratorMethod = ReflectionExtensions.GetMethodInHierarchy(ti, "GetEnumerator");
             }
             else if (kind == TypeKind.ObjectSet) {
-                ClrKeySelectorProperty = Extensions.GetPropertyInHierarchy(ti, "KeySelector");
+                ClrKeySelectorProperty = ReflectionExtensions.GetPropertyInHierarchy(ti, "KeySelector");
             }
         }
         public readonly LocalTypeMetadata ItemOrValueType;
@@ -233,14 +233,14 @@ namespace CData {
                 }
             }
             if (!isAbstract) {
-                ClrConstructor = Extensions.GetParameterlessConstructor(ti);
+                ClrConstructor = ReflectionExtensions.GetParameterlessConstructor(ti);
             }
             if (baseClass == null) {
-                ClrMetadataProperty = Extensions.GetProperty(ti, Extensions.MetadataNameStr);
-                ClrTextSpanProperty = Extensions.GetProperty(ti, Extensions.TextSpanNameStr);
+                ClrMetadataProperty = ReflectionExtensions.GetProperty(ti, ReflectionExtensions.MetadataNameStr);
+                ClrTextSpanProperty = ReflectionExtensions.GetProperty(ti, ReflectionExtensions.TextSpanNameStr);
             }
-            ClrOnLoadingMethod = ti.GetDeclaredMethod(Extensions.OnLoadingNameStr);
-            ClrOnLoadedMethod = ti.GetDeclaredMethod(Extensions.OnLoadedNameStr);
+            ClrOnLoadingMethod = ti.GetDeclaredMethod(ReflectionExtensions.OnLoadingNameStr);
+            ClrOnLoadedMethod = ti.GetDeclaredMethod(ReflectionExtensions.OnLoadedNameStr);
         }
         public readonly bool IsAbstract;
         public readonly ClassMetadata BaseClass;
@@ -342,10 +342,10 @@ namespace CData {
         public FieldInfo ClrField { get; private set; }
         internal void GetClrPropertyOrField(TypeInfo ti) {
             if (IsClrProperty) {
-                ClrProperty = Extensions.GetProperty(ti, ClrName);
+                ClrProperty = ReflectionExtensions.GetProperty(ti, ClrName);
             }
             else {
-                ClrField = Extensions.GetField(ti, ClrName);
+                ClrField = ReflectionExtensions.GetField(ti, ClrName);
             }
         }
         public object GetValue(object obj) {

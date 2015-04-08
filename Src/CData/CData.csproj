@@ -40,6 +40,7 @@
     <AssemblyOriginatorKeyFile>..\Key.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="AtomExtensions.cs" />
     <Compile Include="Attributes.cs" />
     <Compile Include="Binary.cs" />
     <Compile Include="IgnoreCaseString.cs" />
@@ -51,6 +52,7 @@
     <Compile Include="Nodes.cs" />
     <Compile Include="ObjectSet.cs" />
     <Compile Include="Parser.cs" />
+    <Compile Include="ReflectionExtensions.cs" />
     <Compile Include="SavingContext.cs" />
     <Compile Include="Serializer.cs" />
     <Compile Include="StringBuilderBuffer.cs" />

@@ -122,13 +122,13 @@ namespace CData {
         private static void SaveAtomValue(object value, TypeKind typeKind, StringBuilder sb) {
             switch (typeKind) {
                 case TypeKind.String:
-                    Extensions.GetLiteral((string)value, sb);
+                    AtomExtensions.GetLiteral((string)value, sb);
                     break;
                 case TypeKind.IgnoreCaseString:
-                    Extensions.GetLiteral(((IgnoreCaseString)value).Value, sb);
+                    AtomExtensions.GetLiteral(((IgnoreCaseString)value).Value, sb);
                     break;
                 case TypeKind.Char:
-                    Extensions.GetLiteral((char)value, sb);
+                    AtomExtensions.GetLiteral((char)value, sb);
                     break;
                 case TypeKind.Decimal:
                     sb.Append(((decimal)value).ToInvString());
@@ -161,7 +161,7 @@ namespace CData {
                         bool isLiteral;
                         var s = ((double)value).ToInvString(out isLiteral);
                         if (isLiteral) {
-                            Extensions.GetLiteral(s, sb);
+                            AtomExtensions.GetLiteral(s, sb);
                         }
                         else {
                             sb.Append(s);
@@ -172,7 +172,7 @@ namespace CData {
                         bool isLiteral;
                         var s = ((float)value).ToInvString(out isLiteral);
                         if (isLiteral) {
-                            Extensions.GetLiteral(s, sb);
+                            AtomExtensions.GetLiteral(s, sb);
                         }
                         else {
                             sb.Append(s);

@@ -442,7 +442,7 @@ namespace CData {
                 if (!typeKind.IsAtom()) {
                     ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), avNode.TextSpan);
                 }
-                result = Extensions.TryParse(typeKind, avNode.Value);
+                result = AtomExtensions.TryParse(typeKind, avNode.Value);
                 if (result == null) {
                     ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidAtomValue, typeKind.ToString(), avNode.Value), avNode.TextSpan);
                 }

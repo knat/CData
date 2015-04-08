@@ -238,7 +238,7 @@ namespace CData.Compiler {
                    CS.UnescapedId(member.Name), EX.AtomValueLiteral(atomKind, member.Value)));
             }
             //>public static readonly EnumMetadata __ThisMetadata = new EnumMetadata(FullName fullName, NameValuePair[] members);
-            memberSyntaxList.Add(CS.Field(CS.PublicStaticReadOnlyTokenList, EX.EnumMetadataName, Extensions.ThisMetadataNameStr,
+            memberSyntaxList.Add(CS.Field(CS.PublicStaticReadOnlyTokenList, EX.EnumMetadataName, ReflectionExtensions.ThisMetadataNameStr,
                 CS.NewObjExpr(EX.EnumMetadataName, EX.Literal(FullName),
                 CS.NewArrOrNullExpr(EX.NameValuePairArrayType, memberList.Select(i => CS.NewObjExpr(EX.NameValuePairName, CS.Literal(i.Name), CS.IdName(i.Name.EscapeId()))))
                 )));
@@ -246,7 +246,7 @@ namespace CData.Compiler {
             list.Add(CS.Class(null, CS.PublicStaticPartialTokenList, CS.UnescapedId(DottedName.LastName), null, memberSyntaxList));
         }
         protected override ExpressionSyntax GetMetadataRefSyntax() {
-            return CS.MemberAccessExpr(FullExprSyntax, Extensions.ThisMetadataNameStr);
+            return CS.MemberAccessExpr(FullExprSyntax, ReflectionExtensions.ThisMetadataNameStr);
         }
     }
     internal sealed class ClassInfo : GlobalTypeInfo {
@@ -396,7 +396,7 @@ namespace CData.Compiler {
             var baseClass = BaseClass;
             if (baseClass == null) {
                 //>public TextSpan __TextSpan {get; private set;}
-                memberList.Add(CS.Property(null, CS.PublicTokenList, EX.TextSpanName, CS.Id(Extensions.TextSpanNameStr), CS.GetPrivateSetAccessorList));
+                memberList.Add(CS.Property(null, CS.PublicTokenList, EX.TextSpanName, CS.Id(ReflectionExtensions.TextSpanNameStr), CS.GetPrivateSetAccessorList));
             }
             //>public static bool TryLoad(string filePath, System.IO.TextReader reader, DiagContext context, out XXX result) {
             //  return CData.Serializer.TryLoad<XXX>(filePath, reader, context, assemblyMetadata, __ThisMetadata, out result);
@@ -409,7 +409,7 @@ namespace CData.Compiler {
                 },
                 CS.ReturnStm(CS.InvoExpr(CS.MemberAccessExpr(EX.SerializerExpr, CS.GenericName("TryLoad", FullNameSyntax)),
                     SyntaxFactory.Argument(CS.IdName("filePath")), SyntaxFactory.Argument(CS.IdName("reader")), SyntaxFactory.Argument(CS.IdName("context")),
-                    SyntaxFactory.Argument(assMdExpr), SyntaxFactory.Argument(CS.IdName(Extensions.ThisMetadataNameStr)), CS.OutArgument("result")))));
+                    SyntaxFactory.Argument(assMdExpr), SyntaxFactory.Argument(CS.IdName(ReflectionExtensions.ThisMetadataNameStr)), CS.OutArgument("result")))));
             if (baseClass == null) {
                 //>public void Save(TextWriter writer, string indentString = "\t", string newLineString = "\n") {
                 //>  CData.Serializer.Save(this, __Metadata, writer, indentString, newLineString);
@@ -420,7 +420,7 @@ namespace CData.Compiler {
                         CS.Parameter(CS.StringType, "newLineString", CS.Literal("\n"))
                     },
                     CS.ExprStm(CS.InvoExpr(CS.MemberAccessExpr(EX.SerializerExpr, "Save"), SyntaxFactory.ThisExpression(),
-                        CS.IdName(Extensions.MetadataNameStr), CS.IdName("writer"), CS.IdName("indentString"), CS.IdName("newLineString")
+                        CS.IdName(ReflectionExtensions.MetadataNameStr), CS.IdName("writer"), CS.IdName("indentString"), CS.IdName("newLineString")
                     ))));
                 //>public void Save(StringBuilder stringBuilder, string indentString = "\t", string newLineString = "\n") {
                 //>  CData.Serializer.Save(this, __Metadata, stringBuilder, indentString, newLineString);
@@ -431,13 +431,13 @@ namespace CData.Compiler {
                         CS.Parameter(CS.StringType, "newLineString", CS.Literal("\n"))
                     },
                     CS.ExprStm(CS.InvoExpr(CS.MemberAccessExpr(EX.SerializerExpr, "Save"), SyntaxFactory.ThisExpression(),
-                        CS.IdName(Extensions.MetadataNameStr), CS.IdName("stringBuilder"), CS.IdName("indentString"), CS.IdName("newLineString")
+                        CS.IdName(ReflectionExtensions.MetadataNameStr), CS.IdName("stringBuilder"), CS.IdName("indentString"), CS.IdName("newLineString")
                     ))));
             }
             //>new public static readonly ClassMetadata __ThisMetadata =
             //>  new ClassMetadata(FullName fullName, bool isAbstract, ClassMetadata baseClass, PropertyMetadata[] properties, Type clrType);
             memberList.Add(CS.Field(baseClass == null ? CS.PublicStaticReadOnlyTokenList : CS.NewPublicStaticReadOnlyTokenList,
-                EX.ClassMetadataName, Extensions.ThisMetadataNameStr,
+                EX.ClassMetadataName, ReflectionExtensions.ThisMetadataNameStr,
                 CS.NewObjExpr(EX.ClassMetadataName, EX.Literal(FullName), CS.Literal(IsAbstract),
                     baseClass == null ? CS.NullLiteral : baseClass.MetadataRefSyntax,
                     CS.NewArrOrNullExpr(EX.PropertyMetadataArrayType, propList.Select(i => i.GetMetadataSyntax())),
@@ -447,9 +447,9 @@ namespace CData.Compiler {
             //>    get { return __ThisMetadata; }
             //>}
             memberList.Add(CS.Property(baseClass == null ? CS.PublicVirtualTokenList : CS.PublicOverrideTokenList,
-                EX.ClassMetadataName, Extensions.MetadataNameStr, true, default(SyntaxTokenList),
+                EX.ClassMetadataName, ReflectionExtensions.MetadataNameStr, true, default(SyntaxTokenList),
                 new StatementSyntax[] { 
-                    CS.ReturnStm(CS.IdName(Extensions.ThisMetadataNameStr))
+                    CS.ReturnStm(CS.IdName(ReflectionExtensions.ThisMetadataNameStr))
                 }));
 
             list.Add(SyntaxFactory.ClassDeclaration(
@@ -463,7 +463,7 @@ namespace CData.Compiler {
                 ));
         }
         protected override ExpressionSyntax GetMetadataRefSyntax() {
-            return CS.MemberAccessExpr(FullExprSyntax, Extensions.ThisMetadataNameStr);
+            return CS.MemberAccessExpr(FullExprSyntax, ReflectionExtensions.ThisMetadataNameStr);
         }
     }
     internal sealed class PropertyInfo {

@@ -208,7 +208,7 @@ namespace CData.Compiler {
         private static readonly Dictionary<string, AtomNode> _map;
         static AtomNode() {
             _map = new Dictionary<string, AtomNode>();
-            for (var kind = Extensions.AtomTypeStart; kind <= Extensions.AtomTypeEnd; ++kind) {
+            for (var kind = AtomExtensions.AtomTypeStart; kind <= AtomExtensions.AtomTypeEnd; ++kind) {
                 _map.Add(kind.ToString(), new AtomNode(AtomInfo.Get(kind)));
             }
         }
@@ -259,7 +259,7 @@ namespace CData.Compiler {
         public readonly AtomValueNode Value;
         public NameValuePair CreateInfo(TypeKind typeKind) {
             var avNode = Value;
-            var value = Extensions.TryParse(typeKind, avNode.Value, true);
+            var value = AtomExtensions.TryParse(typeKind, avNode.Value, true);
             if (value == null) {
                 DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidAtomValue, typeKind.ToString(), avNode.Value),
                     avNode.TextSpan);
