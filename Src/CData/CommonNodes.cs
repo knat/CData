@@ -32,6 +32,35 @@ namespace CData {
             return !left.Equals(right);
         }
     }
+    internal struct QualifiableNameNode {
+        public QualifiableNameNode(NameNode alias, NameNode name) {
+            Alias = alias;
+            Name = name;
+        }
+        public readonly NameNode Alias;//opt
+        public readonly NameNode Name;
+        public bool IsQualified {
+            get {
+                return Alias.IsValid;
+            }
+        }
+        public bool IsValid {
+            get {
+                return Name.IsValid;
+            }
+        }
+        public TextSpan TextSpan {
+            get {
+                return Name.TextSpan;
+            }
+        }
+        public override string ToString() {
+            if (IsQualified) {
+                return Alias.Value + "::" + Name.Value;
+            }
+            return Name.Value;
+        }
+    }
     internal enum AtomValueKind : byte {
         None = 0,
         String,

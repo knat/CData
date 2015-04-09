@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq.Expressions;
 
 namespace CData {
     internal abstract class ParserBase {
@@ -193,6 +194,28 @@ namespace CData {
             textSpan = default(TextSpan);
             return false;
         }
+        protected bool QualifiableName(out QualifiableNameNode result) {
+            NameNode name;
+            if (Name(out name)) {
+                if (Token(TokenKind.ColonColon)) {
+                    result = new QualifiableNameNode(name, NameExpected());
+                }
+                else {
+                    result = new QualifiableNameNode(default(NameNode), name);
+                }
+                return true;
+            }
+            result = default(QualifiableNameNode);
+            return false;
+        }
+        protected QualifiableNameNode QualifiableNameExpected() {
+            QualifiableNameNode qName;
+            if (!QualifiableName(out qName)) {
+                ErrorDiagAndThrow("Qualifiable name expected.");
+            }
+            return qName;
+        }
+
         public bool AtomValue(out AtomValueNode result, AtomValueKind expectedKind = AtomValueKind.None) {
             var token = GetToken();
             var tokenValue = token.Value;
@@ -257,6 +280,80 @@ namespace CData {
         }
         protected AtomValueNode IntegerValueExpected() {
             return AtomValueExpected(AtomValueKind.Integer);
+        }
+
+        //expression
+        private void ExpressionExpectedError() {
+            ErrorDiagAndThrow("Expression expected.");
+        }
+        private bool Expression(out ExpressionNode result) {
+
+            result = null;
+            return false;
+        }
+        private ExpressionNode ExpressionExpected() {
+            ExpressionNode r;
+            if (!Expression(out r)) {
+                ExpressionExpectedError();
+            }
+            return r;
+        }
+        private bool ConditionalExpression(out ExpressionNode result) {
+            ExpressionNode condition;
+            if (CoalesceExpression(out condition)) {
+                ExpressionNode whenTrue = null, whenFalse = null;
+                if (Token('?')) {
+                    whenTrue = ExpressionExpected();
+                    TokenExpected(':');
+                    whenFalse = ExpressionExpected();
+                }
+                if (whenTrue == null) {
+                    result = condition;
+                }
+                else {
+                    result = new ConditionalExpressionNode(condition, whenTrue, whenFalse);
+                }
+                return true;
+            }
+            result = null;
+            return false;
+        }
+        private bool CoalesceExpression(out ExpressionNode result) {
+            ExpressionNode left;
+            if (OrElseExpression(out left)) {
+                ExpressionNode right = null;
+                if (Token(TokenKind.QuestionQuestion)) {
+                    if (!CoalesceExpression(out right)) {
+                        ExpressionExpectedError();
+                    }
+                }
+                if (right == null) {
+                    result = left;
+                }
+                else {
+                    result = new BinaryExpressionNode(ExpressionType.Coalesce, left, right);
+                }
+                return true;
+            }
+            result = null;
+            return false;
+        }
+        private bool OrElseExpression(out ExpressionNode result) {
+            if (AndAlsoExpression(out result)) {
+                while (Token(TokenKind.BarBar)) {
+                    ExpressionNode right;
+                    if (!AndAlsoExpression(out right)) {
+                        ExpressionExpectedError();
+                    }
+                    result = new BinaryExpressionNode(ExpressionType.OrElse, result, right);
+                }
+            }
+            return result != null;
+        }
+        private bool AndAlsoExpression(out ExpressionNode result) {
+
+            result = null;
+            return false;
         }
 
     }

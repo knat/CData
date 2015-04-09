@@ -52,6 +52,18 @@ namespace CData {
         DecimalValue,// +-123.45
         RealValue,// +-123.45Ee+-12
         HashOpenBracket,// #[
+        ColonColon,// ::
+        EqualsEquals,// ==
+        EqualsGreaterThan,// =>
+        ExclamationEquals,// !=
+        LessThanEquals,// <=
+        LessThanLessThan,// <<
+        GreaterThanEquals,// >=
+        //no '>>'
+        BarBar,// ||
+        AmpersandAmpersand,// &&
+        QuestionQuestion,// ??
+
     }
     internal sealed class Lexer {
         [ThreadStatic]
@@ -502,6 +514,116 @@ namespace CData {
                         return CreateTokenAndAdvanceChar(ch);
                     }
                 }
+                else if (ch == ':') {
+                    var nextch = GetNextChar();
+                    if (nextch == ':') {
+                        state = CreateState(StateKind.None);
+                        AdvanceChar();
+                        AdvanceChar();
+                        return CreateToken(TokenKind.ColonColon, state);
+                    }
+                    else {
+                        return CreateTokenAndAdvanceChar(ch);
+                    }
+                }
+                else if (ch == '=') {
+                    var nextch = GetNextChar();
+                    if (nextch == '=') {
+                        state = CreateState(StateKind.None);
+                        AdvanceChar();
+                        AdvanceChar();
+                        return CreateToken(TokenKind.EqualsEquals, state);
+                    }
+                    else if (nextch == '>') {
+                        state = CreateState(StateKind.None);
+                        AdvanceChar();
+                        AdvanceChar();
+                        return CreateToken(TokenKind.EqualsGreaterThan, state);
+                    }
+                    else {
+                        return CreateTokenAndAdvanceChar(ch);
+                    }
+                }
+                else if (ch == '!') {
+                    var nextch = GetNextChar();
+                    if (nextch == '=') {
+                        state = CreateState(StateKind.None);
+                        AdvanceChar();
+                        AdvanceChar();
+                        return CreateToken(TokenKind.ExclamationEquals, state);
+                    }
+                    else {
+                        return CreateTokenAndAdvanceChar(ch);
+                    }
+                }
+                else if (ch == '<') {
+                    var nextch = GetNextChar();
+                    if (nextch == '=') {
+                        state = CreateState(StateKind.None);
+                        AdvanceChar();
+                        AdvanceChar();
+                        return CreateToken(TokenKind.LessThanEquals, state);
+                    }
+                    else if (nextch == '<') {
+                        state = CreateState(StateKind.None);
+                        AdvanceChar();
+                        AdvanceChar();
+                        return CreateToken(TokenKind.LessThanLessThan, state);
+                    }
+                    else {
+                        return CreateTokenAndAdvanceChar(ch);
+                    }
+                }
+                else if (ch == '>') {
+                    var nextch = GetNextChar();
+                    if (nextch == '=') {
+                        state = CreateState(StateKind.None);
+                        AdvanceChar();
+                        AdvanceChar();
+                        return CreateToken(TokenKind.GreaterThanEquals, state);
+                    }
+                    else {
+                        return CreateTokenAndAdvanceChar(ch);
+                    }
+                }
+                else if (ch == '|') {
+                    var nextch = GetNextChar();
+                    if (nextch == '|') {
+                        state = CreateState(StateKind.None);
+                        AdvanceChar();
+                        AdvanceChar();
+                        return CreateToken(TokenKind.BarBar, state);
+                    }
+                    else {
+                        return CreateTokenAndAdvanceChar(ch);
+                    }
+                }
+                else if (ch == '&') {
+                    var nextch = GetNextChar();
+                    if (nextch == '&') {
+                        state = CreateState(StateKind.None);
+                        AdvanceChar();
+                        AdvanceChar();
+                        return CreateToken(TokenKind.AmpersandAmpersand, state);
+                    }
+                    else {
+                        return CreateTokenAndAdvanceChar(ch);
+                    }
+                }
+                else if (ch == '?') {
+                    var nextch = GetNextChar();
+                    if (nextch == '?') {
+                        state = CreateState(StateKind.None);
+                        AdvanceChar();
+                        AdvanceChar();
+                        return CreateToken(TokenKind.QuestionQuestion, state);
+                    }
+                    else {
+                        return CreateTokenAndAdvanceChar(ch);
+                    }
+                }
+
+
                 else {
                     return CreateTokenAndAdvanceChar(ch);
                 }

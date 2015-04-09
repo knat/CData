@@ -106,27 +106,6 @@ namespace CData.Compiler {
             }
             return false;
         }
-        private bool QualifiableName(out QualifiableNameNode result) {
-            NameNode name;
-            if (Name(out name)) {
-                if (Token(':')) {
-                    result = new QualifiableNameNode(name, NameExpected());
-                }
-                else {
-                    result = new QualifiableNameNode(default(NameNode), name);
-                }
-                return true;
-            }
-            result = default(QualifiableNameNode);
-            return false;
-        }
-        private QualifiableNameNode QualifiableNameExpected() {
-            QualifiableNameNode qName;
-            if (!QualifiableName(out qName)) {
-                ErrorDiagAndThrow("Qualifiable name expected.");
-            }
-            return qName;
-        }
         private void CheckDuplicateGlobalType(NamespaceNode ns, NameNode name) {
             if (ns.GlobalTypeList.Count > 0) {
                 foreach (var globalType in ns.GlobalTypeList) {
