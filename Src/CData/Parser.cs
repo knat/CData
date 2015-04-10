@@ -74,6 +74,12 @@ namespace CData {
         protected static bool IsNameToken(int kind) {
             return kind == (int)TokenKind.Name || kind == (int)TokenKind.VerbatimName;
         }
+        protected static bool IsStringToken(TokenKind kind) {
+            return kind == TokenKind.StringValue || kind == TokenKind.VerbatimStringValue;
+        }
+        protected static bool IsStringToken(int kind) {
+            return kind == (int)TokenKind.StringValue || kind == (int)TokenKind.VerbatimStringValue;
+        }
         protected TextSpan GetTextSpan(Token token) {
             return token.ToTextSpan(_filePath);
         }
@@ -236,7 +242,7 @@ namespace CData {
             return qName;
         }
 
-        public bool AtomValue(out AtomValueNode result, AtomValueKind expectedKind = AtomValueKind.None) {
+        protected bool AtomValue(out AtomValueNode result, bool takeNumberSign) {
             var token = GetToken();
             var tokenValue = token.Value;
             var valueKind = AtomValueKind.None;
@@ -266,46 +272,121 @@ namespace CData {
                     valueKind = AtomValueKind.Real;
                     break;
             }
-            if (valueKind != AtomValueKind.None && (expectedKind == AtomValueKind.None || valueKind == expectedKind)) {
+            if (valueKind != AtomValueKind.None) {
                 result = new AtomValueNode(valueKind, tokenValue, GetTextSpan(token));
+                ConsumeToken();
+                return true;
+            }
+            if (takeNumberSign && (token.Kind == '-' || token.Kind == '+')) {
+                var nextToken = GetToken(1);
+                switch (nextToken.TokenKind) {
+                    case TokenKind.IntegerValue:
+                        valueKind = AtomValueKind.Integer;
+                        break;
+                    case TokenKind.DecimalValue:
+                        valueKind = AtomValueKind.Decimal;
+                        break;
+                    case TokenKind.RealValue:
+                        valueKind = AtomValueKind.Real;
+                        break;
+                }
+                if (valueKind != AtomValueKind.None) {
+                    result = new AtomValueNode(valueKind, (token.Kind == '-' ? "-" : "+") + nextToken.Value, GetTextSpan(nextToken));
+                    ConsumeToken();
+                    ConsumeToken();
+                    return true;
+                }
+            }
+            result = default(AtomValueNode);
+            return false;
+        }
+        protected AtomValueNode AtomValueExpected(bool takeNumberSign) {
+            AtomValueNode av;
+            if (!AtomValue(out av, takeNumberSign)) {
+                ErrorDiagAndThrow("Atom value expected.");
+            }
+            return av;
+        }
+        protected AtomValueNode NonNullAtomValueExpected(bool takeNumberSign) {
+            var av = AtomValueExpected(takeNumberSign);
+            if (av.IsNull) {
+                ErrorDiagAndThrow("Non-null atom value expected.", av.TextSpan);
+            }
+            return av;
+        }
+        protected bool StringValue(out AtomValueNode result) {
+            var token = GetToken();
+            if (IsStringToken(token.TokenKind)) {
+                result = new AtomValueNode(AtomValueKind.String, token.Value, GetTextSpan(token));
                 ConsumeToken();
                 return true;
             }
             result = default(AtomValueNode);
             return false;
         }
-        protected AtomValueNode AtomValueExpected(AtomValueKind expectedKind = AtomValueKind.None) {
-            AtomValueNode atomValue;
-            if (!AtomValue(out atomValue, expectedKind)) {
-                ErrorDiagAndThrow(expectedKind == AtomValueKind.None ? "Atom value expected." :
-                    expectedKind.ToString() + " value expected.");
-            }
-            return atomValue;
-        }
-        protected AtomValueNode NonNullAtomValueExpected() {
-            var atomValue = AtomValueExpected();
-            if (atomValue.IsNull) {
-                ErrorDiagAndThrow("Non-null atom value expected.", atomValue.TextSpan);
-            }
-            return atomValue;
-        }
-        protected bool StringValue(out AtomValueNode result) {
-            return AtomValue(out result, AtomValueKind.String);
-        }
         protected AtomValueNode StringValueExpected() {
-            return AtomValueExpected(AtomValueKind.String);
+            AtomValueNode av;
+            if (!StringValue(out av)) {
+                ErrorDiagAndThrow("String value expected.");
+            }
+            return av;
         }
-        protected bool IntegerValue(out AtomValueNode result) {
-            return AtomValue(out result, AtomValueKind.Integer);
+        protected AtomValueNode UriExpected() {
+            var uri = StringValueExpected();
+            if (uri.Value == Extensions.SystemUri) {
+                ErrorDiagAndThrow(new DiagMsg(DiagCode.UriReserved), uri.TextSpan);
+            }
+            return uri;
         }
-        protected AtomValueNode IntegerValueExpected() {
-            return AtomValueExpected(AtomValueKind.Integer);
+        protected NameNode UriAliasExpected() {
+            var alias = NameExpected();
+            if (alias.Value == "sys" || alias.Value == "thisns") {
+                ErrorDiagAndThrow(new DiagMsg(DiagCode.UriAliasReserved), alias.TextSpan);
+            }
+            return alias;
         }
+
         //
         //
-        //expressions
+        //query & expressions
         //
         //
+        private bool Query(out QueryNode result) {
+            List<AliasUriNode> aliasUriList = null;
+            while (Token('#')) {
+                var alias = UriAliasExpected();
+                if (aliasUriList != null) {
+                    foreach (var item in aliasUriList) {
+                        if (item.Alias == alias) {
+                            ErrorDiagAndThrow(new DiagMsg(DiagCode.DuplicateNamespaceAlias, alias.Value), alias.TextSpan);
+                        }
+                    }
+                }
+                TokenExpected('=');
+                var uri = UriExpected();
+                if (!ProgramMetadata.IsUriDefined(uri.Value)) {
+                    ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidNamespaceReference, uri.Value), uri.TextSpan);
+                }
+                if (aliasUriList == null) {
+                    aliasUriList = new List<AliasUriNode>();
+                }
+                aliasUriList.Add(new AliasUriNode(alias, uri));
+            }
+            ExpressionNode expr;
+            if (aliasUriList == null) {
+                Expression(out expr);
+            }
+            else {
+                expr = ExpressionExpected();
+            }
+            if (expr != null) {
+                result = new QueryNode(aliasUriList, expr);
+                return true;
+            }
+            result = null;
+            return false;
+        }
+
         private void ExpressionExpectedError() {
             ErrorDiagAndThrow("Expression expected.");
         }
@@ -651,7 +732,7 @@ namespace CData {
             }
             else {
                 AtomValueNode av;
-                if (AtomValue(out av)) {
+                if (AtomValue(out av, false)) {
                     expr = new LiteralExpressionNode(av);
                 }
                 else {
@@ -794,7 +875,7 @@ namespace CData {
                         else {
                             foreach (var item in list) {
                                 if (item.Alias == alias) {
-                                    ErrorDiagAndThrow(new DiagMsg(DiagCode.DuplicateUriAlias, alias), aliasNode.TextSpan);
+                                    ErrorDiagAndThrow(new DiagMsg(DiagCode.DuplicateNamespaceAlias, alias), aliasNode.TextSpan);
                                 }
                             }
                         }
@@ -833,7 +914,7 @@ namespace CData {
                 var hasUriAliasingList = UriAliasingList();
                 TokenExpected('{');
                 var fullName = new FullName(GetUri(aliasNode), nameNode.Value);
-                var clsMd = AssemblyMetadata.GetGlobalType<ClassMetadata>(fullName);
+                var clsMd = ProgramMetadata.GetGlobalType<ClassMetadata>(fullName);
                 if (clsMd == null) {
                     ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidClassReference, fullName.ToString()), nameNode.TextSpan);
                 }
@@ -905,7 +986,7 @@ namespace CData {
         private bool LocalValue(LocalTypeMetadata typeMd, out object result) {
             var typeKind = typeMd.Kind;
             AtomValueNode avNode;
-            if (AtomValue(out avNode)) {
+            if (AtomValue(out avNode, true)) {
                 if (avNode.IsNull) {
                     if (!typeMd.IsNullable) {
                         ErrorDiagAndThrow(new DiagMsg(DiagCode.NullNotAllowed), avNode.TextSpan);
@@ -932,7 +1013,7 @@ namespace CData {
                     TokenExpected(':');
                     var nameNode = NameExpected();
                     var fullName = new FullName(uri, nameNode.Value);
-                    var enumMd = AssemblyMetadata.GetGlobalType<EnumMetadata>(fullName);
+                    var enumMd = ProgramMetadata.GetGlobalType<EnumMetadata>(fullName);
                     if (enumMd == null) {
                         ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidEnumReference, fullName.ToString()), nameNode.TextSpan);
                     }

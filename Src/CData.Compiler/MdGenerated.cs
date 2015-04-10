@@ -125,14 +125,14 @@ namespace CData.Compiler {
     }
 }
 
-public sealed class AssemblyMetadata_CData_Compiler : global::CData.AssemblyMetadata {
-    public static readonly global::CData.AssemblyMetadata Instance = new AssemblyMetadata_CData_Compiler(new global::CData.GlobalTypeMetadata[]
+public sealed class AssemblyMetadata_CData_Compiler : global::CData.ProgramMetadata {
+    public static readonly global::CData.ProgramMetadata Instance = new AssemblyMetadata_CData_Compiler(new global::CData.GlobalTypeMetadata[]
     {
     global::CData.Compiler.MdGlobalType.__ThisMetadata, global::CData.Compiler.MdNamespace.__ThisMetadata, global::CData.Compiler.MdEnum.__ThisMetadata, global::CData.Compiler.MdProperty.__ThisMetadata, global::CData.Compiler.MdClass.__ThisMetadata
     }
 
     );
     private AssemblyMetadata_CData_Compiler(global::CData.GlobalTypeMetadata[] globalTypes)
-        : base(globalTypes) {
+        : base() {
     }
 }

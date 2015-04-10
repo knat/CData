@@ -18,6 +18,9 @@ namespace CData {
         internal static bool IsClrRefAtom(this TypeKind kind) {
             return kind == TypeKind.String || kind == TypeKind.IgnoreCaseString || kind == TypeKind.Binary;
         }
+        internal static FullName GetFullName(TypeKind kind) {
+            return new FullName(Extensions.SystemUri, kind.ToString());
+        }
         //
         internal static bool TryInvParse(this string s, out char result) {
             if (s.Length == 1) {

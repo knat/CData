@@ -7,7 +7,7 @@ using System.Collections;
 namespace CData {
     public static class Serializer {
         public static bool TryLoad<T>(string filePath, TextReader reader, DiagContext context,
-            AssemblyMetadata assemblyMetadata, ClassMetadata classMetadata, out T result) where T : class {
+            ProgramMetadata assemblyMetadata, ClassMetadata classMetadata, out T result) where T : class {
             object obj;
             if (Parser.Parse(filePath, reader, context, classMetadata, out obj)) {
                 result = (T)obj;

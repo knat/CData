@@ -3,6 +3,22 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 
 namespace CData {
+    internal sealed class QueryNode {
+        internal QueryNode(List<AliasUriNode> aliasUriList, ExpressionNode expression) {
+            AliasUriList = aliasUriList;
+            Expression = expression;
+        }
+        public readonly List<AliasUriNode> AliasUriList;//opt
+        public readonly ExpressionNode Expression;
+    }
+    internal sealed class AliasUriNode {
+        public AliasUriNode(NameNode alias, AtomValueNode uri) {
+            Alias = alias;
+            Uri = uri;
+        }
+        public readonly NameNode Alias;
+        public readonly AtomValueNode Uri;
+    }
     internal enum ExpressionKind {
         None = -1,
         Lambda = ExpressionType.Lambda,
@@ -40,9 +56,6 @@ namespace CData {
         QualifiableName = 1000,
         Literal,
         AnonymousObjectCreation,
-
-
-
         Parenthesized,
 
     }
@@ -73,6 +86,8 @@ namespace CData {
         public readonly ExpressionNode WhenTrue;
         public readonly ExpressionNode WhenFalse;
     }
+    //Coalesce, OrElse, AndAlso, Or, ExclusiveOr, And, Equal, NotEqual, LessThan, LessThanOrEqual, GreaterThan, GreaterThanOrEqual
+    //LeftShift, RightShift, Add, Subtract, Multiply, Divide, Modulo
     internal sealed class BinaryExpressionNode : ExpressionNode {
         public BinaryExpressionNode(ExpressionKind kind, ExpressionNode left, ExpressionNode right) :
             base(kind) {

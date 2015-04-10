@@ -5,10 +5,8 @@ namespace CData.Compiler {
         None = 0,
         InternalCompilerError = -2000,
         //
-        AliasSysReserved,
-        UriSystemReserved,
-        DuplicateNamespaceAlias,
-        InvalidNamespaceReference,
+        //DuplicateNamespaceAlias,
+        //InvalidNamespaceReference,
         DuplicateGlobalTypeName,
         DuplicateEnumMemberName,
         DuplicatePropertyName,
@@ -71,14 +69,10 @@ namespace CData.Compiler {
         public string GetMessage() {
             switch (Code) {
                 //
-                case DiagCodeEx.AliasSysReserved:
-                    return "Alias 'sys' is reserved.";
-                case DiagCodeEx.UriSystemReserved:
-                    return "Uri '" + Extensions.SystemUri + "' is reserved.";
-                case DiagCodeEx.DuplicateNamespaceAlias:
-                    return "Duplicate namespace alias '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.InvalidNamespaceReference:
-                    return "Invalid namespace reference '{0}'.".InvFormat(_msgArgs);
+                //case DiagCodeEx.DuplicateNamespaceAlias:
+                //    return "Duplicate namespace alias '{0}'.".InvFormat(_msgArgs);
+                //case DiagCodeEx.InvalidNamespaceReference:
+                //    return "Invalid namespace reference '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.DuplicateGlobalTypeName:
                     return "Duplicate global type name '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.DuplicateEnumMemberName:
@@ -181,7 +175,14 @@ namespace CData.Compiler {
             ErrorDiag(diagMsg, textSpan);
             throw _contextException;
         }
+        public static void ErrorDiagAndThrow(DiagMsg diagMsg, TextSpan textSpan) {
+            ErrorDiag(diagMsg, textSpan);
+            throw _contextException;
+        }
         private static void ErrorDiag(DiagMsgEx diagMsg, TextSpan textSpan) {
+            Current.AddDiag(DiagSeverity.Error, (int)diagMsg.Code, diagMsg.GetMessage(), textSpan);
+        }
+        private static void ErrorDiag(DiagMsg diagMsg, TextSpan textSpan) {
             Current.AddDiag(DiagSeverity.Error, (int)diagMsg.Code, diagMsg.GetMessage(), textSpan);
         }
         //private static void ThrowIfHasErrors() {

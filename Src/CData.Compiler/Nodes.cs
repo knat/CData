@@ -62,7 +62,7 @@ namespace CData.Compiler {
         public void ResolveImports(LogicalNamespaceMap nsMap) {
             foreach (var import in ImportList) {
                 if (!nsMap.TryGetValue(import.Uri.Value, out import.LogicalNamespace)) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidNamespaceReference, import.Uri.Value),
+                    DiagContextEx.ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidNamespaceReference, import.Uri.Value),
                         import.Uri.TextSpan);
                 }
             }

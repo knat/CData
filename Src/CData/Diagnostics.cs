@@ -6,8 +6,12 @@ namespace CData {
     internal enum DiagCode {
         None = 0,
         Parsing = -1000,
-        DuplicateUriAlias,
+        UriReserved,
+        UriAliasReserved,
         InvalidUriReference,
+        DuplicateNamespaceAlias,
+        InvalidNamespaceReference,
+
         InvalidClassReference,
         ClassNotEqualToOrDeriveFromTheDeclared,
         ClassIsAbstract,
@@ -37,10 +41,17 @@ namespace CData {
         private readonly string[] _msgArgs;
         public string GetMessage() {
             switch (Code) {
-                case DiagCode.DuplicateUriAlias:
-                    return "Duplicate uri alias '{0}'.".InvFormat(_msgArgs);
+                case DiagCode.UriReserved:
+                    return "Uri '" + Extensions.SystemUri + "' is reserved.";
+                case DiagCode.UriAliasReserved:
+                    return "Uri alias 'sys' or 'thisns' are reserved.";
                 case DiagCode.InvalidUriReference:
                     return "Invalid uri reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCode.DuplicateNamespaceAlias:
+                    return "Duplicate namespace alias '{0}'.".InvFormat(_msgArgs);
+                case DiagCode.InvalidNamespaceReference:
+                    return "Invalid namespace reference '{0}'.".InvFormat(_msgArgs);
+
                 case DiagCode.InvalidClassReference:
                     return "Invalid class reference '{0}'.".InvFormat(_msgArgs);
                 case DiagCode.ClassNotEqualToOrDeriveFromTheDeclared:

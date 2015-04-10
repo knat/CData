@@ -48,9 +48,9 @@ namespace CData {
         StringValue,
         VerbatimStringValue,// @"..."
         CharValue,// 'c'
-        IntegerValue,// +-123
-        DecimalValue,// +-123.45
-        RealValue,// +-123.45Ee+-12
+        IntegerValue,// 123
+        DecimalValue,// 123.45
+        RealValue,// 123.45Ee+-12
         HashOpenBracket,// #[
         ColonColon,// ::
         EqualsEquals,// ==
@@ -326,12 +326,8 @@ namespace CData {
                             AdvanceChar();
                             AdvanceChar();
                         }
-                        else if (nextch == '.') {
-                            return CreateToken(TokenKind.IntegerValue, state, sb.ToString());
-                        }
                         else {
-                            AdvanceChar();
-                            return CreateErrorToken("Decimal digit expected.");
+                            return CreateToken(TokenKind.IntegerValue, state, sb.ToString());
                         }
                     }
                     else if (ch == 'E' || ch == 'e') {
@@ -392,6 +388,7 @@ namespace CData {
                         return CreateToken(TokenKind.RealValue, state, sb.ToString());
                     }
                 }
+                //
                 //
                 //
                 else if (ch == char.MaxValue) {
@@ -457,36 +454,6 @@ namespace CData {
                     AdvanceChar();
                     sb = GetStringBuilder();
                     sb.Append(ch);
-                }
-                else if (ch == '+' || ch == '-') {
-                    var nextch = GetNextChar();
-                    if (IsDecDigit(nextch)) {
-                        state = CreateState(StateKind.InNumericValueInteger);
-                        AdvanceChar();
-                        AdvanceChar();
-                        sb = GetStringBuilder();
-                        sb.Append(ch);
-                        sb.Append(nextch);
-                    }
-                    else if (nextch == '.') {
-                        var nextnextch = GetNextNextChar();
-                        if (IsDecDigit(nextnextch)) {
-                            state = CreateState(StateKind.InNumericValueFraction);
-                            AdvanceChar();
-                            AdvanceChar();
-                            AdvanceChar();
-                            sb = GetStringBuilder();
-                            sb.Append(ch);
-                            sb.Append(nextch);
-                            sb.Append(nextnextch);
-                        }
-                        else {
-                            return CreateTokenAndAdvanceChar(ch);
-                        }
-                    }
-                    else {
-                        return CreateTokenAndAdvanceChar(ch);
-                    }
                 }
                 else if (ch == '.') {
                     var nextch = GetNextChar();

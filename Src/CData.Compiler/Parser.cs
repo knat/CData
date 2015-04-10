@@ -77,26 +77,17 @@ namespace CData.Compiler {
             }
             return false;
         }
-        private AtomValueNode UriExpected() {
-            var uri = StringValueExpected();
-            if (uri.Value == Extensions.SystemUri) {
-                ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.UriSystemReserved), uri.TextSpan);
-            }
-            return uri;
-        }
+
         private bool Import(NamespaceNode ns) {
             if (Keyword(ParserConstants.ImportKeyword)) {
                 var uri = UriExpected();
                 var alias = default(NameNode);
                 if (Keyword(ParserConstants.AsKeyword)) {
-                    alias = NameExpected();
-                    if (alias.Value == "sys") {
-                        ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.AliasSysReserved), alias.TextSpan);
-                    }
+                    alias = UriAliasExpected();
                     if (ns.ImportList.Count > 0) {
                         foreach (var import in ns.ImportList) {
                             if (import.Alias == alias) {
-                                ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateNamespaceAlias, alias.Value), alias.TextSpan);
+                                ErrorDiagAndThrow(new DiagMsg(DiagCode.DuplicateNamespaceAlias, alias.Value), alias.TextSpan);
                             }
                         }
                     }
@@ -147,7 +138,7 @@ namespace CData.Compiler {
                     }
                 }
                 TokenExpected('=');
-                en.MemberList.Add(new EnumMemberNode(name, NonNullAtomValueExpected()));
+                en.MemberList.Add(new EnumMemberNode(name, NonNullAtomValueExpected(true)));
                 return true;
             }
             return false;
