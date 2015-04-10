@@ -1,15 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
-using System.Linq.Expressions;
 
 namespace CData {
+    internal static class ParserKeywords {
+        public const string AsKeyword = "as";
+        public const string IsKeyword = "is";
+        public const string NewKeyword = "new";
+    }
     internal abstract class ParserBase {
+        protected ParserBase() {
+            _tokens = new Token[_tokenBufLength];
+        }
         protected virtual void Set(string filePath, TextReader reader, DiagContext context) {
             if (filePath == null) throw new ArgumentNullException("filePath");
             if (context == null) throw new ArgumentNullException("context");
             _lexer = Lexer.Get(reader);
-            _token = null;
+            _tokenIndex = -1;
             _filePath = filePath;
             _context = context;
         }
@@ -17,13 +25,15 @@ namespace CData {
             if (_lexer != null) {
                 _lexer.Clear();
             }
-            _token = null;
+            _tokenIndex = -1;
             _filePath = null;
             _context = null;
         }
         private Lexer _lexer;
-        private Token? _token;
-        protected string _filePath;
+        private const int _tokenBufLength = 4;
+        private readonly Token[] _tokens;
+        private int _tokenIndex;
+        private string _filePath;
         protected DiagContext _context;
         //
         protected sealed class ParsingException : Exception { }
@@ -42,7 +52,7 @@ namespace CData {
             Throw();
         }
         protected void ErrorDiagAndThrow(string errMsg, Token token) {
-            ErrorDiagAndThrow(errMsg ?? token.Value, token.ToTextSpan(_filePath));
+            ErrorDiagAndThrow(errMsg ?? token.Value, GetTextSpan(token));
         }
         protected void ErrorDiagAndThrow(string errMsg) {
             ErrorDiagAndThrow(errMsg, GetToken());
@@ -55,14 +65,25 @@ namespace CData {
             ErrorDiagAndThrow(diagMsg, GetTextSpan());
         }
         //
-        private static bool IsTrivalToken(TokenKind tokenKind) {
-            return tokenKind == TokenKind.WhitespaceOrNewLine || tokenKind == TokenKind.SingleLineComment || tokenKind == TokenKind.MultiLineComment;
+        private static bool IsTrivalToken(TokenKind kind) {
+            return kind == TokenKind.WhitespaceOrNewLine || kind == TokenKind.SingleLineComment || kind == TokenKind.MultiLineComment;
         }
-        protected Token GetToken() {
-            if (_token != null) {
-                return _token.Value;
-            }
-            while (true) {
+        protected static bool IsNameToken(TokenKind kind) {
+            return kind == TokenKind.Name || kind == TokenKind.VerbatimName;
+        }
+        protected static bool IsNameToken(int kind) {
+            return kind == (int)TokenKind.Name || kind == (int)TokenKind.VerbatimName;
+        }
+        protected TextSpan GetTextSpan(Token token) {
+            return token.ToTextSpan(_filePath);
+        }
+        protected TextSpan GetTextSpan() {
+            return GetTextSpan(GetToken());
+        }
+        protected Token GetToken(int index = 0) {
+            Debug.Assert(index >= 0 && index < _tokenBufLength);
+            var tokens = _tokens;
+            while (_tokenIndex < index) {
                 var token = _lexer.GetToken();
                 var tokenKind = token.TokenKind;
                 if (!IsTrivalToken(tokenKind)) {
@@ -70,37 +91,37 @@ namespace CData {
                         ErrorDiagAndThrow(null, token);
                     }
                     else {
-                        _token = token;
-                        return token;
+                        tokens[++_tokenIndex] = token;
                     }
                 }
             }
-        }
-        protected TextSpan GetTextSpan() {
-            return GetToken().ToTextSpan(_filePath);
+            return tokens[index];
         }
         protected void ConsumeToken() {
-            _token = null;
+            Debug.Assert(_tokenIndex >= 0);
+            if (--_tokenIndex >= 0) {
+                Array.Copy(_tokens, 1, _tokens, 0, _tokenIndex + 1);
+            }
         }
-        protected bool PeekToken(int kind) {
-            return GetToken().Kind == kind;
+        protected bool PeekToken(int kind, int tkIdx = 0) {
+            return GetToken(tkIdx).Kind == kind;
         }
-        protected bool PeekToken(int kind1, int kind2) {
-            var kind = GetToken().Kind;
+        protected bool PeekToken(int kind1, int kind2, int tkIdx = 0) {
+            var kind = GetToken(tkIdx).Kind;
             return kind == kind1 || kind == kind2;
         }
-        protected bool PeekToken(int kind1, int kind2, int kind3) {
-            var kind = GetToken().Kind;
+        protected bool PeekToken(int kind1, int kind2, int kind3, int tkIdx = 0) {
+            var kind = GetToken(tkIdx).Kind;
             return kind == kind1 || kind == kind2 || kind == kind3;
         }
-        protected bool PeekToken(int kind1, int kind2, int kind3, int kind4) {
-            var kind = GetToken().Kind;
+        protected bool PeekToken(int kind1, int kind2, int kind3, int kind4, int tkIdx = 0) {
+            var kind = GetToken(tkIdx).Kind;
             return kind == kind1 || kind == kind2 || kind == kind3 || kind == kind4;
         }
         protected bool Token(int kind, out TextSpan textSpan) {
             var token = GetToken();
             if (token.Kind == kind) {
-                textSpan = token.ToTextSpan(_filePath);
+                textSpan = GetTextSpan(token);
                 ConsumeToken();
                 return true;
             }
@@ -145,9 +166,8 @@ namespace CData {
         }
         protected bool Name(out NameNode result) {
             var token = GetToken();
-            var kind = token.TokenKind;
-            if (kind == TokenKind.Name || kind == TokenKind.VerbatimName) {
-                result = new NameNode(token.Value, token.ToTextSpan(_filePath));
+            if (IsNameToken(token.TokenKind)) {
+                result = new NameNode(token.Value, GetTextSpan(token));
                 ConsumeToken();
                 return true;
             }
@@ -177,7 +197,7 @@ namespace CData {
         protected bool Keyword(string keywordValue, out NameNode keyword) {
             var token = GetToken();
             if (token.TokenKind == TokenKind.Name && token.Value == keywordValue) {
-                keyword = new NameNode(keywordValue, token.ToTextSpan(_filePath));
+                keyword = new NameNode(keywordValue, GetTextSpan(token));
                 ConsumeToken();
                 return true;
             }
@@ -187,7 +207,7 @@ namespace CData {
         protected bool Keyword(string keywordValue, out TextSpan textSpan) {
             var token = GetToken();
             if (token.TokenKind == TokenKind.Name && token.Value == keywordValue) {
-                textSpan = token.ToTextSpan(_filePath);
+                textSpan = GetTextSpan(token);
                 ConsumeToken();
                 return true;
             }
@@ -219,35 +239,35 @@ namespace CData {
         public bool AtomValue(out AtomValueNode result, AtomValueKind expectedKind = AtomValueKind.None) {
             var token = GetToken();
             var tokenValue = token.Value;
-            var kind = AtomValueKind.None;
+            var valueKind = AtomValueKind.None;
             switch (token.TokenKind) {
                 case TokenKind.StringValue:
                 case TokenKind.VerbatimStringValue:
-                    kind = AtomValueKind.String;
+                    valueKind = AtomValueKind.String;
                     break;
                 case TokenKind.CharValue:
-                    kind = AtomValueKind.Char;
+                    valueKind = AtomValueKind.Char;
                     break;
                 case TokenKind.Name:
                     if (tokenValue == "null") {
-                        kind = AtomValueKind.Null;
+                        valueKind = AtomValueKind.Null;
                     }
                     else if (tokenValue == "true" || tokenValue == "false") {
-                        kind = AtomValueKind.Boolean;
+                        valueKind = AtomValueKind.Boolean;
                     }
                     break;
                 case TokenKind.IntegerValue:
-                    kind = AtomValueKind.Integer;
+                    valueKind = AtomValueKind.Integer;
                     break;
                 case TokenKind.DecimalValue:
-                    kind = AtomValueKind.Decimal;
+                    valueKind = AtomValueKind.Decimal;
                     break;
                 case TokenKind.RealValue:
-                    kind = AtomValueKind.Real;
+                    valueKind = AtomValueKind.Real;
                     break;
             }
-            if (kind != AtomValueKind.None && (expectedKind == AtomValueKind.None || kind == expectedKind)) {
-                result = new AtomValueNode(kind, tokenValue, token.ToTextSpan(_filePath));
+            if (valueKind != AtomValueKind.None && (expectedKind == AtomValueKind.None || valueKind == expectedKind)) {
+                result = new AtomValueNode(valueKind, tokenValue, GetTextSpan(token));
                 ConsumeToken();
                 return true;
             }
@@ -281,15 +301,13 @@ namespace CData {
         protected AtomValueNode IntegerValueExpected() {
             return AtomValueExpected(AtomValueKind.Integer);
         }
-
-        //expression
+        //
+        //
+        //expressions
+        //
+        //
         private void ExpressionExpectedError() {
             ErrorDiagAndThrow("Expression expected.");
-        }
-        private bool Expression(out ExpressionNode result) {
-
-            result = null;
-            return false;
         }
         private ExpressionNode ExpressionExpected() {
             ExpressionNode r;
@@ -297,6 +315,50 @@ namespace CData {
                 ExpressionExpectedError();
             }
             return r;
+        }
+        private bool Expression(out ExpressionNode result) {
+            var tk0Kind = GetToken().Kind;
+            if (IsNameToken(tk0Kind)) {
+                if (GetToken(1).TokenKind == TokenKind.EqualsGreaterThan) {
+                    var pName = NameExpected();
+                    ConsumeToken();// =>
+                    result = new LambdaExpressionNode(new List<NameNode> { pName }, ExpressionExpected());
+                    return true;
+                }
+            }
+            else if (tk0Kind == '(') {
+                if (IsNameToken(GetToken(1).Kind)) {
+                    var tk2Kind = GetToken(2).Kind;
+                    if (tk2Kind == ')') {
+                        if (GetToken(3).TokenKind == TokenKind.EqualsGreaterThan) {
+                            ConsumeToken();// (
+                            var pName = NameExpected();
+                            ConsumeToken();// )
+                            ConsumeToken();// =>
+                            result = new LambdaExpressionNode(new List<NameNode> { pName }, ExpressionExpected());
+                            return true;
+                        }
+                    }
+                    else if (tk2Kind == ',') {
+                        ConsumeToken();// (
+                        var pNameList = new List<NameNode> { NameExpected() };
+                        while (Token(',')) {
+                            var name = NameExpected();
+                            foreach (var item in pNameList) {
+                                if (item == name) {
+
+                                }
+                            }
+                            pNameList.Add(name);
+                        }
+                        TokenExpected(')');
+                        TokenExpected(TokenKind.EqualsGreaterThan, "=> expected.");
+                        result = new LambdaExpressionNode(pNameList, ExpressionExpected());
+                        return true;
+                    }
+                }
+            }
+            return ConditionalExpression(out result);
         }
         private bool ConditionalExpression(out ExpressionNode result) {
             ExpressionNode condition;
@@ -331,7 +393,7 @@ namespace CData {
                     result = left;
                 }
                 else {
-                    result = new BinaryExpressionNode(ExpressionType.Coalesce, left, right);
+                    result = new BinaryExpressionNode(ExpressionKind.Coalesce, left, right);
                 }
                 return true;
             }
@@ -345,16 +407,331 @@ namespace CData {
                     if (!AndAlsoExpression(out right)) {
                         ExpressionExpectedError();
                     }
-                    result = new BinaryExpressionNode(ExpressionType.OrElse, result, right);
+                    result = new BinaryExpressionNode(ExpressionKind.OrElse, result, right);
                 }
             }
             return result != null;
         }
         private bool AndAlsoExpression(out ExpressionNode result) {
-
-            result = null;
-            return false;
+            if (OrExpression(out result)) {
+                while (Token(TokenKind.AmpersandAmpersand)) {
+                    ExpressionNode right;
+                    if (!OrExpression(out right)) {
+                        ExpressionExpectedError();
+                    }
+                    result = new BinaryExpressionNode(ExpressionKind.AndAlso, result, right);
+                }
+            }
+            return result != null;
         }
+        private bool OrExpression(out ExpressionNode result) {
+            if (ExclusiveOrExpression(out result)) {
+                while (Token('|')) {
+                    ExpressionNode right;
+                    if (!ExclusiveOrExpression(out right)) {
+                        ExpressionExpectedError();
+                    }
+                    result = new BinaryExpressionNode(ExpressionKind.Or, result, right);
+                }
+            }
+            return result != null;
+        }
+        private bool ExclusiveOrExpression(out ExpressionNode result) {
+            if (AndExpression(out result)) {
+                while (Token('^')) {
+                    ExpressionNode right;
+                    if (!AndExpression(out right)) {
+                        ExpressionExpectedError();
+                    }
+                    result = new BinaryExpressionNode(ExpressionKind.ExclusiveOr, result, right);
+                }
+            }
+            return result != null;
+        }
+        private bool AndExpression(out ExpressionNode result) {
+            if (EqualityExpression(out result)) {
+                while (Token('&')) {
+                    ExpressionNode right;
+                    if (!EqualityExpression(out right)) {
+                        ExpressionExpectedError();
+                    }
+                    result = new BinaryExpressionNode(ExpressionKind.And, result, right);
+                }
+            }
+            return result != null;
+        }
+        private bool EqualityExpression(out ExpressionNode result) {
+            if (RelationalExpression(out result)) {
+                while (true) {
+                    ExpressionKind kind;
+                    if (Token(TokenKind.EqualsEquals)) {
+                        kind = ExpressionKind.Equal;
+                    }
+                    else if (Token(TokenKind.ExclamationEquals)) {
+                        kind = ExpressionKind.NotEqual;
+                    }
+                    else {
+                        break;
+                    }
+                    ExpressionNode right;
+                    if (!RelationalExpression(out right)) {
+                        ExpressionExpectedError();
+                    }
+                    result = new BinaryExpressionNode(kind, result, right);
+                }
+            }
+            return result != null;
+        }
+        private bool RelationalExpression(out ExpressionNode result) {
+            if (ShiftExpression(out result)) {
+                while (true) {
+                    ExpressionKind kind;
+                    if (Token('<')) {
+                        kind = ExpressionKind.LessThan;
+                    }
+                    else if (Token(TokenKind.LessThanEquals)) {
+                        kind = ExpressionKind.LessThanOrEqual;
+                    }
+                    else if (Token('>')) {
+                        kind = ExpressionKind.GreaterThan;
+                    }
+                    else if (Token(TokenKind.GreaterThanEquals)) {
+                        kind = ExpressionKind.GreaterThanOrEqual;
+                    }
+                    else if (Keyword(ParserKeywords.IsKeyword)) {
+                        kind = ExpressionKind.TypeIs;
+                    }
+                    else if (Keyword(ParserKeywords.AsKeyword)) {
+                        kind = ExpressionKind.TypeAs;
+                    }
+                    else {
+                        break;
+                    }
+                    if (kind == ExpressionKind.TypeIs || kind == ExpressionKind.TypeAs) {
+                        result = new TypedExpressionNode(kind, QualifiableNameExpected(), result);
+                    }
+                    else {
+                        ExpressionNode right;
+                        if (!ShiftExpression(out right)) {
+                            ExpressionExpectedError();
+                        }
+                        result = new BinaryExpressionNode(kind, result, right);
+                    }
+                }
+            }
+            return result != null;
+        }
+        private bool ShiftExpression(out ExpressionNode result) {
+            if (AdditiveExpression(out result)) {
+                while (true) {
+                    ExpressionKind kind = ExpressionKind.None;
+                    if (Token(TokenKind.LessThanLessThan)) {
+                        kind = ExpressionKind.LeftShift;
+                    }
+                    else {
+                        var tk1 = GetToken();
+                        if (tk1.Kind == '>') {
+                            var tk2 = GetToken(1);
+                            if (tk2.Kind == '>') {
+                                if (tk1.StartIndex + 1 == tk2.StartIndex) {
+                                    ConsumeToken();
+                                    ConsumeToken();
+                                    kind = ExpressionKind.RightShift;
+                                }
+                            }
+                        }
+                    }
+                    if (kind == ExpressionKind.None) {
+                        break;
+                    }
+                    ExpressionNode right;
+                    if (!AdditiveExpression(out right)) {
+                        ExpressionExpectedError();
+                    }
+                    result = new BinaryExpressionNode(kind, result, right);
+                }
+            }
+            return result != null;
+        }
+        private bool AdditiveExpression(out ExpressionNode result) {
+            if (MultiplicativeExpression(out result)) {
+                while (true) {
+                    ExpressionKind kind;
+                    if (Token('+')) {
+                        kind = ExpressionKind.Add;
+                    }
+                    else if (Token('-')) {
+                        kind = ExpressionKind.Subtract;
+                    }
+                    else {
+                        break;
+                    }
+                    ExpressionNode right;
+                    if (!MultiplicativeExpression(out right)) {
+                        ExpressionExpectedError();
+                    }
+                    result = new BinaryExpressionNode(kind, result, right);
+                }
+            }
+            return result != null;
+        }
+        private bool MultiplicativeExpression(out ExpressionNode result) {
+            if (PrefixUnaryExpression(out result)) {
+                while (true) {
+                    ExpressionKind kind;
+                    if (Token('*')) {
+                        kind = ExpressionKind.Multiply;
+                    }
+                    else if (Token('/')) {
+                        kind = ExpressionKind.Divide;
+                    }
+                    else if (Token('%')) {
+                        kind = ExpressionKind.Modulo;
+                    }
+                    else {
+                        break;
+                    }
+                    ExpressionNode right;
+                    if (!PrefixUnaryExpression(out right)) {
+                        ExpressionExpectedError();
+                    }
+                    result = new BinaryExpressionNode(kind, result, right);
+                }
+            }
+            return result != null;
+        }
+        private bool PrefixUnaryExpression(out ExpressionNode result) {
+            ExpressionKind kind = ExpressionKind.None;
+            var tk = GetToken();
+            var tkKind = tk.Kind;
+            if (tkKind == '!') {
+                kind = ExpressionKind.Not;
+            }
+            else if (tkKind == '-') {
+                kind = ExpressionKind.Negate;
+            }
+            else if (tkKind == '+') {
+                kind = ExpressionKind.UnaryPlus;
+            }
+            else if (tkKind == '~') {
+                kind = ExpressionKind.OnesComplement;
+            }
+            if (kind != ExpressionKind.None) {
+                ConsumeToken();
+                ExpressionNode expr;
+                if (!PrefixUnaryExpression(out expr)) {
+                    ExpressionExpectedError();
+                }
+                result = new UnaryExpressionNode(kind, expr);
+                return true;
+            }
+            if (PrimaryExpression(out result)) {
+                if (result.Kind == ExpressionKind.Parenthesized) {
+                    var qNamExpr = ((UnaryExpressionNode)result).Expression as QualifiableNameExpressionNode;
+                    if (qNamExpr != null) {
+                        tk = GetToken();
+                        tkKind = tk.Kind;
+                        if (tkKind != '-' && tkKind != '+') {
+                            ExpressionNode expr;
+                            if (PrefixUnaryExpression(out expr)) {
+                                result = new TypedExpressionNode(ExpressionKind.Convert, qNamExpr.QName, expr);
+                                return true;
+                            }
+                        }
+                    }
+                }
+            }
+            return result != null;
+        }
+        private bool PrimaryExpression(out ExpressionNode result) {
+            ExpressionNode expr = null;
+            QualifiableNameNode qName;
+            if (QualifiableName(out qName)) {
+                expr = new QualifiableNameExpressionNode(qName);
+            }
+            else {
+                AtomValueNode av;
+                if (AtomValue(out av)) {
+                    expr = new LiteralExpressionNode(av);
+                }
+                else {
+                    if (Keyword(ParserKeywords.NewKeyword)) {
+                        TokenExpected('{');
+                        var memberList = new List<AnonymousObjectMemberNode>();
+                        while (true) {
+                            if (memberList.Count > 0) {
+                                if (!Token(',')) {
+                                    break;
+                                }
+                            }
+                            NameNode name;
+                            if (Name(out name)) {
+                                if (memberList.Count > 0) {
+                                    foreach (var item in memberList) {
+                                        if (item.Name == name) {
+                                            //..
+                                        }
+                                    }
+                                }
+                                TokenExpected('=');
+                                memberList.Add(new AnonymousObjectMemberNode(name, ExpressionExpected()));
+                            }
+                            else {
+                                break;
+                            }
+                        }
+                        TokenExpected('}');
+                        expr = new AnonymousObjectCreationExpressionNode(memberList);
+                    }
+                    else {
+                        if (Token('(')) {
+                            var op = ExpressionExpected();
+                            TokenExpected(')');
+                            expr = new UnaryExpressionNode(ExpressionKind.Parenthesized, op);
+                        }
+                    }
+                }
+            }
+            if (expr != null) {
+                while (true) {
+                    if (Token('.')) {
+                        expr = new MemberAccessExpressionNode(expr, NameExpected());
+                    }
+                    else if (Token('(')) {
+                        var argList = new List<ExpressionNode>();
+                        ExpressionNode arg;
+                        if (Expression(out arg)) {
+                            argList.Add(arg);
+                            while (Token(',')) {
+                                argList.Add(ExpressionExpected());
+                            }
+                        }
+                        TokenExpected(')');
+                        expr = new CallOrIndexExpressionNode(true, expr, argList);
+                    }
+                    else if (Token('[')) {
+                        var argList = new List<ExpressionNode>();
+                        argList.Add(ExpressionExpected());
+                        while (Token(',')) {
+                            argList.Add(ExpressionExpected());
+                        }
+                        TokenExpected(']');
+                        expr = new CallOrIndexExpressionNode(false, expr, argList);
+                    }
+                    else {
+                        break;
+                    }
+                }
+            }
+            result = expr;
+            return expr != null;
+        }
+
+
+
+
+
+
 
     }
     internal sealed class Parser : ParserBase {
