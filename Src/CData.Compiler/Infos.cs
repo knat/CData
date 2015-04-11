@@ -315,16 +315,16 @@ namespace CData.Compiler {
                     if (propAttData != null) {
                         var propName = EX.GetFirstArgumentAsString(propAttData);
                         if (propName == null) {
-                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyAttribute),
+                            DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyAttribute),
                                 EX.GetTextSpan(propAttData));
                         }
                         var propInfo = GetProperty(propName);
                         if (propInfo == null) {
-                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyAttributeName, propName),
+                            DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyAttributeName, propName),
                                 EX.GetTextSpan(propAttData));
                         }
                         if (propInfo.Symbol != null) {
-                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractPropertyAttributeName, propName),
+                            DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractPropertyAttributeName, propName),
                                 EX.GetTextSpan(propAttData));
                         }
                         propInfo.Symbol = memberSymbol;
@@ -348,24 +348,24 @@ namespace CData.Compiler {
                 var memberSymbol = propInfo.Symbol;
                 if (memberSymbol != null) {
                     if (memberSymbol.IsStatic) {
-                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractPropertyCannotBeStatic),
+                        DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.ContractPropertyCannotBeStatic),
                             EX.GetTextSpan(memberSymbol));
                     }
                     var propSymbol = propInfo.PropertySymbol;
                     var fieldSymbol = propInfo.FieldSymbol;
                     if (propSymbol != null) {
                         if (propSymbol.IsReadOnly || propSymbol.IsWriteOnly) {
-                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractPropertyMustHaveGetterAndSetter),
+                            DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.ContractPropertyMustHaveGetterAndSetter),
                                 EX.GetTextSpan(memberSymbol));
                         }
                         if (propSymbol.IsIndexer) {
-                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractPropertyCannotBeIndexer),
+                            DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.ContractPropertyCannotBeIndexer),
                                 EX.GetTextSpan(memberSymbol));
                         }
                     }
                     else {
                         if (fieldSymbol.IsConst) {
-                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractFieldCannotBeConst),
+                            DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.ContractFieldCannotBeConst),
                                 EX.GetTextSpan(memberSymbol));
                         }
                     }
@@ -537,7 +537,7 @@ namespace CData.Compiler {
         public override void CheckSymbol(ISymbol propSymbol, ITypeSymbol typeSymbol, string parentTypeName) {
             if (IsClass) {
                 if (!typeSymbol.FullNameEquals(GlobalType.DottedName.NameParts)) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyTypeOrExplicitTypeExpected,
+                    DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyTypeOrExplicitTypeExpected,
                         parentTypeName, GetTypeSyntax().ToString()), EX.GetTextSpan(propSymbol));
                 }
             }
@@ -545,7 +545,7 @@ namespace CData.Compiler {
                 var effAtom = EffectiveAtom;
                 var isNullable = IsNullable;
                 if (!EX.IsAtomType(effAtom.Kind, isNullable, typeSymbol)) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyType,
+                    DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyType,
                         parentTypeName, isNullable ? effAtom.NullableTypeDisplayName : effAtom.TypeDisplayName),
                         EX.GetTextSpan(propSymbol));
                 }
@@ -589,7 +589,7 @@ namespace CData.Compiler {
             if (kind == TypeKind.List) {
                 var itfSymbol = typeSymbol.GetSelfOrInterface(CS.ICollection1NameParts);
                 if (itfSymbol == null) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyType,
+                    DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyType,
                         parentTypeName, "System.Collections.Generic.ICollection<T> or implementing type"),
                         EX.GetTextSpan(propSymbol));
                 }
@@ -598,7 +598,7 @@ namespace CData.Compiler {
             else if (kind == TypeKind.Map) {
                 var itfSymbol = typeSymbol.GetSelfOrInterface(CS.IDictionary2TNameParts);
                 if (itfSymbol == null) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyType,
+                    DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyType,
                         parentTypeName, "System.Collections.Generic.IDictionary<TKey, TValue> or implementing type"),
                         EX.GetTextSpan(propSymbol));
                 }
@@ -609,7 +609,7 @@ namespace CData.Compiler {
             else if (kind == TypeKind.ObjectSet) {
                 var itfSymbol = typeSymbol.GetSelfOrInterface(EX.IObjectSet2NameParts);
                 if (itfSymbol == null) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyType,
+                    DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyType,
                         parentTypeName, "CData.IObjectSet<TKey, TObject> or implementing type"),
                         EX.GetTextSpan(propSymbol));
                 }
@@ -620,7 +620,7 @@ namespace CData.Compiler {
             else {//SimpleSet
                 var itfSymbol = typeSymbol.GetSelfOrInterface(CS.ISet1NameParts);
                 if (itfSymbol == null) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyType,
+                    DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyType,
                         parentTypeName, "System.Collections.Generic.ISet<T> or implementing type"),
                         EX.GetTextSpan(propSymbol));
                 }
@@ -642,7 +642,7 @@ namespace CData.Compiler {
                     errmsg = "Parameterless-constructor type";
                 }
                 if (errmsg != null) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyType,
+                    DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractPropertyType,
                         parentTypeName, errmsg), EX.GetTextSpan(propSymbol));
                 }
                 CollectionSymbol = (INamedTypeSymbol)typeSymbol;

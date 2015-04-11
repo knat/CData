@@ -73,6 +73,12 @@ namespace CData {
         public void CopyTo(byte[] array, int arrayIndex) {
             Array.Copy(_bytes, 0, array, arrayIndex, _count);
         }
+        public void Set(byte[] bytes) {
+            ThrowIfReadOnly();
+            if (bytes == null) throw new ArgumentNullException("bytes");
+            _bytes = bytes;
+            _count = bytes.Length;
+        }
         public byte this[int index] {
             get {
                 if (index >= _count) {

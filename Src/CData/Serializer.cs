@@ -7,40 +7,40 @@ using System.Collections;
 namespace CData {
     public static class Serializer {
         public static bool TryLoad<T>(string filePath, TextReader reader, DiagContext context,
-            ProgramMd assemblyMetadata, ClassMd classMetadata, out T result) where T : class {
+            ProgramMd programMd, ClassMd classMd, out T result) where T : class {
             object obj;
-            if (Parser.Parse(filePath, reader, context, classMetadata, out obj)) {
+            if (Parser.Parse(filePath, reader, context, classMd, out obj)) {
                 result = (T)obj;
                 return true;
             }
             result = null;
             return false;
         }
-        public static void Save(object obj, ClassMd classMetadata, TextWriter writer, string indentString = "\t", string newLineString = "\n") {
+        public static void Save(object obj, ClassMd classMd, TextWriter writer, string indent = "\t", string newLine = "\n") {
             if (writer == null) throw new ArgumentNullException("writer");
             var sb = StringBuilderBuffer.Acquire();
-            Save(obj, classMetadata, sb, indentString, newLineString);
+            Save(obj, classMd, sb, indent, newLine);
             writer.Write(sb.ToStringAndRelease());
         }
-        public static void Save(object obj, ClassMd classMetadata, StringBuilder stringBuilder, string indentString = "\t", string newLineString = "\n") {
+        public static void Save(object obj, ClassMd classMd, StringBuilder stringBuilder, string indent = "\t", string newLine = "\n") {
             if (obj == null) throw new ArgumentNullException("obj");
-            if (classMetadata == null) throw new ArgumentNullException("classMetadata");
-            SaveClassValue(true, obj, classMetadata, new SavingContext(stringBuilder, indentString, newLineString));
+            if (classMd == null) throw new ArgumentNullException("classMd");
+            SaveClassValue(true, obj, classMd, new SavingContext(stringBuilder, indent, newLine));
         }
-        private static void SaveClassValue(bool isRoot, object obj, ClassMd clsMd, SavingContext context) {
+        private static void SaveClassValue(bool isRoot, object obj, ClassMd classMd, SavingContext context) {
             string rootAlias = null;
             if (isRoot) {
-                rootAlias = context.AddUri(clsMd.FullName.Uri);
+                rootAlias = context.AddUri(classMd.FullName.Uri);
             }
             else {
-                clsMd = clsMd.GetMetadata(obj);
-                context.AppendFullName(clsMd.FullName);
+                classMd = classMd.GetMetadata(obj);
+                context.AppendFullName(classMd.FullName);
             }
             var sb = context.StringBuilder;
             sb.Append(" {");
             context.AppendLine();
             context.PushIndent();
-            var propMds = clsMd.GetPropertiesInHierarchy();
+            var propMds = classMd.GetPropertiesInHierarchy();
             if (propMds != null) {
                 foreach (var propMd in propMds) {
                     context.Append(propMd.Name);
@@ -52,7 +52,7 @@ namespace CData {
             context.PopIndent();
             context.Append('}');
             if (isRoot) {
-                context.InsertRootObjectHead(rootAlias, clsMd.FullName.Name);
+                context.InsertRootObjectHead(rootAlias, classMd.FullName.Name);
             }
         }
         private static void SaveLocalValue(object value, LocalTypeMd typeMd, SavingContext context) {

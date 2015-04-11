@@ -58,29 +58,29 @@ namespace CData.Compiler {
                                     }
                                 }
                                 else if (!isRef) {
-                                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractNamespaceAttributeUri, uri),
+                                    DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractNamespaceAttributeUri, uri),
                                         GetTextSpan(attData));
                                 }
                             }
                             else if (!isRef) {
-                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttributeNamespaceName, dottedNameStr),
+                                DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttributeNamespaceName, dottedNameStr),
                                     GetTextSpan(attData));
                             }
                         }
                         else {
                             if (!isRef) {
-                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttributeUri, uri),
+                                DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttributeUri, uri),
                                     GetTextSpan(attData));
                             }
                             success = true;
                         }
                     }
                     else if (!isRef) {
-                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttribute),
+                        DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractNamespaceAttribute),
                             GetTextSpan(attData));
                     }
                     if (isRef && !success) {
-                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.Invalid__CompilerContractNamespaceAttribute,
+                        DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.Invalid__CompilerContractNamespaceAttribute,
                             uri, dottedNameStr, assSymbol.Identity.Name), default(TextSpan));
                     }
                 }
@@ -106,29 +106,29 @@ namespace CData.Compiler {
                             var clsAttData = typeSymbol.GetAttributeData(ContractClassAttributeNameParts);
                             if (clsAttData != null) {
                                 if (typeSymbol.IsGenericType) {
-                                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractClassCannotBeGeneric), GetTextSpan(typeSymbol));
+                                    DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.ContractClassCannotBeGeneric), GetTextSpan(typeSymbol));
                                 }
                                 if (typeSymbol.IsStatic) {
-                                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractClassCannotBeStatic), GetTextSpan(typeSymbol));
+                                    DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.ContractClassCannotBeStatic), GetTextSpan(typeSymbol));
                                 }
                                 var clsName = GetFirstArgumentAsString(clsAttData);
                                 if (clsName == null) {
-                                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttribute), GetTextSpan(clsAttData));
+                                    DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttribute), GetTextSpan(clsAttData));
                                 }
                                 ClassInfo clsInfo = nsInfo.GetGlobalType<ClassInfo>(clsName);
                                 if (clsInfo == null) {
-                                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName, clsName), GetTextSpan(clsAttData));
+                                    DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidContractClassAttributeName, clsName), GetTextSpan(clsAttData));
                                 }
                                 if (clsInfo.Symbol != null) {
-                                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractClassAttributeName, clsName), GetTextSpan(clsAttData));
+                                    DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateContractClassAttributeName, clsName), GetTextSpan(clsAttData));
                                 }
                                 if (!clsInfo.IsAbstract) {
                                     if (typeSymbol.IsAbstract) {
-                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.NonAbstractContractClassRequired),
+                                        DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.NonAbstractContractClassRequired),
                                             GetTextSpan(typeSymbol));
                                     }
                                     if (!typeSymbol.HasParameterlessConstructor()) {
-                                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ParameterlessConstructorRequired),
+                                        DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.ParameterlessConstructorRequired),
                                             GetTextSpan(typeSymbol));
                                     }
                                 }
@@ -146,15 +146,15 @@ namespace CData.Compiler {
                                 if (clsInfo != null) {
                                     if (clsInfo.Symbol == null) {
                                         if (typeSymbol.IsStatic) {
-                                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractClassCannotBeStatic), GetTextSpan(typeSymbol));
+                                            DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.ContractClassCannotBeStatic), GetTextSpan(typeSymbol));
                                         }
                                         if (!clsInfo.IsAbstract) {
                                             if (typeSymbol.IsAbstract) {
-                                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.NonAbstractContractClassRequired),
+                                                DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.NonAbstractContractClassRequired),
                                                     GetTextSpan(typeSymbol));
                                             }
                                             if (!typeSymbol.HasParameterlessConstructor()) {
-                                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ParameterlessConstructorRequired),
+                                                DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.ParameterlessConstructorRequired),
                                                     GetTextSpan(typeSymbol));
                                             }
                                         }

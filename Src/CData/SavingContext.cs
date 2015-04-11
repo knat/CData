@@ -100,7 +100,7 @@ namespace CData {
         public void InsertRootObjectHead(string alias, string name) {
             var sb = StringBuilderBuffer.Acquire();
             sb.Append(alias);
-            sb.Append(':');
+            sb.Append("::");
             sb.Append(name);
             var auCount = _aliasUriList.Count;
             if (auCount > 0) {

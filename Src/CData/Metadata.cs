@@ -239,35 +239,51 @@ namespace CData {
     [Flags]
     public enum PropertyFlags {
         None = 0,
-        Static = 1,
-        ReadOnly = 2,
+        Index = 1,
+        Static = 2,
+        ReadOnly = 4,
+        Extension = 8,
     }
     public class PropertyMd : NamedLocalTypeMd {
-        public PropertyMd(string name, LocalTypeMd type, PropertyFlags flags)
+        public PropertyMd(string name, LocalTypeMd type, PropertyFlags flags, ParameterMd[] parameters = null)
             : base(name, type) {
             Flags = flags;
+            _parameters = parameters;
         }
         public readonly PropertyFlags Flags;
+        private readonly ParameterMd[] _parameters;//opt
+        public bool IsIndex {
+            get { return (Flags & PropertyFlags.Index) != 0; }
+        }
         public bool IsStatic {
             get { return (Flags & PropertyFlags.Static) != 0; }
         }
         public bool IsReadOnly {
             get { return (Flags & PropertyFlags.ReadOnly) != 0; }
         }
+        public int ParameterCount {
+            get { return _parameters == null ? 0 : _parameters.Length; }
+        }
+
     }
 
+    public sealed class ParameterMd : NamedLocalTypeMd {
+        public ParameterMd(string name, LocalTypeMd type)
+            : base(name, type) {
+        }
+    }
 
 
     [Flags]
     public enum FunctionFlags {
         None = 0,
-        Index = 1,
-        Static = 2,
-        Unsafe = 4,
+        Static = 1,
+        Unsafe = 2,
+        Extension = 4,
     }
 
     public sealed class FunctionMd {
-        public FunctionMd(string name, FunctionFlags flags, LocalTypeMd returnType, FunctionParameterMetadata[] parameters) {
+        public FunctionMd(string name, FunctionFlags flags, LocalTypeMd returnType, ParameterMd[] parameters) {
             Name = name;
             Flags = flags;
             ReturnType = returnType;
@@ -276,33 +292,57 @@ namespace CData {
         public readonly string Name;
         public readonly FunctionFlags Flags;
         public readonly LocalTypeMd ReturnType;
-        private readonly FunctionParameterMetadata[] _parameters;//opt
-        public bool IsIndex {
-            get { return (Flags & FunctionFlags.Index) != 0; }
-        }
+        private readonly ParameterMd[] _parameters;//opt
         public bool IsStatic {
             get { return (Flags & FunctionFlags.Static) != 0; }
         }
         public bool IsUnsafe {
             get { return (Flags & FunctionFlags.Unsafe) != 0; }
         }
-
-    }
-    public sealed class FunctionParameterMetadata : NamedLocalTypeMd {
-        public FunctionParameterMetadata(string name, LocalTypeMd type)
-            : base(name, type) {
+        public int ParameterCount {
+            get { return _parameters == null ? 0 : _parameters.Length; }
         }
+
     }
 
     public sealed class AtomMd : GlobalTypeMd {
         public static AtomMd Get(TypeKind kind) {
             return _map[kind];
         }
-        private AtomMd(TypeKind kind) :
-            base(kind, AtomExtensions.GetFullName(kind), null, null) {
+        public static AtomMd Get(string name) {
+            TypeKind kind;
+            if (_nameMap.TryGetValue(name, out kind)) {
+                return _map[kind];
+            }
+            return null;
         }
+        private AtomMd(TypeKind kind)
+            : base(kind, AtomExtensions.GetFullName(kind), null, null) {
+        }
+        private static readonly Dictionary<string, TypeKind> _nameMap;
         private static readonly Dictionary<TypeKind, AtomMd> _map;
         static AtomMd() {
+            _nameMap = new Dictionary<string, TypeKind> {
+                { TypeKind.String.ToString(), TypeKind.String },
+                { TypeKind.IgnoreCaseString.ToString(), TypeKind.IgnoreCaseString },
+                { TypeKind.Char.ToString(), TypeKind.Char },
+                { TypeKind.Decimal.ToString(), TypeKind.Decimal },
+                { TypeKind.Int64.ToString(), TypeKind.Int64 },
+                { TypeKind.Int32.ToString(), TypeKind.Int32 },
+                { TypeKind.Int16.ToString(), TypeKind.Int16 },
+                { TypeKind.SByte.ToString(), TypeKind.SByte },
+                { TypeKind.UInt64.ToString(), TypeKind.UInt64 },
+                { TypeKind.UInt32.ToString(), TypeKind.UInt32 },
+                { TypeKind.UInt16.ToString(), TypeKind.UInt16 },
+                { TypeKind.Byte.ToString(), TypeKind.Byte },
+                { TypeKind.Double.ToString(), TypeKind.Double },
+                { TypeKind.Single.ToString(), TypeKind.Single },
+                { TypeKind.Boolean.ToString(), TypeKind.Boolean },
+                { TypeKind.Binary.ToString(), TypeKind.Binary },
+                { TypeKind.Guid.ToString(), TypeKind.Guid },
+                { TypeKind.TimeSpan.ToString(), TypeKind.TimeSpan },
+                { TypeKind.DateTimeOffset.ToString(), TypeKind.DateTimeOffset },
+            };
             var map = new Dictionary<TypeKind, AtomMd> {
                 { TypeKind.String, new AtomMd(TypeKind.String) },
                 { TypeKind.IgnoreCaseString, new AtomMd(TypeKind.IgnoreCaseString) },
@@ -326,29 +366,30 @@ namespace CData {
             };
             _map = map;
             map[TypeKind.String]._properties = new PropertyMd[] {
+                //char this[int index] { get; }
+                new PropertyMd(null, GlobalTypeRefMd.GetAtom(TypeKind.Char), PropertyFlags.Index | PropertyFlags.ReadOnly,
+                    new[] { new ParameterMd("index", GlobalTypeRefMd.GetAtom(TypeKind.Int32)) }),
+                //int Length { get; }
                 new PropertyMd("Length", GlobalTypeRefMd.GetAtom(TypeKind.Int32), PropertyFlags.ReadOnly),
 
             };
             map[TypeKind.String]._functions = new FunctionMd[] {
-                //char this[int index] { get; }
-                new FunctionMd(null, FunctionFlags.Index, GlobalTypeRefMd.GetAtom(TypeKind.Char), 
-                    new[] { new FunctionParameterMetadata("index", GlobalTypeRefMd.GetAtom(TypeKind.Int32)) }),
                 //bool Contains(string value);
                 new FunctionMd("Contains", FunctionFlags.None, GlobalTypeRefMd.GetAtom(TypeKind.Boolean), 
-                    new[] { new FunctionParameterMetadata("value", GlobalTypeRefMd.GetAtom(TypeKind.String)) }),
+                    new[] { new ParameterMd("value", GlobalTypeRefMd.GetAtom(TypeKind.String)) }),
                 //bool StartsWith(string value);
                 new FunctionMd("StartsWith", FunctionFlags.None, GlobalTypeRefMd.GetAtom(TypeKind.Boolean), 
-                    new[] { new FunctionParameterMetadata("value", GlobalTypeRefMd.GetAtom(TypeKind.String)) }),
+                    new[] { new ParameterMd("value", GlobalTypeRefMd.GetAtom(TypeKind.String)) }),
                 //bool EndsWith(string value);
                 new FunctionMd("EndsWith", FunctionFlags.None, GlobalTypeRefMd.GetAtom(TypeKind.Boolean), 
-                    new[] { new FunctionParameterMetadata("value", GlobalTypeRefMd.GetAtom(TypeKind.String)) }),
+                    new[] { new ParameterMd("value", GlobalTypeRefMd.GetAtom(TypeKind.String)) }),
                 //string Substring(int startIndex);
                 new FunctionMd("Substring", FunctionFlags.None, GlobalTypeRefMd.GetAtom(TypeKind.String), 
-                    new[] { new FunctionParameterMetadata("startIndex", GlobalTypeRefMd.GetAtom(TypeKind.Int32)) }),
+                    new[] { new ParameterMd("startIndex", GlobalTypeRefMd.GetAtom(TypeKind.Int32)) }),
                 //string Substring(int startIndex, int length);
                 new FunctionMd("Substring", FunctionFlags.None, GlobalTypeRefMd.GetAtom(TypeKind.String), 
-                    new[] { new FunctionParameterMetadata("startIndex", GlobalTypeRefMd.GetAtom(TypeKind.Int32)),
-                            new FunctionParameterMetadata("length", GlobalTypeRefMd.GetAtom(TypeKind.Int32))
+                    new[] { new ParameterMd("startIndex", GlobalTypeRefMd.GetAtom(TypeKind.Int32)),
+                            new ParameterMd("length", GlobalTypeRefMd.GetAtom(TypeKind.Int32))
                     }),
 
             };

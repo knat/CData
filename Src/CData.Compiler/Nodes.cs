@@ -62,7 +62,7 @@ namespace CData.Compiler {
         public void ResolveImports(LogicalNamespaceMap nsMap) {
             foreach (var import in ImportList) {
                 if (!nsMap.TryGetValue(import.Uri.Value, out import.LogicalNamespace)) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidNamespaceReference, import.Uri.Value),
+                    DiagContextEx.ErrorAndThrow(new DiagMsg(DiagCode.InvalidNamespaceReference, import.Uri.Value),
                         import.Uri.TextSpan);
                 }
             }
@@ -71,7 +71,7 @@ namespace CData.Compiler {
             foreach (var thisGlobalType in GlobalTypeList) {
                 foreach (var otherGlobalType in otherGlobalTypeList) {
                     if (thisGlobalType.Name == otherGlobalType.Name) {
-                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateGlobalTypeName, otherGlobalType.Name.Value),
+                        DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateGlobalTypeName, otherGlobalType.Name.Value),
                             otherGlobalType.Name.TextSpan);
                     }
                 }
@@ -104,7 +104,7 @@ namespace CData.Compiler {
                         }
                     }
                     if (import == null) {
-                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidNamespaceAliasReference, alias.Value),
+                        DiagContextEx.ErrorAndThrow(new DiagMsg(DiagCode.InvalidNamespaceAliasReference, alias.Value),
                             alias.TextSpan);
                     }
                     result = import.LogicalNamespace.TryGetGlobalType(name);
@@ -118,7 +118,7 @@ namespace CData.Compiler {
                         var globalType = item.LogicalNamespace.TryGetGlobalType(name);
                         if (globalType != null) {
                             if (result != null) {
-                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.AmbiguousGlobalTypeReference, name.Value),
+                                DiagContextEx.ErrorAndThrow(new DiagMsg(DiagCode.AmbiguousGlobalTypeReference, name.Value),
                                     name.TextSpan);
                             }
                             result = globalType;
@@ -127,14 +127,14 @@ namespace CData.Compiler {
                 }
             }
             if (result == null) {
-                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidGlobalTypeReference, name.Value), name.TextSpan);
+                DiagContextEx.ErrorAndThrow(new DiagMsg(DiagCode.InvalidGlobalTypeReference, name.Value), name.TextSpan);
             }
             return result;
         }
         public ClassNode ResolveQNameAsClass(QualifiableNameNode qName) {
             var result = ResolveQName(qName) as ClassNode;
             if (result == null) {
-                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidClassReference, qName.ToString()),
+                DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidClassReference, qName.ToString()),
                     qName.TextSpan);
             }
             return result;
@@ -142,7 +142,7 @@ namespace CData.Compiler {
         public AtomNode ResolveQNameAsAtom(QualifiableNameNode qName) {
             var result = ResolveQName(qName) as AtomNode;
             if (result == null) {
-                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidAtomReference, qName.ToString()),
+                DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidAtomReference, qName.ToString()),
                     qName.TextSpan);
             }
             return result;
@@ -150,7 +150,7 @@ namespace CData.Compiler {
         public SimpleGlobalTypeNode ResolveQNameAsSimpleGlobalType(QualifiableNameNode qName) {
             var result = ResolveQName(qName) as SimpleGlobalTypeNode;
             if (result == null) {
-                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidSimpleGlobalTypeReference, qName.ToString()),
+                DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidSimpleGlobalTypeReference, qName.ToString()),
                     qName.TextSpan);
             }
             return result;
@@ -187,7 +187,7 @@ namespace CData.Compiler {
         public GlobalTypeInfo CreateInfo() {
             if (_info == null) {
                 if (_isProcessing) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.CircularReferenceNotAllowed), Name.TextSpan);
+                    DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.CircularReferenceNotAllowed), Name.TextSpan);
                 }
                 _isProcessing = true;
                 var nsInfo = Namespace.LogicalNamespace.NamespaceInfo;
@@ -261,7 +261,7 @@ namespace CData.Compiler {
             var avNode = Value;
             var value = AtomExtensions.TryParse(typeKind, avNode.Value, true);
             if (value == null) {
-                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidAtomValue, typeKind.ToString(), avNode.Value),
+                DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidAtomValue, typeKind.ToString(), avNode.Value),
                     avNode.TextSpan);
             }
             return new NameValuePair(Name.Value, value);
@@ -298,13 +298,13 @@ namespace CData.Compiler {
             if (BaseClass != null) {
                 baseClassInfo = (ClassInfo)BaseClass.CreateInfo();
                 if (baseClassInfo.IsSealed) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.BaseClassIsSealed), BaseClassQName.TextSpan);
+                    DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.BaseClassIsSealed), BaseClassQName.TextSpan);
                 }
             }
             var propInfoList = new List<PropertyInfo>();
             foreach (var prop in PropertyList) {
                 if (baseClassInfo != null && baseClassInfo.GetPropertyInHierarchy(prop.Name.Value) != null) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicatePropertyName, prop.Name.Value),
+                    DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.DuplicatePropertyName, prop.Name.Value),
                         prop.Name.TextSpan);
                 }
                 propInfoList.Add(prop.CreateInfo());
@@ -403,7 +403,7 @@ namespace CData.Compiler {
         public override void Resolve() {
             Key.Resolve();
             if (!Key.IsSimpleGlobalType) {
-                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidSimpleGlobalTypeReference, Key.GlobalTypeQName.ToString()),
+                DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidSimpleGlobalTypeReference, Key.GlobalTypeQName.ToString()),
                     Key.GlobalTypeQName.TextSpan);
             }
             Value.Resolve();
@@ -434,11 +434,11 @@ namespace CData.Compiler {
             Item.Resolve();
             if (Item.IsSimpleGlobalType) {
                 if (KeyNameList != null) {
-                    DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.KeySelectorNotAllowedForSimpleSet), KeyNameList[0].TextSpan);
+                    DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.KeySelectorNotAllowedForSimpleSet), KeyNameList[0].TextSpan);
                 }
             }
             else if (KeyNameList == null) {
-                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.KeySelectorRequiredForObjectSet), CloseTextSpan);
+                DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.KeySelectorRequiredForObjectSet), CloseTextSpan);
             }
         }
         public override LocalTypeInfo CreateInfo() {
@@ -453,27 +453,27 @@ namespace CData.Compiler {
                     var keyName = KeyNameList[i];
                     var propInfo = globalTypeRefInfo.Class.GetPropertyInHierarchy(keyName.Value);
                     if (propInfo == null) {
-                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidPropertyReference, keyName.Value), keyName.TextSpan);
+                        DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidPropertyReference, keyName.Value), keyName.TextSpan);
                     }
                     var propTypeInfo = propInfo.Type;
                     if (propTypeInfo.IsNullable) {
-                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ObjectSetKeyCannotBeNullable), keyName.TextSpan);
+                        DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.ObjectSetKeyCannotBeNullable), keyName.TextSpan);
                     }
                     if (propTypeInfo.Kind.IsSimple()) {
                         if (i < keyCount - 1) {
-                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.InvalidObjectSetKey), KeyNameList[i + 1].TextSpan);
+                            DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidObjectSetKey), KeyNameList[i + 1].TextSpan);
                         }
                         selector.Add(propInfo);
                     }
                     else if (propTypeInfo.Kind == TypeKind.Class) {
                         if (i == keyCount - 1) {
-                            DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ObjectSetKeyMustBeSimpleType), keyName.TextSpan);
+                            DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.ObjectSetKeyMustBeSimpleType), keyName.TextSpan);
                         }
                         selector.Add(propInfo);
                         globalTypeRefInfo = (GlobalTypeRefInfo)propTypeInfo;
                     }
                     else {
-                        DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ObjectSetKeyMustBeSimpleType), keyName.TextSpan);
+                        DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.ObjectSetKeyMustBeSimpleType), keyName.TextSpan);
                     }
                 }
             }

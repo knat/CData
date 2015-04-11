@@ -38,31 +38,31 @@ namespace CData {
         //
         protected sealed class ParsingException : Exception { }
         protected static readonly ParsingException _parsingException = new ParsingException();
-        protected void ErrorDiag(int code, string errMsg, TextSpan textSpan) {
+        protected void Error(int code, string errMsg, TextSpan textSpan) {
             _context.AddDiag(DiagSeverity.Error, code, errMsg, textSpan);
         }
-        protected void ErrorDiag(DiagMsg diagMsg, TextSpan textSpan) {
+        protected void Error(DiagMsg diagMsg, TextSpan textSpan) {
             _context.AddDiag(DiagSeverity.Error, diagMsg, textSpan);
         }
         protected void Throw() {
             throw _parsingException;
         }
-        protected void ErrorDiagAndThrow(string errMsg, TextSpan textSpan) {
-            ErrorDiag((int)DiagCode.Parsing, errMsg, textSpan);
+        protected void ErrorAndThrow(string errMsg, TextSpan textSpan) {
+            Error((int)DiagCode.Parsing, errMsg, textSpan);
             Throw();
         }
-        protected void ErrorDiagAndThrow(string errMsg, Token token) {
-            ErrorDiagAndThrow(errMsg ?? token.Value, GetTextSpan(token));
+        protected void ErrorAndThrow(string errMsg, Token token) {
+            ErrorAndThrow(errMsg ?? token.Value, GetTextSpan(token));
         }
-        protected void ErrorDiagAndThrow(string errMsg) {
-            ErrorDiagAndThrow(errMsg, GetToken());
+        protected void ErrorAndThrow(string errMsg) {
+            ErrorAndThrow(errMsg, GetToken());
         }
-        protected void ErrorDiagAndThrow(DiagMsg diagMsg, TextSpan textSpan) {
-            ErrorDiag(diagMsg, textSpan);
+        protected void ErrorAndThrow(DiagMsg diagMsg, TextSpan textSpan) {
+            Error(diagMsg, textSpan);
             Throw();
         }
-        protected void ErrorDiagAndThrow(DiagMsg diagMsg) {
-            ErrorDiagAndThrow(diagMsg, GetTextSpan());
+        protected void ErrorAndThrow(DiagMsg diagMsg) {
+            ErrorAndThrow(diagMsg, GetTextSpan());
         }
         //
         private static bool IsTrivalToken(TokenKind kind) {
@@ -94,7 +94,7 @@ namespace CData {
                 var tokenKind = token.TokenKind;
                 if (!IsTrivalToken(tokenKind)) {
                     if (tokenKind == TokenKind.Error) {
-                        ErrorDiagAndThrow(null, token);
+                        ErrorAndThrow(null, token);
                     }
                     else {
                         tokens[++_tokenIndex] = token;
@@ -146,12 +146,12 @@ namespace CData {
         }
         protected void TokenExpected(char ch) {
             if (!Token(ch)) {
-                ErrorDiagAndThrow(ch.ToString() + " expected.");
+                ErrorAndThrow(ch.ToString() + " expected.");
             }
         }
         protected void TokenExpected(int kind, string errMsg) {
             if (!Token(kind)) {
-                ErrorDiagAndThrow(errMsg);
+                ErrorAndThrow(errMsg);
             }
         }
         protected void TokenExpected(TokenKind tokenKind, string errMsg) {
@@ -159,12 +159,12 @@ namespace CData {
         }
         public void TokenExpected(char ch, out TextSpan textSpan) {
             if (!Token(ch, out textSpan)) {
-                ErrorDiagAndThrow(ch.ToString() + " expected.");
+                ErrorAndThrow(ch.ToString() + " expected.");
             }
         }
         protected void TokenExpected(int kind, string errMsg, out TextSpan textSpan) {
             if (!Token(kind, out textSpan)) {
-                ErrorDiagAndThrow(errMsg);
+                ErrorAndThrow(errMsg);
             }
         }
         protected void EndOfFileExpected() {
@@ -183,7 +183,7 @@ namespace CData {
         protected NameNode NameExpected() {
             NameNode name;
             if (!Name(out name)) {
-                ErrorDiagAndThrow("Name expected.");
+                ErrorAndThrow("Name expected.");
             }
             return name;
         }
@@ -197,7 +197,7 @@ namespace CData {
         }
         protected void KeywordExpected(string keywordValue) {
             if (!Keyword(keywordValue)) {
-                ErrorDiagAndThrow(keywordValue + " expetced.");
+                ErrorAndThrow(keywordValue + " expetced.");
             }
         }
         protected bool Keyword(string keywordValue, out NameNode keyword) {
@@ -237,7 +237,7 @@ namespace CData {
         protected QualifiableNameNode QualifiableNameExpected() {
             QualifiableNameNode qName;
             if (!QualifiableName(out qName)) {
-                ErrorDiagAndThrow("Qualifiable name expected.");
+                ErrorAndThrow("Qualifiable name expected.");
             }
             return qName;
         }
@@ -303,14 +303,14 @@ namespace CData {
         protected AtomValueNode AtomValueExpected(bool takeNumberSign) {
             AtomValueNode av;
             if (!AtomValue(out av, takeNumberSign)) {
-                ErrorDiagAndThrow("Atom value expected.");
+                ErrorAndThrow("Atom value expected.");
             }
             return av;
         }
         protected AtomValueNode NonNullAtomValueExpected(bool takeNumberSign) {
             var av = AtomValueExpected(takeNumberSign);
             if (av.IsNull) {
-                ErrorDiagAndThrow("Non-null atom value expected.", av.TextSpan);
+                ErrorAndThrow("Non-null atom value expected.", av.TextSpan);
             }
             return av;
         }
@@ -327,21 +327,21 @@ namespace CData {
         protected AtomValueNode StringValueExpected() {
             AtomValueNode av;
             if (!StringValue(out av)) {
-                ErrorDiagAndThrow("String value expected.");
+                ErrorAndThrow("String value expected.");
             }
             return av;
         }
         protected AtomValueNode UriExpected() {
             var uri = StringValueExpected();
             if (uri.Value == Extensions.SystemUri) {
-                ErrorDiagAndThrow(new DiagMsg(DiagCode.UriReserved), uri.TextSpan);
+                ErrorAndThrow(new DiagMsg(DiagCode.UriReserved), uri.TextSpan);
             }
             return uri;
         }
         protected NameNode UriAliasExpected() {
             var alias = NameExpected();
             if (alias.Value == "sys" || alias.Value == "thisns") {
-                ErrorDiagAndThrow(new DiagMsg(DiagCode.UriAliasReserved), alias.TextSpan);
+                ErrorAndThrow(new DiagMsg(DiagCode.UriAliasReserved), alias.TextSpan);
             }
             return alias;
         }
@@ -358,14 +358,14 @@ namespace CData {
                 if (aliasUriList != null) {
                     foreach (var item in aliasUriList) {
                         if (item.Alias == alias) {
-                            ErrorDiagAndThrow(new DiagMsg(DiagCode.DuplicateNamespaceAlias, alias.Value), alias.TextSpan);
+                            ErrorAndThrow(new DiagMsg(DiagCode.DuplicateNamespaceAlias, alias.Value), alias.TextSpan);
                         }
                     }
                 }
                 TokenExpected('=');
                 var uri = UriExpected();
                 if (!ProgramMd.IsUriDefined(uri.Value)) {
-                    ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidNamespaceReference, uri.Value), uri.TextSpan);
+                    ErrorAndThrow(new DiagMsg(DiagCode.InvalidNamespaceReference, uri.Value), uri.TextSpan);
                 }
                 if (aliasUriList == null) {
                     aliasUriList = new List<AliasUriNode>();
@@ -374,10 +374,10 @@ namespace CData {
             }
             ExpressionNode expr;
             if (aliasUriList == null) {
-                Expression(out expr);
+                Expression(null, out expr);
             }
             else {
-                expr = ExpressionExpected();
+                expr = ExpressionExpected(null);
             }
             if (expr != null) {
                 result = new QueryNode(aliasUriList, expr);
@@ -388,67 +388,73 @@ namespace CData {
         }
 
         private void ExpressionExpectedError() {
-            ErrorDiagAndThrow("Expression expected.");
+            ErrorAndThrow("Expression expected.");
         }
-        private ExpressionNode ExpressionExpected() {
+        private ExpressionNode ExpressionExpected(QueryDiagContext ctx) {
             ExpressionNode r;
-            if (!Expression(out r)) {
+            if (!Expression(ctx, out r)) {
                 ExpressionExpectedError();
             }
             return r;
         }
-        private bool Expression(out ExpressionNode result) {
+        private bool Expression(QueryDiagContext ctx, out ExpressionNode result) {
+            ParameterNodeList pList = null;
             var tk0Kind = GetToken().Kind;
             if (IsNameToken(tk0Kind)) {
                 if (GetToken(1).TokenKind == TokenKind.EqualsGreaterThan) {
-                    var pName = NameExpected();
-                    ConsumeToken();// =>
-                    result = new LambdaExpressionNode(new List<NameNode> { pName }, ExpressionExpected());
-                    return true;
+                    pList = new ParameterNodeList { new ParameterNode(NameExpected()) };
                 }
             }
             else if (tk0Kind == '(') {
-                if (IsNameToken(GetToken(1).Kind)) {
+                var tk1Kind = GetToken(1).Kind;
+                if (IsNameToken(tk1Kind)) {
                     var tk2Kind = GetToken(2).Kind;
                     if (tk2Kind == ')') {
                         if (GetToken(3).TokenKind == TokenKind.EqualsGreaterThan) {
                             ConsumeToken();// (
-                            var pName = NameExpected();
+                            pList = new ParameterNodeList { new ParameterNode(NameExpected()) };
                             ConsumeToken();// )
-                            ConsumeToken();// =>
-                            result = new LambdaExpressionNode(new List<NameNode> { pName }, ExpressionExpected());
-                            return true;
                         }
                     }
                     else if (tk2Kind == ',') {
                         ConsumeToken();// (
-                        var pNameList = new List<NameNode> { NameExpected() };
+                        pList = new ParameterNodeList { new ParameterNode(NameExpected()) };
                         while (Token(',')) {
                             var name = NameExpected();
-                            foreach (var item in pNameList) {
-                                if (item == name) {
-
+                            foreach (var item in pList) {
+                                if (item.Name == name) {
+                                    ErrorAndThrow(new DiagMsg(DiagCode.DuplicateParameterName, name.Value), name.TextSpan);
                                 }
                             }
-                            pNameList.Add(name);
+                            pList.Add(new ParameterNode(name));
                         }
                         TokenExpected(')');
-                        TokenExpected(TokenKind.EqualsGreaterThan, "=> expected.");
-                        result = new LambdaExpressionNode(pNameList, ExpressionExpected());
-                        return true;
                     }
                 }
+                else if (tk1Kind == ')') {
+                    ConsumeToken();// (
+                    ConsumeToken();// )
+                    pList = new ParameterNodeList();
+                }
             }
-            return ConditionalExpression(out result);
+            if (pList != null) {
+                TokenExpected(TokenKind.EqualsGreaterThan, "=> expected.");
+                ctx.PushParameterList(pList);
+                var body = ExpressionExpected(ctx);
+                ctx.PopParameterList();
+                result = new LambdaExpressionNode(pList, body);
+                return true;
+            }
+            return ConditionalExpression(ctx, out result);
         }
-        private bool ConditionalExpression(out ExpressionNode result) {
+        private bool ConditionalExpression(QueryDiagContext ctx, out ExpressionNode result) {
             ExpressionNode condition;
-            if (CoalesceExpression(out condition)) {
+            if (CoalesceExpression(ctx, out condition)) {
                 ExpressionNode whenTrue = null, whenFalse = null;
                 if (Token('?')) {
-                    whenTrue = ExpressionExpected();
+                    whenTrue = ExpressionExpected(ctx);
                     TokenExpected(':');
-                    whenFalse = ExpressionExpected();
+                    whenFalse = ExpressionExpected(ctx);
                 }
                 if (whenTrue == null) {
                     result = condition;
@@ -461,12 +467,12 @@ namespace CData {
             result = null;
             return false;
         }
-        private bool CoalesceExpression(out ExpressionNode result) {
+        private bool CoalesceExpression(QueryDiagContext ctx, out ExpressionNode result) {
             ExpressionNode left;
-            if (OrElseExpression(out left)) {
+            if (OrElseExpression(ctx, out left)) {
                 ExpressionNode right = null;
                 if (Token(TokenKind.QuestionQuestion)) {
-                    if (!CoalesceExpression(out right)) {
+                    if (!CoalesceExpression(ctx, out right)) {
                         ExpressionExpectedError();
                     }
                 }
@@ -481,11 +487,11 @@ namespace CData {
             result = null;
             return false;
         }
-        private bool OrElseExpression(out ExpressionNode result) {
-            if (AndAlsoExpression(out result)) {
+        private bool OrElseExpression(QueryDiagContext ctx, out ExpressionNode result) {
+            if (AndAlsoExpression(ctx, out result)) {
                 while (Token(TokenKind.BarBar)) {
                     ExpressionNode right;
-                    if (!AndAlsoExpression(out right)) {
+                    if (!AndAlsoExpression(ctx, out right)) {
                         ExpressionExpectedError();
                     }
                     result = new BinaryExpressionNode(ExpressionKind.OrElse, result, right);
@@ -493,11 +499,11 @@ namespace CData {
             }
             return result != null;
         }
-        private bool AndAlsoExpression(out ExpressionNode result) {
-            if (OrExpression(out result)) {
+        private bool AndAlsoExpression(QueryDiagContext ctx, out ExpressionNode result) {
+            if (OrExpression(ctx, out result)) {
                 while (Token(TokenKind.AmpersandAmpersand)) {
                     ExpressionNode right;
-                    if (!OrExpression(out right)) {
+                    if (!OrExpression(ctx, out right)) {
                         ExpressionExpectedError();
                     }
                     result = new BinaryExpressionNode(ExpressionKind.AndAlso, result, right);
@@ -505,11 +511,11 @@ namespace CData {
             }
             return result != null;
         }
-        private bool OrExpression(out ExpressionNode result) {
-            if (ExclusiveOrExpression(out result)) {
+        private bool OrExpression(QueryDiagContext ctx, out ExpressionNode result) {
+            if (ExclusiveOrExpression(ctx, out result)) {
                 while (Token('|')) {
                     ExpressionNode right;
-                    if (!ExclusiveOrExpression(out right)) {
+                    if (!ExclusiveOrExpression(ctx, out right)) {
                         ExpressionExpectedError();
                     }
                     result = new BinaryExpressionNode(ExpressionKind.Or, result, right);
@@ -517,11 +523,11 @@ namespace CData {
             }
             return result != null;
         }
-        private bool ExclusiveOrExpression(out ExpressionNode result) {
-            if (AndExpression(out result)) {
+        private bool ExclusiveOrExpression(QueryDiagContext ctx, out ExpressionNode result) {
+            if (AndExpression(ctx, out result)) {
                 while (Token('^')) {
                     ExpressionNode right;
-                    if (!AndExpression(out right)) {
+                    if (!AndExpression(ctx, out right)) {
                         ExpressionExpectedError();
                     }
                     result = new BinaryExpressionNode(ExpressionKind.ExclusiveOr, result, right);
@@ -529,11 +535,11 @@ namespace CData {
             }
             return result != null;
         }
-        private bool AndExpression(out ExpressionNode result) {
-            if (EqualityExpression(out result)) {
+        private bool AndExpression(QueryDiagContext ctx, out ExpressionNode result) {
+            if (EqualityExpression(ctx, out result)) {
                 while (Token('&')) {
                     ExpressionNode right;
-                    if (!EqualityExpression(out right)) {
+                    if (!EqualityExpression(ctx, out right)) {
                         ExpressionExpectedError();
                     }
                     result = new BinaryExpressionNode(ExpressionKind.And, result, right);
@@ -541,8 +547,8 @@ namespace CData {
             }
             return result != null;
         }
-        private bool EqualityExpression(out ExpressionNode result) {
-            if (RelationalExpression(out result)) {
+        private bool EqualityExpression(QueryDiagContext ctx, out ExpressionNode result) {
+            if (RelationalExpression(ctx, out result)) {
                 while (true) {
                     ExpressionKind kind;
                     if (Token(TokenKind.EqualsEquals)) {
@@ -555,7 +561,7 @@ namespace CData {
                         break;
                     }
                     ExpressionNode right;
-                    if (!RelationalExpression(out right)) {
+                    if (!RelationalExpression(ctx, out right)) {
                         ExpressionExpectedError();
                     }
                     result = new BinaryExpressionNode(kind, result, right);
@@ -563,8 +569,8 @@ namespace CData {
             }
             return result != null;
         }
-        private bool RelationalExpression(out ExpressionNode result) {
-            if (ShiftExpression(out result)) {
+        private bool RelationalExpression(QueryDiagContext ctx, out ExpressionNode result) {
+            if (ShiftExpression(ctx, out result)) {
                 while (true) {
                     ExpressionKind kind;
                     if (Token('<')) {
@@ -593,7 +599,7 @@ namespace CData {
                     }
                     else {
                         ExpressionNode right;
-                        if (!ShiftExpression(out right)) {
+                        if (!ShiftExpression(ctx, out right)) {
                             ExpressionExpectedError();
                         }
                         result = new BinaryExpressionNode(kind, result, right);
@@ -602,8 +608,8 @@ namespace CData {
             }
             return result != null;
         }
-        private bool ShiftExpression(out ExpressionNode result) {
-            if (AdditiveExpression(out result)) {
+        private bool ShiftExpression(QueryDiagContext ctx, out ExpressionNode result) {
+            if (AdditiveExpression(ctx, out result)) {
                 while (true) {
                     ExpressionKind kind = ExpressionKind.None;
                     if (Token(TokenKind.LessThanLessThan)) {
@@ -626,7 +632,7 @@ namespace CData {
                         break;
                     }
                     ExpressionNode right;
-                    if (!AdditiveExpression(out right)) {
+                    if (!AdditiveExpression(ctx, out right)) {
                         ExpressionExpectedError();
                     }
                     result = new BinaryExpressionNode(kind, result, right);
@@ -634,8 +640,8 @@ namespace CData {
             }
             return result != null;
         }
-        private bool AdditiveExpression(out ExpressionNode result) {
-            if (MultiplicativeExpression(out result)) {
+        private bool AdditiveExpression(QueryDiagContext ctx, out ExpressionNode result) {
+            if (MultiplicativeExpression(ctx, out result)) {
                 while (true) {
                     ExpressionKind kind;
                     if (Token('+')) {
@@ -648,7 +654,7 @@ namespace CData {
                         break;
                     }
                     ExpressionNode right;
-                    if (!MultiplicativeExpression(out right)) {
+                    if (!MultiplicativeExpression(ctx, out right)) {
                         ExpressionExpectedError();
                     }
                     result = new BinaryExpressionNode(kind, result, right);
@@ -656,8 +662,8 @@ namespace CData {
             }
             return result != null;
         }
-        private bool MultiplicativeExpression(out ExpressionNode result) {
-            if (PrefixUnaryExpression(out result)) {
+        private bool MultiplicativeExpression(QueryDiagContext ctx, out ExpressionNode result) {
+            if (PrefixUnaryExpression(ctx, out result)) {
                 while (true) {
                     ExpressionKind kind;
                     if (Token('*')) {
@@ -673,7 +679,7 @@ namespace CData {
                         break;
                     }
                     ExpressionNode right;
-                    if (!PrefixUnaryExpression(out right)) {
+                    if (!PrefixUnaryExpression(ctx, out right)) {
                         ExpressionExpectedError();
                     }
                     result = new BinaryExpressionNode(kind, result, right);
@@ -681,7 +687,7 @@ namespace CData {
             }
             return result != null;
         }
-        private bool PrefixUnaryExpression(out ExpressionNode result) {
+        private bool PrefixUnaryExpression(QueryDiagContext ctx, out ExpressionNode result) {
             ExpressionKind kind = ExpressionKind.None;
             var tk = GetToken();
             var tkKind = tk.Kind;
@@ -700,13 +706,13 @@ namespace CData {
             if (kind != ExpressionKind.None) {
                 ConsumeToken();
                 ExpressionNode expr;
-                if (!PrefixUnaryExpression(out expr)) {
+                if (!PrefixUnaryExpression(ctx, out expr)) {
                     ExpressionExpectedError();
                 }
                 result = new UnaryExpressionNode(kind, expr);
                 return true;
             }
-            if (PrimaryExpression(out result)) {
+            if (PrimaryExpression(ctx, out result)) {
                 if (result.Kind == ExpressionKind.Parenthesized) {
                     var qNamExpr = ((UnaryExpressionNode)result).Expression as QualifiableNameExpressionNode;
                     if (qNamExpr != null) {
@@ -714,7 +720,7 @@ namespace CData {
                         tkKind = tk.Kind;
                         if (tkKind != '-' && tkKind != '+') {
                             ExpressionNode expr;
-                            if (PrefixUnaryExpression(out expr)) {
+                            if (PrefixUnaryExpression(ctx, out expr)) {
                                 result = new TypedExpressionNode(ExpressionKind.Convert, qNamExpr.QName, expr);
                                 return true;
                             }
@@ -724,7 +730,7 @@ namespace CData {
             }
             return result != null;
         }
-        private bool PrimaryExpression(out ExpressionNode result) {
+        private bool PrimaryExpression(QueryDiagContext ctx, out ExpressionNode result) {
             ExpressionNode expr = null;
             QualifiableNameNode qName;
             if (QualifiableName(out qName)) {
@@ -755,7 +761,7 @@ namespace CData {
                                     }
                                 }
                                 TokenExpected('=');
-                                memberList.Add(new AnonymousObjectMemberNode(name, ExpressionExpected()));
+                                memberList.Add(new AnonymousObjectMemberNode(name, ExpressionExpected(ctx)));
                             }
                             else {
                                 break;
@@ -766,7 +772,7 @@ namespace CData {
                     }
                     else {
                         if (Token('(')) {
-                            var op = ExpressionExpected();
+                            var op = ExpressionExpected(ctx);
                             TokenExpected(')');
                             expr = new UnaryExpressionNode(ExpressionKind.Parenthesized, op);
                         }
@@ -781,10 +787,10 @@ namespace CData {
                     else if (Token('(')) {
                         var argList = new List<ExpressionNode>();
                         ExpressionNode arg;
-                        if (Expression(out arg)) {
+                        if (Expression(ctx, out arg)) {
                             argList.Add(arg);
                             while (Token(',')) {
-                                argList.Add(ExpressionExpected());
+                                argList.Add(ExpressionExpected(ctx));
                             }
                         }
                         TokenExpected(')');
@@ -792,9 +798,9 @@ namespace CData {
                     }
                     else if (Token('[')) {
                         var argList = new List<ExpressionNode>();
-                        argList.Add(ExpressionExpected());
+                        argList.Add(ExpressionExpected(ctx));
                         while (Token(',')) {
-                            argList.Add(ExpressionExpected());
+                            argList.Add(ExpressionExpected(ctx));
                         }
                         TokenExpected(']');
                         expr = new CallOrIndexExpressionNode(false, expr, argList);
@@ -844,7 +850,7 @@ namespace CData {
                     return true;
                 }
                 else {
-                    ErrorDiagAndThrow("Class value expected.");
+                    ErrorAndThrow("Class value expected.");
                 }
             }
             catch (ParsingException) { }
@@ -875,7 +881,7 @@ namespace CData {
                         else {
                             foreach (var item in list) {
                                 if (item.Alias == alias) {
-                                    ErrorDiagAndThrow(new DiagMsg(DiagCode.DuplicateNamespaceAlias, alias), aliasNode.TextSpan);
+                                    ErrorAndThrow(new DiagMsg(DiagCode.DuplicateNamespaceAlias, alias), aliasNode.TextSpan);
                                 }
                             }
                         }
@@ -903,7 +909,7 @@ namespace CData {
                     }
                 }
             }
-            ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidUriReference, alias), aliasNode.TextSpan);
+            ErrorAndThrow(new DiagMsg(DiagCode.InvalidUriReference, alias), aliasNode.TextSpan);
             return null;
         }
         private bool ClassValue(ClassMd declaredClsMd, out object result) {
@@ -916,14 +922,14 @@ namespace CData {
                 var fullName = new FullName(GetUri(aliasNode), nameNode.Value);
                 var clsMd = ProgramMd.GetGlobalType<ClassMd>(fullName);
                 if (clsMd == null) {
-                    ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidClassReference, fullName.ToString()), nameNode.TextSpan);
+                    ErrorAndThrow(new DiagMsg(DiagCode.InvalidClassReference, fullName.ToString()), nameNode.TextSpan);
                 }
                 if (!clsMd.IsEqualToOrDeriveFrom(declaredClsMd)) {
-                    ErrorDiagAndThrow(new DiagMsg(DiagCode.ClassNotEqualToOrDeriveFromTheDeclared, fullName.ToString(), declaredClsMd.FullName.ToString()),
+                    ErrorAndThrow(new DiagMsg(DiagCode.ClassNotEqualToOrDeriveFromTheDeclared, fullName.ToString(), declaredClsMd.FullName.ToString()),
                         nameNode.TextSpan);
                 }
                 if (clsMd.IsAbstract) {
-                    ErrorDiagAndThrow(new DiagMsg(DiagCode.ClassIsAbstract, fullName.ToString()), nameNode.TextSpan);
+                    ErrorAndThrow(new DiagMsg(DiagCode.ClassIsAbstract, fullName.ToString()), nameNode.TextSpan);
                 }
                 var obj = clsMd.CreateInstance();
                 clsMd.SetTextSpan(obj, nameNode.TextSpan);
@@ -947,7 +953,7 @@ namespace CData {
                             }
                         }
                         if (propMd == null) {
-                            ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidPropertyName, propName), propNameNode.TextSpan);
+                            ErrorAndThrow(new DiagMsg(DiagCode.InvalidPropertyName, propName), propNameNode.TextSpan);
                         }
                         TokenExpected('=');
                         propMd.SetValue(obj, LocalValueExpected(propMd.Type));
@@ -957,7 +963,7 @@ namespace CData {
                         TokenExpected('}', out ts);
                         if (propMdList != null && propMdList.Count > 0) {
                             foreach (var propMd in propMdList) {
-                                ErrorDiag(new DiagMsg(DiagCode.PropertyMissing, propMd.Name), ts);
+                                Error(new DiagMsg(DiagCode.PropertyMissing, propMd.Name), ts);
                             }
                             Throw();
                         }
@@ -980,7 +986,7 @@ namespace CData {
             if (LocalValue(typeMd, out value)) {
                 return value;
             }
-            ErrorDiagAndThrow(new DiagMsg(DiagCode.ValueExpected));
+            ErrorAndThrow(new DiagMsg(DiagCode.ValueExpected));
             return null;
         }
         private bool LocalValue(LocalTypeMd typeMd, out object result) {
@@ -989,17 +995,17 @@ namespace CData {
             if (AtomValue(out avNode, true)) {
                 if (avNode.IsNull) {
                     if (!typeMd.IsNullable) {
-                        ErrorDiagAndThrow(new DiagMsg(DiagCode.NullNotAllowed), avNode.TextSpan);
+                        ErrorAndThrow(new DiagMsg(DiagCode.NullNotAllowed), avNode.TextSpan);
                     }
                     result = null;
                     return true;
                 }
                 if (!typeKind.IsAtom()) {
-                    ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), avNode.TextSpan);
+                    ErrorAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), avNode.TextSpan);
                 }
                 result = AtomExtensions.TryParse(typeKind, avNode.Value);
                 if (result == null) {
-                    ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidAtomValue, typeKind.ToString(), avNode.Value), avNode.TextSpan);
+                    ErrorAndThrow(new DiagMsg(DiagCode.InvalidAtomValue, typeKind.ToString(), avNode.Value), avNode.TextSpan);
                 }
                 return true;
             }
@@ -1007,7 +1013,7 @@ namespace CData {
                 TextSpan ts;
                 if (Token('$', out ts)) {
                     if (typeKind != TypeKind.Enum) {
-                        ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), ts);
+                        ErrorAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), ts);
                     }
                     var uri = GetUri(NameExpected());
                     TokenExpected(':');
@@ -1015,18 +1021,18 @@ namespace CData {
                     var fullName = new FullName(uri, nameNode.Value);
                     var enumMd = ProgramMd.GetGlobalType<EnumMd>(fullName);
                     if (enumMd == null) {
-                        ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidEnumReference, fullName.ToString()), nameNode.TextSpan);
+                        ErrorAndThrow(new DiagMsg(DiagCode.InvalidEnumReference, fullName.ToString()), nameNode.TextSpan);
                     }
                     var declaredEnumMd = ((GlobalTypeRefMd)typeMd).GlobalType as EnumMd;
                     if (enumMd != declaredEnumMd) {
-                        ErrorDiagAndThrow(new DiagMsg(DiagCode.EnumNotEqualToTheDeclared, fullName.ToString(), declaredEnumMd.FullName.ToString()),
+                        ErrorAndThrow(new DiagMsg(DiagCode.EnumNotEqualToTheDeclared, fullName.ToString(), declaredEnumMd.FullName.ToString()),
                             nameNode.TextSpan);
                     }
                     TokenExpected('.');
                     var memberNameNode = NameExpected();
                     result = enumMd.GetPropertyValue(memberNameNode.Value);
                     if (result == null) {
-                        ErrorDiagAndThrow(new DiagMsg(DiagCode.InvalidEnumMemberName, memberNameNode.Value), memberNameNode.TextSpan);
+                        ErrorAndThrow(new DiagMsg(DiagCode.InvalidEnumMemberName, memberNameNode.Value), memberNameNode.TextSpan);
                     }
                     return true;
                 }
@@ -1034,7 +1040,7 @@ namespace CData {
                     var isList = typeKind == TypeKind.List;
                     var isSet = typeKind == TypeKind.SimpleSet || typeKind == TypeKind.ObjectSet;
                     if (!(isList || isSet)) {
-                        ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), ts);
+                        ErrorAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), ts);
                     }
                     var collMd = (CollectionMd)typeMd;
                     var collObj = collMd.CreateInstance();
@@ -1047,7 +1053,7 @@ namespace CData {
                         if (LocalValue(itemMd, out itemObj)) {
                             if (isSet) {
                                 if (!collMd.InvokeBoolAdd(collObj, itemObj)) {
-                                    ErrorDiagAndThrow(new DiagMsg(DiagCode.DuplicateSetItem), ts);
+                                    ErrorAndThrow(new DiagMsg(DiagCode.DuplicateSetItem), ts);
                                 }
                             }
                             else {
@@ -1063,7 +1069,7 @@ namespace CData {
                 }
                 else if (Token((int)TokenKind.HashOpenBracket, out ts)) {
                     if (typeKind != TypeKind.Map) {
-                        ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), ts);
+                        ErrorAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()), ts);
                     }
                     var collMd = (CollectionMd)typeMd;
                     var collObj = collMd.CreateInstance();
@@ -1074,7 +1080,7 @@ namespace CData {
                         ts = GetTextSpan();
                         if (LocalValue(keyMd, out keyObj)) {
                             if (collMd.InvokeContainsKey(collObj, keyObj)) {
-                                ErrorDiagAndThrow(new DiagMsg(DiagCode.DuplicateMapKey), ts);
+                                ErrorAndThrow(new DiagMsg(DiagCode.DuplicateMapKey), ts);
                             }
                             TokenExpected('=');
                             collMd.InvokeAdd(collObj, keyObj, LocalValueExpected(valueMd));
@@ -1088,7 +1094,7 @@ namespace CData {
                 }
                 else if (PeekToken((int)TokenKind.Name, (int)TokenKind.VerbatimName)) {
                     if (typeKind != TypeKind.Class) {
-                        ErrorDiagAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()));
+                        ErrorAndThrow(new DiagMsg(DiagCode.SpecificValueExpected, typeKind.ToString()));
                     }
                     return ClassValue(((GlobalTypeRefMd)typeMd).GlobalType as ClassMd, out result);
                 }

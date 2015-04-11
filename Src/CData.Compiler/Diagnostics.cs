@@ -11,9 +11,6 @@ namespace CData.Compiler {
         DuplicateEnumMemberName,
         DuplicatePropertyName,
         SpecificTypeExpected,
-        InvalidNamespaceAliasReference,
-        AmbiguousGlobalTypeReference,
-        InvalidGlobalTypeReference,
         InvalidClassReference,
         InvalidAtomReference,
         InvalidSimpleGlobalTypeReference,
@@ -81,12 +78,6 @@ namespace CData.Compiler {
                     return "Duplicate property name '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.SpecificTypeExpected:
                     return "{0} type expected.".InvFormat(_msgArgs);
-                case DiagCodeEx.InvalidNamespaceAliasReference:
-                    return "Invalid namespace alias reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.AmbiguousGlobalTypeReference:
-                    return "Ambiguous global type reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCodeEx.InvalidGlobalTypeReference:
-                    return "Invalid global type reference '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.InvalidClassReference:
                     return "Invalid class reference '{0}'.".InvFormat(_msgArgs);
                 case DiagCodeEx.InvalidAtomReference:
@@ -171,18 +162,18 @@ namespace CData.Compiler {
         public static DiagContextEx Current;
         public sealed class ContextException : Exception { }
         private static readonly ContextException _contextException = new ContextException();
-        public static void ErrorDiagAndThrow(DiagMsgEx diagMsg, TextSpan textSpan) {
-            ErrorDiag(diagMsg, textSpan);
+        public static void ErrorAndThrow(DiagMsgEx diagMsg, TextSpan textSpan) {
+            Error(diagMsg, textSpan);
             throw _contextException;
         }
-        public static void ErrorDiagAndThrow(DiagMsg diagMsg, TextSpan textSpan) {
-            ErrorDiag(diagMsg, textSpan);
+        public static void ErrorAndThrow(DiagMsg diagMsg, TextSpan textSpan) {
+            Error(diagMsg, textSpan);
             throw _contextException;
         }
-        private static void ErrorDiag(DiagMsgEx diagMsg, TextSpan textSpan) {
+        private static void Error(DiagMsgEx diagMsg, TextSpan textSpan) {
             Current.AddDiag(DiagSeverity.Error, (int)diagMsg.Code, diagMsg.GetMessage(), textSpan);
         }
-        private static void ErrorDiag(DiagMsg diagMsg, TextSpan textSpan) {
+        private static void Error(DiagMsg diagMsg, TextSpan textSpan) {
             Current.AddDiag(DiagSeverity.Error, (int)diagMsg.Code, diagMsg.GetMessage(), textSpan);
         }
         //private static void ThrowIfHasErrors() {

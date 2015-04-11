@@ -41,12 +41,12 @@ namespace CData.Compiler {
         }
         private Parser() {
         }
-        private void ErrorDiagAndThrow(DiagMsgEx diagMsg, TextSpan textSpan) {
-            ErrorDiag((int)diagMsg.Code, diagMsg.GetMessage(), textSpan);
+        private void ErrorAndThrow(DiagMsgEx diagMsg, TextSpan textSpan) {
+            Error((int)diagMsg.Code, diagMsg.GetMessage(), textSpan);
             Throw();
         }
-        private void ErrorDiagAndThrow(DiagMsgEx diagMsg) {
-            ErrorDiagAndThrow(diagMsg, GetTextSpan());
+        private void ErrorAndThrow(DiagMsgEx diagMsg) {
+            ErrorAndThrow(diagMsg, GetTextSpan());
         }
         private bool CompilationUnit(string filePath, TextReader reader, DiagContext context, out CompilationUnitNode result) {
             try {
@@ -87,7 +87,7 @@ namespace CData.Compiler {
                     if (ns.ImportList.Count > 0) {
                         foreach (var import in ns.ImportList) {
                             if (import.Alias == alias) {
-                                ErrorDiagAndThrow(new DiagMsg(DiagCode.DuplicateNamespaceAlias, alias.Value), alias.TextSpan);
+                                ErrorAndThrow(new DiagMsg(DiagCode.DuplicateNamespaceAlias, alias.Value), alias.TextSpan);
                             }
                         }
                     }
@@ -101,7 +101,7 @@ namespace CData.Compiler {
             if (ns.GlobalTypeList.Count > 0) {
                 foreach (var globalType in ns.GlobalTypeList) {
                     if (globalType.Name == name) {
-                        ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateGlobalTypeName, name.Value), name.TextSpan);
+                        ErrorAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateGlobalTypeName, name.Value), name.TextSpan);
                     }
                 }
             }
@@ -133,7 +133,7 @@ namespace CData.Compiler {
                 if (en.MemberList.Count > 0) {
                     foreach (var item in en.MemberList) {
                         if (item.Name == name) {
-                            ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateEnumMemberName, name.Value), name.TextSpan);
+                            ErrorAndThrow(new DiagMsgEx(DiagCodeEx.DuplicateEnumMemberName, name.Value), name.TextSpan);
                         }
                     }
                 }
@@ -173,7 +173,7 @@ namespace CData.Compiler {
                 if (cls.PropertyList.Count > 0) {
                     foreach (var item in cls.PropertyList) {
                         if (item.Name == name) {
-                            ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.DuplicatePropertyName, name.Value), name.TextSpan);
+                            ErrorAndThrow(new DiagMsgEx(DiagCodeEx.DuplicatePropertyName, name.Value), name.TextSpan);
                         }
                     }
                 }
@@ -195,7 +195,7 @@ namespace CData.Compiler {
         private LocalTypeNode LocalTypeExpected(NamespaceNode ns, LocalTypeFlags flags) {
             LocalTypeNode type;
             if (!LocalType(ns, flags, out type)) {
-                ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.SpecificTypeExpected, flags.ToString()));
+                ErrorAndThrow(new DiagMsgEx(DiagCodeEx.SpecificTypeExpected, flags.ToString()));
             }
             return type;
         }

@@ -11,6 +11,10 @@ namespace CData {
         InvalidUriReference,
         DuplicateNamespaceAlias,
         InvalidNamespaceReference,
+        InvalidNamespaceAliasReference,
+        AmbiguousGlobalTypeReference,
+        InvalidGlobalTypeReference,
+        DuplicateParameterName,
 
         InvalidClassReference,
         ClassNotEqualToOrDeriveFromTheDeclared,
@@ -51,6 +55,15 @@ namespace CData {
                     return "Duplicate namespace alias '{0}'.".InvFormat(_msgArgs);
                 case DiagCode.InvalidNamespaceReference:
                     return "Invalid namespace reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCode.InvalidNamespaceAliasReference:
+                    return "Invalid namespace alias reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCode.AmbiguousGlobalTypeReference:
+                    return "Ambiguous global type reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCode.InvalidGlobalTypeReference:
+                    return "Invalid global type reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCode.DuplicateParameterName:
+                    return "Duplicate parameter name '{0}'.".InvFormat(_msgArgs);
+
 
                 case DiagCode.InvalidClassReference:
                     return "Invalid class reference '{0}'.".InvFormat(_msgArgs);

@@ -107,7 +107,7 @@ namespace CData.Compiler {
                     if (EX.MapNamespaces(nsMap, compilationAssSymbol, false) > 0) {
                         foreach (var logicalNs in nsMap.Values) {
                             if (logicalNs.DottedName == null) {
-                                DiagContextEx.ErrorDiagAndThrow(new DiagMsgEx(DiagCodeEx.ContractNamespaceAttributeRequired, logicalNs.Uri), default(TextSpan));
+                                DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.ContractNamespaceAttributeRequired, logicalNs.Uri), default(TextSpan));
                             }
                         }
                         EX.MapClasses(nsMap, compilationAssSymbol.GlobalNamespace);
