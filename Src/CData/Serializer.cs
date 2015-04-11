@@ -7,7 +7,7 @@ using System.Collections;
 namespace CData {
     public static class Serializer {
         public static bool TryLoad<T>(string filePath, TextReader reader, DiagContext context,
-            ProgramMetadata assemblyMetadata, ClassMetadata classMetadata, out T result) where T : class {
+            ProgramMd assemblyMetadata, ClassMd classMetadata, out T result) where T : class {
             object obj;
             if (Parser.Parse(filePath, reader, context, classMetadata, out obj)) {
                 result = (T)obj;
@@ -16,18 +16,18 @@ namespace CData {
             result = null;
             return false;
         }
-        public static void Save(object obj, ClassMetadata classMetadata, TextWriter writer, string indentString = "\t", string newLineString = "\n") {
+        public static void Save(object obj, ClassMd classMetadata, TextWriter writer, string indentString = "\t", string newLineString = "\n") {
             if (writer == null) throw new ArgumentNullException("writer");
             var sb = StringBuilderBuffer.Acquire();
             Save(obj, classMetadata, sb, indentString, newLineString);
             writer.Write(sb.ToStringAndRelease());
         }
-        public static void Save(object obj, ClassMetadata classMetadata, StringBuilder stringBuilder, string indentString = "\t", string newLineString = "\n") {
+        public static void Save(object obj, ClassMd classMetadata, StringBuilder stringBuilder, string indentString = "\t", string newLineString = "\n") {
             if (obj == null) throw new ArgumentNullException("obj");
             if (classMetadata == null) throw new ArgumentNullException("classMetadata");
             SaveClassValue(true, obj, classMetadata, new SavingContext(stringBuilder, indentString, newLineString));
         }
-        private static void SaveClassValue(bool isRoot, object obj, ClassMetadata clsMd, SavingContext context) {
+        private static void SaveClassValue(bool isRoot, object obj, ClassMd clsMd, SavingContext context) {
             string rootAlias = null;
             if (isRoot) {
                 rootAlias = context.AddUri(clsMd.FullName.Uri);
@@ -55,7 +55,7 @@ namespace CData {
                 context.InsertRootObjectHead(rootAlias, clsMd.FullName.Name);
             }
         }
-        private static void SaveLocalValue(object value, LocalTypeMetadata typeMd, SavingContext context) {
+        private static void SaveLocalValue(object value, LocalTypeMd typeMd, SavingContext context) {
             if (value == null) {
                 context.Append("null");
             }
@@ -66,11 +66,11 @@ namespace CData {
                     SaveAtomValue(value, typeKind, context.StringBuilder);
                 }
                 else if (typeKind == TypeKind.Class) {
-                    SaveClassValue(false, value, ((GlobalTypeRefMetadata)typeMd).GlobalType as ClassMetadata, context);
+                    SaveClassValue(false, value, ((GlobalTypeRefMd)typeMd).GlobalType as ClassMd, context);
                 }
                 else if (typeKind == TypeKind.Enum) {
-                    var enumMd = ((GlobalTypeRefMetadata)typeMd).GlobalType as EnumMetadata;
-                    var memberName = enumMd.GetMemberName(value);
+                    var enumMd = ((GlobalTypeRefMd)typeMd).GlobalType as EnumMd;
+                    var memberName = enumMd.GetPropertyName(value);
                     if (memberName == null) {
                         context.Append("null");
                     }
@@ -83,7 +83,7 @@ namespace CData {
                     }
                 }
                 else if (typeKind == TypeKind.Map) {
-                    var collMd = (CollectionMetadata)typeMd;
+                    var collMd = (CollectionMd)typeMd;
                     var keyMd = collMd.MapKeyType;
                     var valueMd = collMd.ItemOrValueType;
                     context.Append("#[");
@@ -106,7 +106,7 @@ namespace CData {
                     context.Append(']');
                 }
                 else {
-                    var itemMd = ((CollectionMetadata)typeMd).ItemOrValueType;
+                    var itemMd = ((CollectionMd)typeMd).ItemOrValueType;
                     context.Append('[');
                     context.AppendLine();
                     context.PushIndent();

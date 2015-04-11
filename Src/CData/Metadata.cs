@@ -4,18 +4,18 @@ using System.Collections.Generic;
 using System.Reflection;
 
 namespace CData {
-    public abstract class ProgramMetadata {
-        private static readonly Dictionary<FullName, GlobalTypeMetadata> _globalTypeMap = new Dictionary<FullName, GlobalTypeMetadata>();
+    public abstract class ProgramMd {
+        private static readonly Dictionary<FullName, GlobalTypeMd> _globalTypeMap = new Dictionary<FullName, GlobalTypeMd>();
         private static readonly HashSet<string> _uriSet = new HashSet<string>();
-        public static T GetGlobalType<T>(FullName fullName) where T : GlobalTypeMetadata {
-            GlobalTypeMetadata globalType;
+        public static T GetGlobalType<T>(FullName fullName) where T : GlobalTypeMd {
+            GlobalTypeMd globalType;
             _globalTypeMap.TryGetValue(fullName, out globalType);
             return globalType as T;
         }
         internal static bool IsUriDefined(string uri) {
             return _uriSet.Contains(uri);
         }
-        protected void AddGlobalTypes(GlobalTypeMetadata[] globalTypes) {
+        protected void AddGlobalTypes(GlobalTypeMd[] globalTypes) {
             if (globalTypes != null) {
                 lock (_globalTypeMap) {
                     foreach (var globalType in globalTypes) {
@@ -59,26 +59,26 @@ namespace CData {
         AnonymousClass = 75,
         Void = 76,
     }
-    public abstract class TypeMetadata {
-        protected TypeMetadata(TypeKind kind) {
+    public abstract class TypeMd {
+        protected TypeMd(TypeKind kind) {
             Kind = kind;
         }
         public readonly TypeKind Kind;
     }
-    public abstract class LocalTypeMetadata : TypeMetadata {
-        protected LocalTypeMetadata(TypeKind kind, bool isNullable)
+    public abstract class LocalTypeMd : TypeMd {
+        protected LocalTypeMd(TypeKind kind, bool isNullable)
             : base(kind) {
             IsNullable = isNullable;
         }
         public readonly bool IsNullable;
     }
-    public sealed class AnonymousClassMetadata : LocalTypeMetadata {
-        public AnonymousClassMetadata(bool isNullable, AnonymousPropertyMetadata[] properties)
+    public sealed class AnonymousClassMd : LocalTypeMd {
+        public AnonymousClassMd(bool isNullable, AnonymousClassPropertyMd[] properties)
             : base(TypeKind.AnonymousClass, isNullable) {
             _properties = properties;
         }
-        private readonly AnonymousPropertyMetadata[] _properties;//opt
-        public AnonymousPropertyMetadata GetProperty(string name) {
+        private readonly AnonymousClassPropertyMd[] _properties;//opt
+        public AnonymousClassPropertyMd GetProperty(string name) {
             var props = _properties;
             if (props != null) {
                 var length = props.Length;
@@ -91,40 +91,40 @@ namespace CData {
             return null;
         }
     }
-    public abstract class NamedLocalTypeMetadata {
-        protected NamedLocalTypeMetadata(string name, LocalTypeMetadata type) {
+    public abstract class NamedLocalTypeMd {
+        protected NamedLocalTypeMd(string name, LocalTypeMd type) {
             Name = name;
             Type = type;
         }
         public readonly string Name;
-        public readonly LocalTypeMetadata Type;
+        public readonly LocalTypeMd Type;
     }
-    public sealed class AnonymousPropertyMetadata : NamedLocalTypeMetadata {
-        public AnonymousPropertyMetadata(string name, LocalTypeMetadata type)
+    public sealed class AnonymousClassPropertyMd : NamedLocalTypeMd {
+        public AnonymousClassPropertyMd(string name, LocalTypeMd type)
             : base(name, type) {
         }
     }
-    public sealed class VoidMetadata : LocalTypeMetadata {
-        public static readonly VoidMetadata Instance = new VoidMetadata();
-        private VoidMetadata() : base(TypeKind.Void, false) { }
+    public sealed class VoidMd : LocalTypeMd {
+        public static readonly VoidMd Instance = new VoidMd();
+        private VoidMd() : base(TypeKind.Void, false) { }
     }
-    public abstract class CollectionBaseMetadata : LocalTypeMetadata {
-        protected CollectionBaseMetadata(TypeKind kind, bool isNullable, LocalTypeMetadata itemOrValueType)
+    public abstract class CollectionBaseMd : LocalTypeMd {
+        protected CollectionBaseMd(TypeKind kind, bool isNullable, LocalTypeMd itemOrValueType)
             : base(kind, isNullable) {
             ItemOrValueType = itemOrValueType;
         }
-        public readonly LocalTypeMetadata ItemOrValueType;
+        public readonly LocalTypeMd ItemOrValueType;
     }
-    public sealed class EnumerableMetadata : CollectionBaseMetadata {
-        public EnumerableMetadata(bool isNullable, LocalTypeMetadata itemOrValueType)
+    public sealed class EnumerableMd : CollectionBaseMd {
+        public EnumerableMd(bool isNullable, LocalTypeMd itemOrValueType)
             : base(TypeKind.Enumerable, isNullable, itemOrValueType) {
         }
     }
 
     //for List, SimpleSet, ObjectSet, Map
-    public sealed class CollectionMetadata : CollectionBaseMetadata {
-        public CollectionMetadata(TypeKind kind, bool isNullable,
-            LocalTypeMetadata itemOrValueType, GlobalTypeRefMetadata mapKeyType, object objectSetKeySelector, Type clrType)
+    public sealed class CollectionMd : CollectionBaseMd {
+        public CollectionMd(TypeKind kind, bool isNullable,
+            LocalTypeMd itemOrValueType, GlobalTypeRefMd mapKeyType, object objectSetKeySelector, Type clrType)
             : base(kind, isNullable, itemOrValueType) {
             MapKeyType = mapKeyType;
             ObjectSetKeySelector = objectSetKeySelector;
@@ -140,7 +140,7 @@ namespace CData {
                 ClrKeySelectorProperty = ReflectionExtensions.GetPropertyInHierarchy(ti, "KeySelector");
             }
         }
-        public readonly GlobalTypeRefMetadata MapKeyType;//opt
+        public readonly GlobalTypeRefMd MapKeyType;//opt
         public readonly object ObjectSetKeySelector;//opt
         public readonly Type ClrType;
         public readonly ConstructorInfo ClrConstructor;
@@ -171,81 +171,103 @@ namespace CData {
             return ClrGetEnumeratorMethod.Invoke(obj, null) as IDictionaryEnumerator;
         }
     }
-    public sealed class GlobalTypeRefMetadata : LocalTypeMetadata {
-        public GlobalTypeRefMetadata(GlobalTypeMetadata globalType, bool isNullable)
+    public sealed class GlobalTypeRefMd : LocalTypeMd {
+        public GlobalTypeRefMd(GlobalTypeMd globalType, bool isNullable)
             : base(globalType.Kind, isNullable) {
             GlobalType = globalType;
         }
-        public readonly GlobalTypeMetadata GlobalType;
-        public static GlobalTypeRefMetadata GetAtom(TypeKind kind, bool isNullable) {
+        public readonly GlobalTypeMd GlobalType;
+        public static GlobalTypeRefMd GetAtom(TypeKind kind, bool isNullable = false) {
             return isNullable ? _nullableAtomMap[kind] : _atomMap[kind];
         }
-        private static readonly Dictionary<TypeKind, GlobalTypeRefMetadata> _atomMap = new Dictionary<TypeKind, GlobalTypeRefMetadata> {
-            { TypeKind.String, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.String), false) },
-            { TypeKind.IgnoreCaseString, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.IgnoreCaseString), false) },
-            { TypeKind.Char, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Char), false) },
-            { TypeKind.Decimal, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Decimal), false) },
-            { TypeKind.Int64, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Int64), false) },
-            { TypeKind.Int32, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Int32), false) },
-            { TypeKind.Int16, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Int16), false) },
-            { TypeKind.SByte, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.SByte), false) },
-            { TypeKind.UInt64, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.UInt64), false) },
-            { TypeKind.UInt32, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.UInt32), false) },
-            { TypeKind.UInt16, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.UInt16), false) },
-            { TypeKind.Byte, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Byte), false) },
-            { TypeKind.Double, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Double), false) },
-            { TypeKind.Single, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Single), false) },
-            { TypeKind.Boolean, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Boolean), false) },
-            { TypeKind.Binary, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Binary), false) },
-            { TypeKind.Guid, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Guid), false) },
-            { TypeKind.TimeSpan, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.TimeSpan), false) },
-            { TypeKind.DateTimeOffset, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.DateTimeOffset), false) },
+        private static readonly Dictionary<TypeKind, GlobalTypeRefMd> _atomMap = new Dictionary<TypeKind, GlobalTypeRefMd> {
+            { TypeKind.String, new GlobalTypeRefMd(AtomMd.Get(TypeKind.String), false) },
+            { TypeKind.IgnoreCaseString, new GlobalTypeRefMd(AtomMd.Get(TypeKind.IgnoreCaseString), false) },
+            { TypeKind.Char, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Char), false) },
+            { TypeKind.Decimal, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Decimal), false) },
+            { TypeKind.Int64, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Int64), false) },
+            { TypeKind.Int32, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Int32), false) },
+            { TypeKind.Int16, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Int16), false) },
+            { TypeKind.SByte, new GlobalTypeRefMd(AtomMd.Get(TypeKind.SByte), false) },
+            { TypeKind.UInt64, new GlobalTypeRefMd(AtomMd.Get(TypeKind.UInt64), false) },
+            { TypeKind.UInt32, new GlobalTypeRefMd(AtomMd.Get(TypeKind.UInt32), false) },
+            { TypeKind.UInt16, new GlobalTypeRefMd(AtomMd.Get(TypeKind.UInt16), false) },
+            { TypeKind.Byte, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Byte), false) },
+            { TypeKind.Double, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Double), false) },
+            { TypeKind.Single, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Single), false) },
+            { TypeKind.Boolean, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Boolean), false) },
+            { TypeKind.Binary, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Binary), false) },
+            { TypeKind.Guid, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Guid), false) },
+            { TypeKind.TimeSpan, new GlobalTypeRefMd(AtomMd.Get(TypeKind.TimeSpan), false) },
+            { TypeKind.DateTimeOffset, new GlobalTypeRefMd(AtomMd.Get(TypeKind.DateTimeOffset), false) },
         };
-        private static readonly Dictionary<TypeKind, GlobalTypeRefMetadata> _nullableAtomMap = new Dictionary<TypeKind, GlobalTypeRefMetadata> {
-            { TypeKind.String, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.String), true) },
-            { TypeKind.IgnoreCaseString, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.IgnoreCaseString), true) },
-            { TypeKind.Char, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Char), true) },
-            { TypeKind.Decimal, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Decimal), true) },
-            { TypeKind.Int64, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Int64), true) },
-            { TypeKind.Int32, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Int32), true) },
-            { TypeKind.Int16, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Int16), true) },
-            { TypeKind.SByte, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.SByte), true) },
-            { TypeKind.UInt64, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.UInt64), true) },
-            { TypeKind.UInt32, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.UInt32), true) },
-            { TypeKind.UInt16, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.UInt16), true) },
-            { TypeKind.Byte, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Byte), true) },
-            { TypeKind.Double, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Double), true) },
-            { TypeKind.Single, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Single), true) },
-            { TypeKind.Boolean, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Boolean), true) },
-            { TypeKind.Binary, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Binary), true) },
-            { TypeKind.Guid, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.Guid), true) },
-            { TypeKind.TimeSpan, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.TimeSpan), true) },
-            { TypeKind.DateTimeOffset, new GlobalTypeRefMetadata(AtomMetadata.Get(TypeKind.DateTimeOffset), true) },
+        private static readonly Dictionary<TypeKind, GlobalTypeRefMd> _nullableAtomMap = new Dictionary<TypeKind, GlobalTypeRefMd> {
+            { TypeKind.String, new GlobalTypeRefMd(AtomMd.Get(TypeKind.String), true) },
+            { TypeKind.IgnoreCaseString, new GlobalTypeRefMd(AtomMd.Get(TypeKind.IgnoreCaseString), true) },
+            { TypeKind.Char, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Char), true) },
+            { TypeKind.Decimal, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Decimal), true) },
+            { TypeKind.Int64, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Int64), true) },
+            { TypeKind.Int32, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Int32), true) },
+            { TypeKind.Int16, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Int16), true) },
+            { TypeKind.SByte, new GlobalTypeRefMd(AtomMd.Get(TypeKind.SByte), true) },
+            { TypeKind.UInt64, new GlobalTypeRefMd(AtomMd.Get(TypeKind.UInt64), true) },
+            { TypeKind.UInt32, new GlobalTypeRefMd(AtomMd.Get(TypeKind.UInt32), true) },
+            { TypeKind.UInt16, new GlobalTypeRefMd(AtomMd.Get(TypeKind.UInt16), true) },
+            { TypeKind.Byte, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Byte), true) },
+            { TypeKind.Double, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Double), true) },
+            { TypeKind.Single, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Single), true) },
+            { TypeKind.Boolean, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Boolean), true) },
+            { TypeKind.Binary, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Binary), true) },
+            { TypeKind.Guid, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Guid), true) },
+            { TypeKind.TimeSpan, new GlobalTypeRefMd(AtomMd.Get(TypeKind.TimeSpan), true) },
+            { TypeKind.DateTimeOffset, new GlobalTypeRefMd(AtomMd.Get(TypeKind.DateTimeOffset), true) },
         };
     }
-    public abstract class GlobalTypeMetadata : TypeMetadata {
-        protected GlobalTypeMetadata(TypeKind kind, FullName fullName, FunctionMetadata[] functions)
+    public abstract class GlobalTypeMd : TypeMd {
+        protected GlobalTypeMd(TypeKind kind, FullName fullName, PropertyMd[] properties, FunctionMd[] functions)
             : base(kind) {
             FullName = fullName;
+            _properties = properties;
+            _functions = functions;
         }
         public readonly FullName FullName;
-        protected FunctionMetadata[] _functions;//opt
+        protected PropertyMd[] _properties;//opt
+        protected FunctionMd[] _functions;//opt
+
     }
-    public sealed class FunctionParameterMetadata : NamedLocalTypeMetadata {
-        public FunctionParameterMetadata(string name, LocalTypeMetadata type)
+
+    [Flags]
+    public enum PropertyFlags {
+        None = 0,
+        Static = 1,
+        ReadOnly = 2,
+    }
+    public class PropertyMd : NamedLocalTypeMd {
+        public PropertyMd(string name, LocalTypeMd type, PropertyFlags flags)
             : base(name, type) {
+            Flags = flags;
+        }
+        public readonly PropertyFlags Flags;
+        public bool IsStatic {
+            get { return (Flags & PropertyFlags.Static) != 0; }
+        }
+        public bool IsReadOnly {
+            get { return (Flags & PropertyFlags.ReadOnly) != 0; }
         }
     }
+
+
 
     [Flags]
     public enum FunctionFlags {
         None = 0,
-        Static = 1,
-        Safe = 2,
+        Index = 1,
+        Static = 2,
+        Unsafe = 4,
     }
 
-    public sealed class FunctionMetadata {
-        public FunctionMetadata(string name, FunctionFlags flags, LocalTypeMetadata returnType, FunctionParameterMetadata[] parameters) {
+    public sealed class FunctionMd {
+        public FunctionMd(string name, FunctionFlags flags, LocalTypeMd returnType, FunctionParameterMetadata[] parameters) {
             Name = name;
             Flags = flags;
             ReturnType = returnType;
@@ -253,47 +275,81 @@ namespace CData {
         }
         public readonly string Name;
         public readonly FunctionFlags Flags;
-        public readonly LocalTypeMetadata ReturnType;
+        public readonly LocalTypeMd ReturnType;
         private readonly FunctionParameterMetadata[] _parameters;//opt
+        public bool IsIndex {
+            get { return (Flags & FunctionFlags.Index) != 0; }
+        }
         public bool IsStatic {
             get { return (Flags & FunctionFlags.Static) != 0; }
         }
-        public bool IsSafe {
-            get { return (Flags & FunctionFlags.Safe) != 0; }
+        public bool IsUnsafe {
+            get { return (Flags & FunctionFlags.Unsafe) != 0; }
         }
 
     }
-    public sealed class AtomMetadata : GlobalTypeMetadata {
-        public static AtomMetadata Get(TypeKind kind) {
-            return _atomMap[kind];
+    public sealed class FunctionParameterMetadata : NamedLocalTypeMd {
+        public FunctionParameterMetadata(string name, LocalTypeMd type)
+            : base(name, type) {
         }
-        private AtomMetadata(TypeKind kind) :
-            base(kind, AtomExtensions.GetFullName(kind), null) {
+    }
+
+    public sealed class AtomMd : GlobalTypeMd {
+        public static AtomMd Get(TypeKind kind) {
+            return _map[kind];
         }
-        private static readonly Dictionary<TypeKind, AtomMetadata> _atomMap;
-        static AtomMetadata() {
-            _atomMap = new Dictionary<TypeKind, AtomMetadata> {
-                { TypeKind.String, new AtomMetadata(TypeKind.String) },
-                { TypeKind.IgnoreCaseString, new AtomMetadata(TypeKind.IgnoreCaseString) },
-                { TypeKind.Char, new AtomMetadata(TypeKind.Char) },
-                { TypeKind.Decimal, new AtomMetadata(TypeKind.Decimal) },
-                { TypeKind.Int64, new AtomMetadata(TypeKind.Int64) },
-                { TypeKind.Int32, new AtomMetadata(TypeKind.Int32) },
-                { TypeKind.Int16, new AtomMetadata(TypeKind.Int16) },
-                { TypeKind.SByte, new AtomMetadata(TypeKind.SByte) },
-                { TypeKind.UInt64, new AtomMetadata(TypeKind.UInt64) },
-                { TypeKind.UInt32, new AtomMetadata(TypeKind.UInt32) },
-                { TypeKind.UInt16, new AtomMetadata(TypeKind.UInt16) },
-                { TypeKind.Byte, new AtomMetadata(TypeKind.Byte) },
-                { TypeKind.Double, new AtomMetadata(TypeKind.Double) },
-                { TypeKind.Single, new AtomMetadata(TypeKind.Single) },
-                { TypeKind.Boolean, new AtomMetadata(TypeKind.Boolean) },
-                { TypeKind.Binary, new AtomMetadata(TypeKind.Binary) },
-                { TypeKind.Guid, new AtomMetadata(TypeKind.Guid) },
-                { TypeKind.TimeSpan, new AtomMetadata(TypeKind.TimeSpan) },
-                { TypeKind.DateTimeOffset, new AtomMetadata(TypeKind.DateTimeOffset) },
+        private AtomMd(TypeKind kind) :
+            base(kind, AtomExtensions.GetFullName(kind), null, null) {
+        }
+        private static readonly Dictionary<TypeKind, AtomMd> _map;
+        static AtomMd() {
+            var map = new Dictionary<TypeKind, AtomMd> {
+                { TypeKind.String, new AtomMd(TypeKind.String) },
+                { TypeKind.IgnoreCaseString, new AtomMd(TypeKind.IgnoreCaseString) },
+                { TypeKind.Char, new AtomMd(TypeKind.Char) },
+                { TypeKind.Decimal, new AtomMd(TypeKind.Decimal) },
+                { TypeKind.Int64, new AtomMd(TypeKind.Int64) },
+                { TypeKind.Int32, new AtomMd(TypeKind.Int32) },
+                { TypeKind.Int16, new AtomMd(TypeKind.Int16) },
+                { TypeKind.SByte, new AtomMd(TypeKind.SByte) },
+                { TypeKind.UInt64, new AtomMd(TypeKind.UInt64) },
+                { TypeKind.UInt32, new AtomMd(TypeKind.UInt32) },
+                { TypeKind.UInt16, new AtomMd(TypeKind.UInt16) },
+                { TypeKind.Byte, new AtomMd(TypeKind.Byte) },
+                { TypeKind.Double, new AtomMd(TypeKind.Double) },
+                { TypeKind.Single, new AtomMd(TypeKind.Single) },
+                { TypeKind.Boolean, new AtomMd(TypeKind.Boolean) },
+                { TypeKind.Binary, new AtomMd(TypeKind.Binary) },
+                { TypeKind.Guid, new AtomMd(TypeKind.Guid) },
+                { TypeKind.TimeSpan, new AtomMd(TypeKind.TimeSpan) },
+                { TypeKind.DateTimeOffset, new AtomMd(TypeKind.DateTimeOffset) },
             };
-            _atomMap[TypeKind.String]._functions = new FunctionMetadata[] {
+            _map = map;
+            map[TypeKind.String]._properties = new PropertyMd[] {
+                new PropertyMd("Length", GlobalTypeRefMd.GetAtom(TypeKind.Int32), PropertyFlags.ReadOnly),
+
+            };
+            map[TypeKind.String]._functions = new FunctionMd[] {
+                //char this[int index] { get; }
+                new FunctionMd(null, FunctionFlags.Index, GlobalTypeRefMd.GetAtom(TypeKind.Char), 
+                    new[] { new FunctionParameterMetadata("index", GlobalTypeRefMd.GetAtom(TypeKind.Int32)) }),
+                //bool Contains(string value);
+                new FunctionMd("Contains", FunctionFlags.None, GlobalTypeRefMd.GetAtom(TypeKind.Boolean), 
+                    new[] { new FunctionParameterMetadata("value", GlobalTypeRefMd.GetAtom(TypeKind.String)) }),
+                //bool StartsWith(string value);
+                new FunctionMd("StartsWith", FunctionFlags.None, GlobalTypeRefMd.GetAtom(TypeKind.Boolean), 
+                    new[] { new FunctionParameterMetadata("value", GlobalTypeRefMd.GetAtom(TypeKind.String)) }),
+                //bool EndsWith(string value);
+                new FunctionMd("EndsWith", FunctionFlags.None, GlobalTypeRefMd.GetAtom(TypeKind.Boolean), 
+                    new[] { new FunctionParameterMetadata("value", GlobalTypeRefMd.GetAtom(TypeKind.String)) }),
+                //string Substring(int startIndex);
+                new FunctionMd("Substring", FunctionFlags.None, GlobalTypeRefMd.GetAtom(TypeKind.String), 
+                    new[] { new FunctionParameterMetadata("startIndex", GlobalTypeRefMd.GetAtom(TypeKind.Int32)) }),
+                //string Substring(int startIndex, int length);
+                new FunctionMd("Substring", FunctionFlags.None, GlobalTypeRefMd.GetAtom(TypeKind.String), 
+                    new[] { new FunctionParameterMetadata("startIndex", GlobalTypeRefMd.GetAtom(TypeKind.Int32)),
+                            new FunctionParameterMetadata("length", GlobalTypeRefMd.GetAtom(TypeKind.Int32))
+                    }),
 
             };
 
@@ -301,43 +357,51 @@ namespace CData {
 
     }
 
-    public sealed class EnumMetadata : GlobalTypeMetadata {
-        public EnumMetadata(FullName fullName, NameValuePair[] members)
-            : base(TypeKind.Enum, fullName, null) {
-            _members = members;
+    public sealed class EnumPropertyMd : PropertyMd {
+        public EnumPropertyMd(string name, LocalTypeMd type, object value)
+            : base(name, type, PropertyFlags.Static | PropertyFlags.ReadOnly) {
+            Value = value;
         }
-        private readonly NameValuePair[] _members;
-        public object GetMemberValue(string name) {
-            var members = _members;
-            if (members != null) {
-                var length = members.Length;
+        public readonly object Value;
+    }
+    public sealed class EnumMd : GlobalTypeMd {
+        public EnumMd(FullName fullName, EnumPropertyMd[] properties)
+            : base(TypeKind.Enum, fullName, properties, null) {
+            _enumProperties = properties;
+        }
+        private readonly EnumPropertyMd[] _enumProperties;
+        public object GetPropertyValue(string name) {
+            var props = _enumProperties;
+            if (props != null) {
+                var length = props.Length;
                 for (var i = 0; i < length; ++i) {
-                    if (members[i].Name == name) {
-                        return members[i].Value;
+                    if (props[i].Name == name) {
+                        return props[i].Value;
                     }
                 }
             }
             return null;
         }
-        public string GetMemberName(object value) {
-            var members = _members;
-            if (members != null) {
-                var length = members.Length;
+        public string GetPropertyName(object value) {
+            var props = _enumProperties;
+            if (props != null) {
+                var length = props.Length;
                 for (var i = 0; i < length; ++i) {
-                    if (members[i].Value.Equals(value)) {
-                        return members[i].Name;
+                    if (props[i].Value.Equals(value)) {
+                        return props[i].Name;
                     }
                 }
             }
             return null;
         }
     }
-    public sealed class ClassMetadata : GlobalTypeMetadata {
-        public ClassMetadata(FullName fullName, bool isAbstract, ClassMetadata baseClass, PropertyMetadata[] properties, FunctionMetadata[] functions, Type clrType)
-            : base(TypeKind.Class, fullName, functions) {
+    public sealed class ClassMd : GlobalTypeMd {
+        public ClassMd(FullName fullName, bool isAbstract, ClassMd baseClass,
+            ClassPropertyMd[] properties, FunctionMd[] functions, Type clrType)
+            : base(TypeKind.Class, fullName, properties, functions) {
             IsAbstract = isAbstract;
             BaseClass = baseClass;
-            _properties = properties;
+            _classProperties = properties;
             ClrType = clrType;
             TypeInfo ti = clrType.GetTypeInfo();
             if (properties != null) {
@@ -356,15 +420,15 @@ namespace CData {
             ClrOnLoadedMethod = ti.GetDeclaredMethod(ReflectionExtensions.OnLoadedNameStr);
         }
         public readonly bool IsAbstract;
-        public readonly ClassMetadata BaseClass;
-        private readonly PropertyMetadata[] _properties;
+        public readonly ClassMd BaseClass;
+        private readonly ClassPropertyMd[] _classProperties;
         public readonly Type ClrType;
         public readonly ConstructorInfo ClrConstructor;//for non abstract class
         public readonly PropertyInfo ClrMetadataProperty;//for top class
         public readonly PropertyInfo ClrTextSpanProperty;//for top class
         public readonly MethodInfo ClrOnLoadingMethod;//opt
         public readonly MethodInfo ClrOnLoadedMethod;//opt
-        public bool IsEqualToOrDeriveFrom(ClassMetadata other) {
+        public bool IsEqualToOrDeriveFrom(ClassMd other) {
             for (var cls = this; cls != null; cls = cls.BaseClass) {
                 if (cls == other) {
                     return true;
@@ -372,8 +436,8 @@ namespace CData {
             }
             return false;
         }
-        public PropertyMetadata GetPropertyInHierarchy(string name) {
-            var props = _properties;
+        public ClassPropertyMd GetPropertyInHierarchy(string name) {
+            var props = _classProperties;
             if (props != null) {
                 var length = props.Length;
                 for (var i = 0; i < length; ++i) {
@@ -387,27 +451,27 @@ namespace CData {
             }
             return null;
         }
-        public void GetPropertiesInHierarchy(ref List<PropertyMetadata> propList) {
+        public void GetPropertiesInHierarchy(ref List<ClassPropertyMd> propList) {
             if (BaseClass != null) {
                 BaseClass.GetPropertiesInHierarchy(ref propList);
             }
-            if (_properties != null) {
+            if (_classProperties != null) {
                 if (propList == null) {
-                    propList = new List<PropertyMetadata>(_properties);
+                    propList = new List<ClassPropertyMd>(_classProperties);
                 }
                 else {
-                    propList.AddRange(_properties);
+                    propList.AddRange(_classProperties);
                 }
             }
         }
-        public IEnumerable<PropertyMetadata> GetPropertiesInHierarchy() {
+        public IEnumerable<ClassPropertyMd> GetPropertiesInHierarchy() {
             if (BaseClass == null) {
-                return _properties;
+                return _classProperties;
             }
-            if (_properties == null) {
+            if (_classProperties == null) {
                 return BaseClass.GetPropertiesInHierarchy();
             }
-            List<PropertyMetadata> propList = null;
+            List<ClassPropertyMd> propList = null;
             GetPropertiesInHierarchy(ref propList);
             return propList;
         }
@@ -415,10 +479,10 @@ namespace CData {
             //FormatterServices.GetUninitializedObject()
             return ClrConstructor.Invoke(null);
         }
-        public ClassMetadata GetMetadata(object obj) {
+        public ClassMd GetMetadata(object obj) {
             var md = this;
             for (; md.BaseClass != null; md = md.BaseClass) ;
-            return (ClassMetadata)md.ClrMetadataProperty.GetValue(obj);
+            return (ClassMd)md.ClrMetadataProperty.GetValue(obj);
         }
         public void SetTextSpan(object obj, TextSpan value) {
             var md = this;
@@ -440,9 +504,9 @@ namespace CData {
             return true;
         }
     }
-    public sealed class PropertyMetadata : NamedLocalTypeMetadata {
-        public PropertyMetadata(string name, LocalTypeMetadata type, string clrName, bool isClrProperty)
-            : base(name, type) {
+    public sealed class ClassPropertyMd : PropertyMd {
+        public ClassPropertyMd(string name, LocalTypeMd type, string clrName, bool isClrProperty)
+            : base(name, type, PropertyFlags.None) {
             ClrName = clrName;
             IsClrProperty = isClrProperty;
         }
