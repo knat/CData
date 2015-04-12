@@ -9,12 +9,16 @@ namespace CData {
         public static bool TryLoad<T>(string filePath, TextReader reader, DiagContext context,
             ProgramMd programMd, ClassMd classMd, out T result) where T : class {
             object obj;
-            if (Parser.Parse(filePath, reader, context, classMd, out obj)) {
+            if (Parser.ParseData(filePath, reader, context, classMd, out obj)) {
                 result = (T)obj;
                 return true;
             }
             result = null;
             return false;
+        }
+        public static bool TryLoad<T>(string filePath, string text, DiagContext context,
+            ProgramMd programMd, ClassMd classMd, out T result) where T : class {
+            return TryLoad<T>(filePath, new SimpleStringReader(text), context, programMd, classMd, out result);
         }
         public static void Save(object obj, ClassMd classMd, TextWriter writer, string indent = "\t", string newLine = "\n") {
             if (writer == null) throw new ArgumentNullException("writer");

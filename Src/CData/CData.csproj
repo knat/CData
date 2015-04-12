@@ -43,7 +43,7 @@
     <Compile Include="AtomExtensions.cs" />
     <Compile Include="Attributes.cs" />
     <Compile Include="Binary.cs" />
-    <Compile Include="ExpressionNodes.cs" />
+    <Compile Include="QueryExpressionNodes.cs" />
     <Compile Include="IgnoreCaseString.cs" />
     <Compile Include="Metadata.cs" />
     <Compile Include="Diagnostics.cs" />
@@ -56,6 +56,7 @@
     <Compile Include="ReflectionExtensions.cs" />
     <Compile Include="SavingContext.cs" />
     <Compile Include="Serializer.cs" />
+    <Compile Include="SimpleStringReader.cs" />
     <Compile Include="StringBuilderBuffer.cs" />
     <Compile Include="TextSpan.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

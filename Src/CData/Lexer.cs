@@ -67,9 +67,9 @@ namespace CData {
     }
     internal sealed class Lexer {
         [ThreadStatic]
-        private static Lexer _instance;
+        private static readonly Lexer _instance = new Lexer();
         public static Lexer Get(TextReader reader) {
-            return (_instance ?? (_instance = new Lexer())).Set(reader);
+            return _instance.Set(reader);
         }
         private Lexer() {
             _buf = new char[_bufLength];
@@ -97,7 +97,7 @@ namespace CData {
         }
         public void Clear() {
             _reader = null;
-            if (_stringBuilder != null && _stringBuilder.Capacity > _stringBuilderCapacity * 4) {
+            if (_stringBuilder != null && _stringBuilder.Capacity > _stringBuilderCapacity * 8) {
                 _stringBuilder = null;
             }
         }

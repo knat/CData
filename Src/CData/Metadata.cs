@@ -397,7 +397,9 @@ namespace CData {
         }
 
     }
-
+    public interface IContainerMd {
+        object TryGetMember(string name);
+    }
     public sealed class EnumPropertyMd : PropertyMd {
         public EnumPropertyMd(string name, LocalTypeMd type, object value)
             : base(name, type, PropertyFlags.Static | PropertyFlags.ReadOnly) {

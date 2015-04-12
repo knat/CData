@@ -7,14 +7,15 @@ namespace CData {
         None = 0,
         Parsing = -1000,
         UriReserved,
-        UriAliasReserved,
+        AliasReserved,
+        DuplicateAlias,
         InvalidUriReference,
-        DuplicateNamespaceAlias,
-        InvalidNamespaceReference,
-        InvalidNamespaceAliasReference,
+        InvalidAliasReference,
         AmbiguousGlobalTypeReference,
         InvalidGlobalTypeReference,
-        DuplicateParameterName,
+
+        DuplicateQueryArgumentName,
+        DuplicateLambdaParameterName,
 
         InvalidClassReference,
         ClassNotEqualToOrDeriveFromTheDeclared,
@@ -47,22 +48,22 @@ namespace CData {
             switch (Code) {
                 case DiagCode.UriReserved:
                     return "Uri '" + Extensions.SystemUri + "' is reserved.";
-                case DiagCode.UriAliasReserved:
-                    return "Uri alias 'sys' or 'thisns' are reserved.";
+                case DiagCode.AliasReserved:
+                    return "Alias 'sys' or 'thisns' are reserved.";
+                case DiagCode.DuplicateAlias:
+                    return "Duplicate alias '{0}'.".InvFormat(_msgArgs);
                 case DiagCode.InvalidUriReference:
                     return "Invalid uri reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCode.DuplicateNamespaceAlias:
-                    return "Duplicate namespace alias '{0}'.".InvFormat(_msgArgs);
-                case DiagCode.InvalidNamespaceReference:
-                    return "Invalid namespace reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCode.InvalidNamespaceAliasReference:
-                    return "Invalid namespace alias reference '{0}'.".InvFormat(_msgArgs);
+                case DiagCode.InvalidAliasReference:
+                    return "Invalid alias reference '{0}'.".InvFormat(_msgArgs);
                 case DiagCode.AmbiguousGlobalTypeReference:
                     return "Ambiguous global type reference '{0}'.".InvFormat(_msgArgs);
                 case DiagCode.InvalidGlobalTypeReference:
                     return "Invalid global type reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCode.DuplicateParameterName:
-                    return "Duplicate parameter name '{0}'.".InvFormat(_msgArgs);
+                case DiagCode.DuplicateQueryArgumentName:
+                    return "Duplicate query argument name '{0}'.".InvFormat(_msgArgs);
+                case DiagCode.DuplicateLambdaParameterName:
+                    return "Duplicate lambda parameter name '{0}'.".InvFormat(_msgArgs);
 
 
                 case DiagCode.InvalidClassReference:
@@ -225,6 +226,9 @@ namespace CData {
         public virtual void Reset() {
             Clear();
         }
+        internal sealed class DiagException : Exception { }
+        internal static readonly DiagException DiagExceptionObject = new DiagException();
+
     }
 
 }

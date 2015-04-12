@@ -30,7 +30,7 @@ namespace CData.VisualStudio.Editors {
     }
     internal sealed class LanguageClassifier : LanguageClassifierBase {
         internal LanguageClassifier(ITextBuffer textBuffer, IStandardClassificationService standardService)
-            : base(textBuffer, standardService, ParserConstants.KeywordSet) {
+            : base(textBuffer, standardService, ParserKeywordsEx.KeywordSet) {
         }
     }
     //

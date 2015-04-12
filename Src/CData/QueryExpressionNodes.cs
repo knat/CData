@@ -3,46 +3,97 @@ using System.Collections.Generic;
 using System.Linq.Expressions;
 
 namespace CData {
-    internal sealed class QueryNode {
-        internal QueryNode(List<AliasUriNode> aliasUriList, ExpressionNode expression) {
-            AliasUriList = aliasUriList;
-            Expression = expression;
-        }
-        internal readonly List<AliasUriNode> AliasUriList;//opt
-        public readonly ExpressionNode Expression;
-        internal bool Resolve(ClassMd classMd, DiagContext context) {
+    public static class QueryParser {
+        public static bool TryParse(ClassMd classMd, string arguments, string query, DiagContext context, out QueryNode result) {
+            if (classMd == null) throw new ArgumentNullException("classMd");
+            if (query == null) throw new ArgumentNullException("query");
+            result = null;
+            var sr = _simpleStringReader;
+            List<QueryArgumentNode> argList = null;
+            if (!string.IsNullOrEmpty(arguments)) {
+                sr.SetString(arguments);
+                if (!Parser.ParseQueryArguments("QueryArguments", sr, context, out argList)) {
+                    return false;
+                }
+            }
+            //Queue<int>
+            sr.SetString(query);
+
+
 
             return false;
         }
+        [ThreadStatic]
+        private static readonly SimpleStringReader _simpleStringReader = new SimpleStringReader();
+        private const int _queryChacheLength = 16;
+        [ThreadStatic]
+        private static readonly QueryCache[] _queryCacheBuf = new QueryCache[_queryChacheLength];
+        private struct QueryCache {
+            public readonly ClassMd ClassMd;
+            public readonly string Query;
+            public readonly Expression Expression;
+        }
+
+
     }
+
+    //internal sealed class QueryNode {
+    //    internal QueryNode(List<UriAliasNode> uriAliasList, ExpressionNode expression) {
+    //        UriAliasList = uriAliasList;
+    //        Expression = expression;
+    //    }
+    //    internal readonly List<UriAliasNode> UriAliasList;//opt
+    //    public readonly ExpressionNode Expression;
+    //    internal bool Resolve(ClassMd classMd, DiagContext context) {
+    //        //#arg p1 = 123
+    //        return false;
+    //    }
+    //}
+    public sealed class QueryNode {
+        public readonly ClassMd ClassMd;
+        public readonly string QueryString;
+        internal readonly List<QueryArgumentNode> ArgumentList;//opt
+
+    }
+    internal struct QueryArgumentNode {
+        public QueryArgumentNode(string name, AtomValueNode value) {
+            Name = name;
+            Value = value;
+        }
+        public readonly string Name;
+        public readonly AtomValueNode Value;
+    }
+
     internal sealed class QueryDiagContext : DiagContext {
-        public static QueryDiagContext Get(ClassMd classMd, List<AliasUriNode> aliasUriList) {
+        public static QueryDiagContext Get(ClassMd classMd) {
             var obj = _instance;
             obj.Reset();
             obj._classMd = classMd;
-            obj._aliasUriList = aliasUriList;
+            //obj._uriAliasList = uriAliasList;
             return obj;
         }
         [ThreadStatic]
         private static readonly QueryDiagContext _instance = new QueryDiagContext();
         private QueryDiagContext() {
-            _parameterListStack = new Stack<ParameterNodeList>();
+            UriAliasList = new List<UriAliasNode>();
+            _lambdaParameterStack = new Stack<LambdaParameterNodeList>();
         }
         private ClassMd _classMd;
-        private List<AliasUriNode> _aliasUriList;//opt
-        private readonly Stack<ParameterNodeList> _parameterListStack;
+        internal readonly List<UriAliasNode> UriAliasList;
+        private readonly Stack<LambdaParameterNodeList> _lambdaParameterStack;
         public override void Reset() {
             base.Reset();
-            _parameterListStack.Clear();
+            UriAliasList.Clear();
+            _lambdaParameterStack.Clear();
         }
-        internal void PushParameterList(ParameterNodeList list) {
-            var stack = _parameterListStack;
+        internal void PushParameterList(LambdaParameterNodeList list) {
+            var stack = _lambdaParameterStack;
             if (stack.Count > 0) {
                 foreach (var itemlist in stack) {
                     foreach (var ip in itemlist) {
                         foreach (var p in list) {
                             if (ip.Name == p.Name) {
-                                ErrorAndThrow(new DiagMsg(DiagCode.DuplicateParameterName, p.Name.Value), p.Name.TextSpan);
+                                ErrorAndThrow(new DiagMsg(DiagCode.DuplicateLambdaParameterName, p.Name.Value), p.Name.TextSpan);
                             }
                         }
                     }
@@ -51,16 +102,50 @@ namespace CData {
             stack.Push(list);
         }
         internal void PopParameterList() {
-            _parameterListStack.Pop();
+            _lambdaParameterStack.Pop();
         }
 
-        internal sealed class ContextException : Exception { }
-        private static readonly ContextException _contextException = new ContextException();
         internal void ErrorAndThrow(DiagMsg diagMsg, TextSpan textSpan) {
             base.AddDiag(DiagSeverity.Error, diagMsg, textSpan);
-            throw _contextException;
+            throw DiagExceptionObject;
+        }
+        internal object Resolve(QualifiableNameNode qName) {
+            if (qName.IsQualified) {
+                return ResolveAsGlobalType(qName);
+            }
+            var nameNode = qName.Name;
+            var name = nameNode.Value;
+            if (name == "this" && nameNode.TextSpan.Length == 4) {
+                return _classMd;
+            }
+            var stack = _lambdaParameterStack;
+            if (stack.Count > 0) {
+                foreach (var itemlist in stack) {
+                    foreach (var ip in itemlist) {
+                        if (ip.Name.Value == name) {
+                            return ip;
+                        }
+                    }
+                }
+            }
+            object result = _classMd.GetPropertyInHierarchy(name);
+            if (result != null) {
+                return result;
+            }
+            result = TryResolveAsGlobalType(qName);
+            if (result == null) {
+
+            }
+            return result;
         }
         internal GlobalTypeMd ResolveAsGlobalType(QualifiableNameNode qName) {
+            var result = TryResolveAsGlobalType(qName);
+            if (result == null) {
+                ErrorAndThrow(new DiagMsg(DiagCode.InvalidGlobalTypeReference, qName.Name.Value), qName.Name.TextSpan);
+            }
+            return result;
+        }
+        private GlobalTypeMd TryResolveAsGlobalType(QualifiableNameNode qName) {
             GlobalTypeMd result = null;
             var nameNode = qName.Name;
             var name = nameNode.Value;
@@ -76,16 +161,16 @@ namespace CData {
                         uri = _classMd.FullName.Uri;
                     }
                     else {
-                        if (_aliasUriList != null) {
-                            foreach (var item in _aliasUriList) {
-                                if (item.Alias == aliasNode) {
-                                    uri = item.Uri.Value;
+                        if (UriAliasList != null) {
+                            foreach (var item in UriAliasList) {
+                                if (item.Alias == alias) {
+                                    uri = item.Uri;
                                     break;
                                 }
                             }
                         }
                         if (uri == null) {
-                            ErrorAndThrow(new DiagMsg(DiagCode.InvalidNamespaceAliasReference, alias), aliasNode.TextSpan);
+                            ErrorAndThrow(new DiagMsg(DiagCode.InvalidAliasReference, alias), aliasNode.TextSpan);
                         }
                     }
                     result = ProgramMd.GetGlobalType<GlobalTypeMd>(new FullName(uri, name));
@@ -94,9 +179,9 @@ namespace CData {
             else {
                 result = ProgramMd.GetGlobalType<GlobalTypeMd>(new FullName(_classMd.FullName.Uri, name));
                 if (result == null) {
-                    if (_aliasUriList != null) {
-                        foreach (var item in _aliasUriList) {
-                            var globalType = ProgramMd.GetGlobalType<GlobalTypeMd>(new FullName(item.Uri.Value, name));
+                    if (UriAliasList != null) {
+                        foreach (var item in UriAliasList) {
+                            var globalType = ProgramMd.GetGlobalType<GlobalTypeMd>(new FullName(item.Uri, name));
                             if (globalType != null) {
                                 if (result != null) {
                                     ErrorAndThrow(new DiagMsg(DiagCode.AmbiguousGlobalTypeReference, name), nameNode.TextSpan);
@@ -107,21 +192,10 @@ namespace CData {
                     }
                 }
             }
-            if (result == null) {
-                ErrorAndThrow(new DiagMsg(DiagCode.InvalidGlobalTypeReference, name), nameNode.TextSpan);
-            }
             return result;
         }
     }
-    internal sealed class AliasUriNode {
-        public AliasUriNode(NameNode alias, AtomValueNode uri) {
-            Alias = alias;
-            Uri = uri;
-        }
-        public readonly NameNode Alias;
-        public readonly AtomValueNode Uri;
-    }
-    internal enum ExpressionKind {
+    public enum ExpressionKind {
         None = -1,
         Lambda = ExpressionType.Lambda,
         Conditional = ExpressionType.Conditional,
@@ -169,22 +243,22 @@ namespace CData {
         //internal abstract void Resolve(QueryDiagContext ctx);
     }
     internal sealed class LambdaExpressionNode : ExpressionNode {
-        public LambdaExpressionNode(ParameterNodeList parameterList, ExpressionNode body)
+        public LambdaExpressionNode(LambdaParameterNodeList parameterList, ExpressionNode body)
             : base(ExpressionKind.Lambda) {
             ParameterList = parameterList;
             Body = body;
         }
-        public readonly ParameterNodeList ParameterList;//opt
+        public readonly LambdaParameterNodeList ParameterList;//opt
         public readonly ExpressionNode Body;
         //internal override void Resolve(QueryDiagContext ctx) {
         //    Body.Resolve(ctx);
         //}
     }
-    internal sealed class ParameterNodeList : List<ParameterNode> {
+    internal sealed class LambdaParameterNodeList : List<LambdaParameterNode> {
 
     }
-    internal sealed class ParameterNode {
-        public ParameterNode(NameNode name) {
+    internal struct LambdaParameterNode {
+        public LambdaParameterNode(NameNode name) {
             Name = name;
         }
         public readonly NameNode Name;
@@ -235,14 +309,15 @@ namespace CData {
     }
     //Convert, TypeIs, TypeAs
     internal sealed class TypedExpressionNode : ExpressionNode {
-        public TypedExpressionNode(ExpressionKind kind, QualifiableNameNode typeQName, ExpressionNode expression) :
+        public TypedExpressionNode(ExpressionKind kind, QualifiableNameNode typeQName, GlobalTypeMd type, ExpressionNode expression) :
             base(kind) {
             TypeQName = typeQName;
+            Type = type;
             Expression = expression;
         }
         public readonly QualifiableNameNode TypeQName;
+        public readonly GlobalTypeMd Type;
         public readonly ExpressionNode Expression;
-        private GlobalTypeMd _globalType;
         //internal override void Resolve(QueryDiagContext ctx) {
         //    _globalType = ctx.ResolveAsGlobalType(TypeQName);
         //    Expression.Resolve(ctx);
@@ -250,11 +325,13 @@ namespace CData {
     }
 
     internal sealed class QualifiableNameExpressionNode : ExpressionNode {
-        internal QualifiableNameExpressionNode(QualifiableNameNode qName)
+        internal QualifiableNameExpressionNode(QueryDiagContext ctx, QualifiableNameNode qName)
             : base(ExpressionKind.QualifiableName) {
             QName = qName;
+            _target = ctx.Resolve(qName);
         }
         public readonly QualifiableNameNode QName;
+        private object _target;
         //internal override void Resolve(QueryDiagContext ctx) {
         //    throw new NotImplementedException();
         //}

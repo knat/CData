@@ -91,4 +91,13 @@ namespace CData {
             }
         }
     }
+    internal struct UriAliasNode {
+        public UriAliasNode(string uri, string alias) {
+            Uri = uri;
+            Alias = alias;
+        }
+        public readonly string Uri;
+        public readonly string Alias;//opt
+    }
+
 }

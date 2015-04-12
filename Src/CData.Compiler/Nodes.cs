@@ -31,11 +31,11 @@ namespace CData.Compiler {
                 }
             }
         }
-        public GlobalTypeNode TryGetGlobalType(NameNode name) {
+        public GlobalTypeNode TryGetGlobalType(string name) {
             var count = Count;
             for (var i = 0; i < count; ++i) {
                 foreach (var globalType in this[i].GlobalTypeList) {
-                    if (globalType.Name == name) {
+                    if (globalType.Name.Value == name) {
                         return globalType;
                     }
                 }
@@ -61,9 +61,8 @@ namespace CData.Compiler {
         //
         public void ResolveImports(LogicalNamespaceMap nsMap) {
             foreach (var import in ImportList) {
-                if (!nsMap.TryGetValue(import.Uri.Value, out import.LogicalNamespace)) {
-                    DiagContextEx.ErrorAndThrow(new DiagMsg(DiagCode.InvalidNamespaceReference, import.Uri.Value),
-                        import.Uri.TextSpan);
+                if (!nsMap.TryGetValue(import.Uri, out import.LogicalNamespace)) {
+                    DiagContextEx.ErrorAndThrow(new DiagMsg(DiagCode.InvalidUriReference, import.Uri), import.UriTextSpan);
                 }
             }
         }
@@ -89,11 +88,13 @@ namespace CData.Compiler {
         }
         public GlobalTypeNode ResolveQName(QualifiableNameNode qName) {
             GlobalTypeNode result = null;
-            var name = qName.Name;
+            var nameNode = qName.Name;
+            var name = nameNode.Value;
             if (qName.IsQualified) {
-                var alias = qName.Alias;
-                if (alias.Value == "sys") {
-                    result = AtomNode.TryGet(name.Value);
+                var aliasNode = qName.Alias;
+                var alias = aliasNode.Value;
+                if (alias == "sys") {
+                    result = AtomNode.TryGet(name);
                 }
                 else {
                     ImportNode import = null;
@@ -104,8 +105,7 @@ namespace CData.Compiler {
                         }
                     }
                     if (import == null) {
-                        DiagContextEx.ErrorAndThrow(new DiagMsg(DiagCode.InvalidNamespaceAliasReference, alias.Value),
-                            alias.TextSpan);
+                        DiagContextEx.ErrorAndThrow(new DiagMsg(DiagCode.InvalidAliasReference, alias), aliasNode.TextSpan);
                     }
                     result = import.LogicalNamespace.TryGetGlobalType(name);
                 }
@@ -113,13 +113,12 @@ namespace CData.Compiler {
             else {
                 result = LogicalNamespace.TryGetGlobalType(name);
                 if (result == null) {
-                    result = AtomNode.TryGet(name.Value);
+                    result = AtomNode.TryGet(nameNode.Value);
                     foreach (var item in ImportList) {
                         var globalType = item.LogicalNamespace.TryGetGlobalType(name);
                         if (globalType != null) {
                             if (result != null) {
-                                DiagContextEx.ErrorAndThrow(new DiagMsg(DiagCode.AmbiguousGlobalTypeReference, name.Value),
-                                    name.TextSpan);
+                                DiagContextEx.ErrorAndThrow(new DiagMsg(DiagCode.AmbiguousGlobalTypeReference, name), nameNode.TextSpan);
                             }
                             result = globalType;
                         }
@@ -127,7 +126,7 @@ namespace CData.Compiler {
                 }
             }
             if (result == null) {
-                DiagContextEx.ErrorAndThrow(new DiagMsg(DiagCode.InvalidGlobalTypeReference, name.Value), name.TextSpan);
+                DiagContextEx.ErrorAndThrow(new DiagMsg(DiagCode.InvalidGlobalTypeReference, name), nameNode.TextSpan);
             }
             return result;
         }
@@ -158,13 +157,14 @@ namespace CData.Compiler {
 
     }
     internal sealed class ImportNode {
-        public ImportNode(AtomValueNode uri, NameNode alias) {
+        public ImportNode(string uri, TextSpan uriTextSpan, string alias) {
             Uri = uri;
+            UriTextSpan = uriTextSpan;
             Alias = alias;
-            LogicalNamespace = null;
         }
-        public readonly AtomValueNode Uri;
-        public readonly NameNode Alias;//opt
+        public readonly string Uri;
+        public readonly TextSpan UriTextSpan;
+        public readonly string Alias;//opt
         public LogicalNamespace LogicalNamespace;
     }
 
@@ -277,10 +277,10 @@ namespace CData.Compiler {
         }
         public readonly NameNode AbstractOrSealed;
         public bool IsAbstract {
-            get { return AbstractOrSealed.Value == ParserConstants.AbstractKeyword; }
+            get { return AbstractOrSealed.Value == ParserKeywordsEx.AbstractKeyword; }
         }
         public bool IsSealed {
-            get { return AbstractOrSealed.Value == ParserConstants.SealedKeyword; }
+            get { return AbstractOrSealed.Value == ParserKeywordsEx.SealedKeyword; }
         }
         public readonly QualifiableNameNode BaseClassQName;//opt
         public ClassNode BaseClass;

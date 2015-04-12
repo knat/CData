@@ -3,13 +3,11 @@ using System.Collections.Generic;
 using System.IO;
 
 namespace CData.Compiler {
-    public static class ParserConstants {
+    public static class ParserKeywordsEx {
         public const string AbstractKeyword = "abstract";
-        public const string AsKeyword = "as";
         public const string ClassKeyword = "class";
         public const string EnumKeyword = "enum";
         public const string ExtendsKeyword = "extends";
-        public const string ImportKeyword = "import";
         public const string ListKeyword = "list";
         public const string MapKeyword = "map";
         public const string NamespaceKeyword = "namespace";
@@ -18,11 +16,11 @@ namespace CData.Compiler {
         public const string SetKeyword = "set";
         public static readonly HashSet<string> KeywordSet = new HashSet<string> {
             AbstractKeyword,
-            AsKeyword,
+            ParserKeywords.AsKeyword,
             ClassKeyword,
             EnumKeyword,
             ExtendsKeyword,
-            ImportKeyword,
+            ParserKeywords.ImportKeyword,
             ListKeyword,
             MapKeyword,
             NamespaceKeyword,
@@ -35,9 +33,9 @@ namespace CData.Compiler {
     }
     internal sealed class Parser : ParserBase {
         [ThreadStatic]
-        private static Parser _instance;
+        private static readonly Parser _instance = new Parser();
         public static bool Parse(string filePath, TextReader reader, DiagContext context, out CompilationUnitNode result) {
-            return (_instance ?? (_instance = new Parser())).CompilationUnit(filePath, reader, context, out result);
+            return _instance.CompilationUnit(filePath, reader, context, out result);
         }
         private Parser() {
         }
@@ -57,7 +55,7 @@ namespace CData.Compiler {
                 result = cu;
                 return true;
             }
-            catch (ParsingException) { }
+            catch (DiagContext.DiagException) { }
             finally {
                 Clear();
             }
@@ -65,7 +63,7 @@ namespace CData.Compiler {
             return false;
         }
         private bool Namespace(CompilationUnitNode cu) {
-            if (Keyword(ParserConstants.NamespaceKeyword)) {
+            if (Keyword(ParserKeywordsEx.NamespaceKeyword)) {
                 var uri = UriExpected();
                 TokenExpected('{');
                 var ns = new NamespaceNode(uri);
@@ -79,20 +77,21 @@ namespace CData.Compiler {
         }
 
         private bool Import(NamespaceNode ns) {
-            if (Keyword(ParserConstants.ImportKeyword)) {
-                var uri = UriExpected();
-                var alias = default(NameNode);
-                if (Keyword(ParserConstants.AsKeyword)) {
-                    alias = UriAliasExpected();
+            if (Keyword(ParserKeywords.ImportKeyword)) {
+                var uriNode = UriExpected();
+                string alias = null;
+                if (Keyword(ParserKeywords.AsKeyword)) {
+                    var aliasNode = AliasExpected();
+                    alias = aliasNode.Value;
                     if (ns.ImportList.Count > 0) {
                         foreach (var import in ns.ImportList) {
                             if (import.Alias == alias) {
-                                ErrorAndThrow(new DiagMsg(DiagCode.DuplicateNamespaceAlias, alias.Value), alias.TextSpan);
+                                ErrorAndThrow(new DiagMsg(DiagCode.DuplicateAlias, alias), aliasNode.TextSpan);
                             }
                         }
                     }
                 }
-                ns.ImportList.Add(new ImportNode(uri, alias));
+                ns.ImportList.Add(new ImportNode(uriNode.Value, uriNode.TextSpan, alias));
                 return true;
             }
             return false;
@@ -113,10 +112,10 @@ namespace CData.Compiler {
             return Enum(ns);
         }
         private bool Enum(NamespaceNode ns) {
-            if (Keyword(ParserConstants.EnumKeyword)) {
+            if (Keyword(ParserKeywordsEx.EnumKeyword)) {
                 var name = NameExpected();
                 CheckDuplicateGlobalType(ns, name);
-                KeywordExpected(ParserConstants.AsKeyword);
+                KeywordExpected(ParserKeywords.AsKeyword);
                 var atomQName = QualifiableNameExpected();
                 TokenExpected('{');
                 var en = new EnumNode(ns, name, atomQName);
@@ -144,18 +143,18 @@ namespace CData.Compiler {
             return false;
         }
         private bool Class(NamespaceNode ns) {
-            if (Keyword(ParserConstants.ClassKeyword)) {
+            if (Keyword(ParserKeywordsEx.ClassKeyword)) {
                 var name = NameExpected();
                 CheckDuplicateGlobalType(ns, name);
                 var abstractOrSealed = default(NameNode);
                 if (Token('[')) {
-                    if (!Keyword(ParserConstants.AbstractKeyword, out abstractOrSealed)) {
-                        Keyword(ParserConstants.SealedKeyword, out abstractOrSealed);
+                    if (!Keyword(ParserKeywordsEx.AbstractKeyword, out abstractOrSealed)) {
+                        Keyword(ParserKeywordsEx.SealedKeyword, out abstractOrSealed);
                     }
                     TokenExpected(']');
                 }
                 var baseClassQName = default(QualifiableNameNode);
-                if (Keyword(ParserConstants.ExtendsKeyword)) {
+                if (Keyword(ParserKeywordsEx.ExtendsKeyword)) {
                     baseClassQName = QualifiableNameExpected();
                 }
                 TokenExpected('{');
@@ -177,7 +176,7 @@ namespace CData.Compiler {
                         }
                     }
                 }
-                KeywordExpected(ParserConstants.AsKeyword);
+                KeywordExpected(ParserKeywords.AsKeyword);
                 cls.PropertyList.Add(new PropertyNode(ns, name,
                     LocalTypeExpected(ns, LocalTypeFlags.GlobalTypeRef | LocalTypeFlags.Nullable | LocalTypeFlags.List | LocalTypeFlags.Set | LocalTypeFlags.Map)));
                 return true;
@@ -249,7 +248,7 @@ namespace CData.Compiler {
         }
         private bool Nullable(NamespaceNode ns, out NullableNode result) {
             TextSpan ts;
-            if (Keyword(ParserConstants.NullableKeyword, out ts)) {
+            if (Keyword(ParserKeywordsEx.NullableKeyword, out ts)) {
                 TokenExpected('<');
                 var element = LocalTypeExpected(ns, LocalTypeFlags.GlobalTypeRef | LocalTypeFlags.List | LocalTypeFlags.Set | LocalTypeFlags.Map);
                 TokenExpected('>');
@@ -261,7 +260,7 @@ namespace CData.Compiler {
         }
         private bool List(NamespaceNode ns, out ListNode result) {
             TextSpan ts;
-            if (Keyword(ParserConstants.ListKeyword, out ts)) {
+            if (Keyword(ParserKeywordsEx.ListKeyword, out ts)) {
                 TokenExpected('<');
                 var item = LocalTypeExpected(ns, LocalTypeFlags.GlobalTypeRef | LocalTypeFlags.Nullable | LocalTypeFlags.List | LocalTypeFlags.Set | LocalTypeFlags.Map);
                 TokenExpected('>');
@@ -273,7 +272,7 @@ namespace CData.Compiler {
         }
         private bool Map(NamespaceNode ns, out MapNode result) {
             TextSpan ts;
-            if (Keyword(ParserConstants.MapKeyword, out ts)) {
+            if (Keyword(ParserKeywordsEx.MapKeyword, out ts)) {
                 TokenExpected('<');
                 var key = (GlobalTypeRefNode)LocalTypeExpected(ns, LocalTypeFlags.GlobalTypeRef);
                 TokenExpected(',');
@@ -287,7 +286,7 @@ namespace CData.Compiler {
         }
         private bool Set(NamespaceNode ns, out SetNode result) {
             TextSpan ts;
-            if (Keyword(ParserConstants.SetKeyword, out ts)) {
+            if (Keyword(ParserKeywordsEx.SetKeyword, out ts)) {
                 TokenExpected('<');
                 var item = (GlobalTypeRefNode)LocalTypeExpected(ns, LocalTypeFlags.GlobalTypeRef);
                 List<NameNode> keyNameList = null;
