@@ -32,8 +32,8 @@ namespace CData {
             return !left.Equals(right);
         }
     }
-    internal struct QualifiableNameNode {
-        public QualifiableNameNode(NameNode alias, NameNode name) {
+    internal struct QNameNode {
+        public QNameNode(NameNode alias, NameNode name) {
             Alias = alias;
             Name = name;
         }
@@ -61,25 +61,15 @@ namespace CData {
             return Name.Value;
         }
     }
-    //internal enum AtomValueKind : byte {
-    //    None = 0,
-    //    String,
-    //    Char,
-    //    Boolean,
-    //    Null,
-    //    Integer,
-    //    Decimal,
-    //    Real,
-    //}
     internal struct AtomValueNode {
-        public AtomValueNode(bool isExplicit, TypeKind kind, object value, string text, TextSpan textSpan) {
-            IsExplicit = isExplicit;
+        public AtomValueNode(bool isImplicit, TypeKind kind, object value, string text, TextSpan textSpan) {
+            IsImplicit = isImplicit;
             Kind = kind;
             Value = value;
             Text = text;
             TextSpan = textSpan;
         }
-        public readonly bool IsExplicit;
+        public readonly bool IsImplicit;//explicit: $Int16(42); implicit: 42
         public readonly TypeKind Kind;
         public readonly object Value;
         public readonly string Text;

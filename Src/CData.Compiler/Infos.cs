@@ -211,13 +211,13 @@ namespace CData.Compiler {
         }
     }
     internal sealed class EnumInfo : SimpleGlobalTypeInfo {
-        public EnumInfo(NamespaceInfo ns, string name, AtomInfo atom, List<NameValuePair> memberList)
+        public EnumInfo(NamespaceInfo ns, string name, AtomInfo atom, List<NameValuePair222> memberList)
             : base(TypeKind.Enum, ns, name) {
             Atom = atom;
             MemberList = memberList;
         }
         public readonly AtomInfo Atom;
-        public readonly List<NameValuePair> MemberList;
+        public readonly List<NameValuePair222> MemberList;
         public override bool SetMembers(MdGlobalType mdGlobalType) {
             return mdGlobalType is MdEnum;
         }

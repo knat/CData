@@ -115,7 +115,7 @@ namespace CData.Compiler {
                 var name = NameExpected();
                 CheckDuplicateGlobalType(ns, name);
                 KeywordExpected(ParserKeywords.AsKeyword);
-                var atomQName = QualifiableNameExpected();
+                var atomQName = QNameExpected();
                 TokenExpected('{');
                 var en = new EnumNode(ns, name, atomQName);
                 while (EnumMember(en)) ;
@@ -152,9 +152,9 @@ namespace CData.Compiler {
                     }
                     TokenExpected(']');
                 }
-                var baseClassQName = default(QualifiableNameNode);
+                var baseClassQName = default(QNameNode);
                 if (Keyword(ParserKeywordsEx.ExtendsKeyword)) {
-                    baseClassQName = QualifiableNameExpected();
+                    baseClassQName = QNameExpected();
                 }
                 TokenExpected('{');
                 var cls = new ClassNode(ns, name, abstractOrSealed, baseClassQName);
@@ -237,8 +237,8 @@ namespace CData.Compiler {
             return false;
         }
         private bool GlobalTypeRef(NamespaceNode ns, out GlobalTypeRefNode result) {
-            QualifiableNameNode qName;
-            if (QualifiableName(out qName)) {
+            QNameNode qName;
+            if (QName(out qName)) {
                 result = new GlobalTypeRefNode(ns, qName.TextSpan, qName);
                 return true;
             }

@@ -14,7 +14,7 @@ namespace CData {
         AmbiguousGlobalTypeReference,
         InvalidGlobalTypeReference,
 
-        DuplicateQueryArgumentName,
+        DuplicateExpressionArgumentName,
         DuplicateLambdaParameterName,
 
         InvalidClassReference,
@@ -60,8 +60,8 @@ namespace CData {
                     return "Ambiguous global type reference '{0}'.".InvFormat(_msgArgs);
                 case DiagCode.InvalidGlobalTypeReference:
                     return "Invalid global type reference '{0}'.".InvFormat(_msgArgs);
-                case DiagCode.DuplicateQueryArgumentName:
-                    return "Duplicate query argument name '{0}'.".InvFormat(_msgArgs);
+                case DiagCode.DuplicateExpressionArgumentName:
+                    return "Duplicate expression argument name '{0}'.".InvFormat(_msgArgs);
                 case DiagCode.DuplicateLambdaParameterName:
                     return "Duplicate lambda parameter name '{0}'.".InvFormat(_msgArgs);
 

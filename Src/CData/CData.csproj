@@ -40,10 +40,11 @@
     <AssemblyOriginatorKeyFile>..\Key.snk</AssemblyOriginatorKeyFile>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="Atom.cs" />
     <Compile Include="AtomExtensions.cs" />
     <Compile Include="Attributes.cs" />
     <Compile Include="Binary.cs" />
-    <Compile Include="QueryExpressionNodes.cs" />
+    <Compile Include="ExpressionNodes.cs" />
     <Compile Include="IgnoreCaseString.cs" />
     <Compile Include="Metadata.cs" />
     <Compile Include="Diagnostics.cs" />
@@ -60,6 +61,7 @@
     <Compile Include="StringBuilderBuffer.cs" />
     <Compile Include="TextSpan.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ExpressionValues.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

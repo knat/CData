@@ -51,7 +51,7 @@ namespace CData {
         IntegerValue,// 123
         DecimalValue,// 123.45
         RealValue,// 123.45Ee+-12
-        HashOpenBracket,// #[
+        HashOpenBracket,// #[//DEL
         ColonColon,// ::
         EqualsEquals,// ==
         EqualsGreaterThan,// =>

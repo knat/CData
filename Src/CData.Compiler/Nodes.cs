@@ -86,7 +86,7 @@ namespace CData.Compiler {
                 globalType.CreateInfo();
             }
         }
-        public GlobalTypeNode ResolveQName(QualifiableNameNode qName) {
+        public GlobalTypeNode ResolveQName(QNameNode qName) {
             GlobalTypeNode result = null;
             var nameNode = qName.Name;
             var name = nameNode.Value;
@@ -130,7 +130,7 @@ namespace CData.Compiler {
             }
             return result;
         }
-        public ClassNode ResolveQNameAsClass(QualifiableNameNode qName) {
+        public ClassNode ResolveQNameAsClass(QNameNode qName) {
             var result = ResolveQName(qName) as ClassNode;
             if (result == null) {
                 DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidClassReference, qName.ToString()),
@@ -138,7 +138,7 @@ namespace CData.Compiler {
             }
             return result;
         }
-        public AtomNode ResolveQNameAsAtom(QualifiableNameNode qName) {
+        public AtomNode ResolveQNameAsAtom(QNameNode qName) {
             var result = ResolveQName(qName) as AtomNode;
             if (result == null) {
                 DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidAtomReference, qName.ToString()),
@@ -146,7 +146,7 @@ namespace CData.Compiler {
             }
             return result;
         }
-        public SimpleGlobalTypeNode ResolveQNameAsSimpleGlobalType(QualifiableNameNode qName) {
+        public SimpleGlobalTypeNode ResolveQNameAsSimpleGlobalType(QNameNode qName) {
             var result = ResolveQName(qName) as SimpleGlobalTypeNode;
             if (result == null) {
                 DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidSimpleGlobalTypeReference, qName.ToString()),
@@ -229,12 +229,12 @@ namespace CData.Compiler {
         }
     }
     internal sealed class EnumNode : SimpleGlobalTypeNode {
-        public EnumNode(NamespaceNode ns, NameNode name, QualifiableNameNode atomQName)
+        public EnumNode(NamespaceNode ns, NameNode name, QNameNode atomQName)
             : base(ns, name) {
             AtomQName = atomQName;
             MemberList = new List<EnumMemberNode>();
         }
-        public readonly QualifiableNameNode AtomQName;
+        public readonly QNameNode AtomQName;
         public AtomNode Atom;
         public readonly List<EnumMemberNode> MemberList;
         public override void Resolve() {
@@ -242,7 +242,7 @@ namespace CData.Compiler {
         }
         protected override GlobalTypeInfo CreateInfoCore(NamespaceInfo nsInfo) {
             var atomInfo = (AtomInfo)Atom.CreateInfo();
-            var memberInfoList = new List<NameValuePair>();
+            var memberInfoList = new List<NameValuePair222>();
             var kind = atomInfo.Kind;
             foreach (var member in MemberList) {
                 memberInfoList.Add(member.CreateInfo(kind));
@@ -257,19 +257,19 @@ namespace CData.Compiler {
         }
         public readonly NameNode Name;
         public readonly AtomValueNode Value;
-        public NameValuePair CreateInfo(TypeKind typeKind) {
+        public NameValuePair222 CreateInfo(TypeKind typeKind) {
             var avNode = Value;
             var value = AtomExtensions.TryParse(typeKind, avNode.Text, true);
             if (value == null) {
                 DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidAtomValue, typeKind.ToString(), avNode.Text),
                     avNode.TextSpan);
             }
-            return new NameValuePair(Name.Value, value);
+            return new NameValuePair222(Name.Value, value);
         }
     }
 
     internal sealed class ClassNode : GlobalTypeNode {
-        public ClassNode(NamespaceNode ns, NameNode name, NameNode abstractOrSealed, QualifiableNameNode baseClassQName)
+        public ClassNode(NamespaceNode ns, NameNode name, NameNode abstractOrSealed, QNameNode baseClassQName)
             : base(ns, name) {
             AbstractOrSealed = abstractOrSealed;
             BaseClassQName = baseClassQName;
@@ -282,7 +282,7 @@ namespace CData.Compiler {
         public bool IsSealed {
             get { return AbstractOrSealed.Value == ParserKeywordsEx.SealedKeyword; }
         }
-        public readonly QualifiableNameNode BaseClassQName;//opt
+        public readonly QNameNode BaseClassQName;//opt
         public ClassNode BaseClass;
         public readonly List<PropertyNode> PropertyList;
         public override void Resolve() {
@@ -338,11 +338,11 @@ namespace CData.Compiler {
         public abstract LocalTypeInfo CreateInfo();
     }
     internal sealed class GlobalTypeRefNode : LocalTypeNode {
-        public GlobalTypeRefNode(NamespaceNode ns, TextSpan textSpan, QualifiableNameNode globalTypeQName)
+        public GlobalTypeRefNode(NamespaceNode ns, TextSpan textSpan, QNameNode globalTypeQName)
             : base(ns, textSpan) {
             GlobalTypeQName = globalTypeQName;
         }
-        public readonly QualifiableNameNode GlobalTypeQName;
+        public readonly QNameNode GlobalTypeQName;
         public GlobalTypeNode GlobalType;
         public bool IsClass {
             get {

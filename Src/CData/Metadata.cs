@@ -49,6 +49,8 @@ namespace CData {
         Guid = 17,
         TimeSpan = 18,
         DateTimeOffset = 19,
+        Null = 30,
+        //
         Class = 50,
         Enum = 51,
         //
@@ -60,7 +62,7 @@ namespace CData {
         Map = 75,
         AnonymousClass = 76,
         Void = 77,
-        Null = 78,//internal use
+        
     }
     public interface ITypeProviderMd {
         TypeMd Type { get; }
@@ -281,13 +283,13 @@ namespace CData {
         public readonly PropertyFlags Flags;
         private readonly ParameterMd[] _parameters;//opt
         public bool IsIndex {
-            get { return (Flags & PropertyFlags.Index) != 0; }
+            get { return (Flags & PropertyFlags.Index) == PropertyFlags.Index; }
         }
         public bool IsStatic {
-            get { return (Flags & PropertyFlags.Static) != 0; }
+            get { return (Flags & PropertyFlags.Static) == PropertyFlags.Static; }
         }
         public bool IsReadOnly {
-            get { return (Flags & PropertyFlags.ReadOnly) != 0; }
+            get { return (Flags & PropertyFlags.ReadOnly) == PropertyFlags.ReadOnly; }
         }
         public int ParameterCount {
             get { return _parameters == null ? 0 : _parameters.Length; }
@@ -305,9 +307,10 @@ namespace CData {
     [Flags]
     public enum FunctionFlags {
         None = 0,
-        Static = 1,
-        Unsafe = 2,
-        Extension = 4,
+        Idempotent = 1,
+        Safe = Idempotent | 2,
+        Static = 4,
+        Extension = 8,
     }
 
     public sealed class FunctionMd {
@@ -321,11 +324,14 @@ namespace CData {
         public readonly FunctionFlags Flags;
         public readonly LocalTypeMd ReturnType;
         private readonly ParameterMd[] _parameters;//opt
-        public bool IsStatic {
-            get { return (Flags & FunctionFlags.Static) != 0; }
+        public bool IsIdempotent {
+            get { return (Flags & FunctionFlags.Idempotent) == FunctionFlags.Idempotent; }
         }
-        public bool IsUnsafe {
-            get { return (Flags & FunctionFlags.Unsafe) != 0; }
+        public bool IsSafe {
+            get { return (Flags & FunctionFlags.Safe) == FunctionFlags.Safe; }
+        }
+        public bool IsStatic {
+            get { return (Flags & FunctionFlags.Static) == FunctionFlags.Static; }
         }
         public int ParameterCount {
             get { return _parameters == null ? 0 : _parameters.Length; }
@@ -629,8 +635,8 @@ namespace CData {
         }
     }
 
-    public struct NameValuePair {
-        public NameValuePair(string name, object value) {
+    public struct NameValuePair222 {
+        public NameValuePair222(string name, object value) {
             Name = name;
             Value = value;
         }
