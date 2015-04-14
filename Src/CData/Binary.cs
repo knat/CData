@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace CData {
     public sealed class Binary : IEquatable<Binary>, IList<byte> {
-        private static readonly byte[] _emptyBytes = new byte[0];
+        internal static readonly byte[] EmptyBytes = new byte[0];
         private byte[] _bytes;
         private int _count;
         private bool _isReadOnly;
@@ -14,7 +14,7 @@ namespace CData {
             _isReadOnly = isReadOnly;
         }
         public Binary()
-            : this(_emptyBytes, false) {
+            : this(EmptyBytes, false) {
         }
         public static implicit operator Binary(byte[] bytes) {
             if (bytes == null) return null;
@@ -23,7 +23,7 @@ namespace CData {
         public static bool TryFromBase64String(string s, out Binary result, bool isReadOnly = false) {
             if (s == null) throw new ArgumentNullException("s");
             if (s.Length == 0) {
-                result = new Binary(_emptyBytes, isReadOnly);
+                result = new Binary(EmptyBytes, isReadOnly);
                 return true;
             }
             try {
@@ -52,7 +52,7 @@ namespace CData {
             ThrowIfReadOnly();
             count = _count;
             var bytes = _bytes;
-            _bytes = _emptyBytes;
+            _bytes = EmptyBytes;
             _count = 0;
             return bytes;
         }

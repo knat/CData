@@ -61,33 +61,37 @@ namespace CData {
             return Name.Value;
         }
     }
-    internal enum AtomValueKind : byte {
-        None = 0,
-        String,
-        Char,
-        Boolean,
-        Null,
-        Integer,
-        Decimal,
-        Real,
-    }
+    //internal enum AtomValueKind : byte {
+    //    None = 0,
+    //    String,
+    //    Char,
+    //    Boolean,
+    //    Null,
+    //    Integer,
+    //    Decimal,
+    //    Real,
+    //}
     internal struct AtomValueNode {
-        public AtomValueNode(AtomValueKind kind, string value, TextSpan textSpan) {
+        public AtomValueNode(bool isExplicit, TypeKind kind, object value, string text, TextSpan textSpan) {
+            IsExplicit = isExplicit;
             Kind = kind;
             Value = value;
+            Text = text;
             TextSpan = textSpan;
         }
-        public readonly AtomValueKind Kind;
-        public readonly string Value;
+        public readonly bool IsExplicit;
+        public readonly TypeKind Kind;
+        public readonly object Value;
+        public readonly string Text;
         public readonly TextSpan TextSpan;
         public bool IsValid {
             get {
-                return Kind != AtomValueKind.None;
+                return Kind != TypeKind.None;
             }
         }
         public bool IsNull {
             get {
-                return Kind == AtomValueKind.Null;
+                return Kind == TypeKind.Null;
             }
         }
     }

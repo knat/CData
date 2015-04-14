@@ -22,12 +22,12 @@ namespace CData.Compiler {
             global::CData.Serializer.Save(this, __Metadata, stringBuilder, indentString, newLineString);
         }
 
-        public static readonly global::CData.ClassMd __ThisMetadata = new global::CData.ClassMd(new global::CData.FullName("urn:CData:Compiler", "MdGlobalType"), true, null, new global::CData.ClassPropertyMd[]
+        public static readonly global::CData.ClassTypeMd __ThisMetadata = new global::CData.ClassTypeMd(new global::CData.FullName("urn:CData:Compiler", "MdGlobalType"), true, null, new global::CData.ClassTypePropertyMd[]
         {
-        new global::CData.ClassPropertyMd("Name", global::CData.GlobalTypeRefMd.GetAtom(global::CData.TypeKind.String, false), "Name", false), new global::CData.ClassPropertyMd("CSName", global::CData.GlobalTypeRefMd.GetAtom(global::CData.TypeKind.String, false), "CSName", false)}
+        new global::CData.ClassTypePropertyMd("Name", global::CData.GlobalTypeRefMd.GetAtom(global::CData.TypeKind.String, false), "Name", false), new global::CData.ClassTypePropertyMd("CSName", global::CData.GlobalTypeRefMd.GetAtom(global::CData.TypeKind.String, false), "CSName", false)}
 
         , null,typeof(global::CData.Compiler.MdGlobalType));
-        public virtual global::CData.ClassMd __Metadata {
+        public virtual global::CData.ClassTypeMd __Metadata {
             get {
                 return __ThisMetadata;
             }
@@ -52,12 +52,12 @@ namespace CData.Compiler {
             global::CData.Serializer.Save(this, __Metadata, stringBuilder, indentString, newLineString);
         }
 
-        public static readonly global::CData.ClassMd __ThisMetadata = new global::CData.ClassMd(new global::CData.FullName("urn:CData:Compiler", "MdNamespace"), false, null, new global::CData.ClassPropertyMd[]
+        public static readonly global::CData.ClassTypeMd __ThisMetadata = new global::CData.ClassTypeMd(new global::CData.FullName("urn:CData:Compiler", "MdNamespace"), false, null, new global::CData.ClassTypePropertyMd[]
         {
-        new global::CData.ClassPropertyMd("GlobalTypeList", new global::CData.CollectionMd(global::CData.TypeKind.List, false, new global::CData.GlobalTypeRefMd(global::CData.Compiler.MdGlobalType.__ThisMetadata, false), null, null, typeof (global::System.Collections.Generic.List<global::CData.Compiler.MdGlobalType>)), "GlobalTypeList", false)}
+        new global::CData.ClassTypePropertyMd("GlobalTypeList", new global::CData.CollectionTypeMd(global::CData.TypeKind.List,  new global::CData.GlobalTypeRefMd(global::CData.Compiler.MdGlobalType.__ThisMetadata, false), null, null, typeof (global::System.Collections.Generic.List<global::CData.Compiler.MdGlobalType>)), "GlobalTypeList", false)}
 
         ,null, typeof(global::CData.Compiler.MdNamespace));
-        public virtual global::CData.ClassMd __Metadata {
+        public virtual global::CData.ClassTypeMd __Metadata {
             get {
                 return __ThisMetadata;
             }
@@ -69,8 +69,8 @@ namespace CData.Compiler {
             return global::CData.Serializer.TryLoad<global::CData.Compiler.MdEnum>(filePath, reader, context, global::AssemblyMetadata_CData_Compiler.Instance, __ThisMetadata, out result);
         }
 
-        new public static readonly global::CData.ClassMd __ThisMetadata = new global::CData.ClassMd(new global::CData.FullName("urn:CData:Compiler", "MdEnum"), false, global::CData.Compiler.MdGlobalType.__ThisMetadata, null, null,typeof(global::CData.Compiler.MdEnum));
-        public override global::CData.ClassMd __Metadata {
+        new public static readonly global::CData.ClassTypeMd __ThisMetadata = new global::CData.ClassTypeMd(new global::CData.FullName("urn:CData:Compiler", "MdEnum"), false, global::CData.Compiler.MdGlobalType.__ThisMetadata, null, null,typeof(global::CData.Compiler.MdEnum));
+        public override global::CData.ClassTypeMd __Metadata {
             get {
                 return __ThisMetadata;
             }
@@ -95,12 +95,12 @@ namespace CData.Compiler {
             global::CData.Serializer.Save(this, __Metadata, stringBuilder, indentString, newLineString);
         }
 
-        public static readonly global::CData.ClassMd __ThisMetadata = new global::CData.ClassMd(new global::CData.FullName("urn:CData:Compiler", "MdProperty"), false, null, new global::CData.ClassPropertyMd[]
+        public static readonly global::CData.ClassTypeMd __ThisMetadata = new global::CData.ClassTypeMd(new global::CData.FullName("urn:CData:Compiler", "MdProperty"), false, null, new global::CData.ClassTypePropertyMd[]
         {
-        new global::CData.ClassPropertyMd("Name", global::CData.GlobalTypeRefMd.GetAtom(global::CData.TypeKind.String, false), "Name", false), new global::CData.ClassPropertyMd("CSName", global::CData.GlobalTypeRefMd.GetAtom(global::CData.TypeKind.String, false), "CSName", false), new global::CData.ClassPropertyMd("IsCSProperty", global::CData.GlobalTypeRefMd.GetAtom(global::CData.TypeKind.Boolean, false), "IsCSProperty", false)}
+        new global::CData.ClassTypePropertyMd("Name", global::CData.GlobalTypeRefMd.GetAtom(global::CData.TypeKind.String, false), "Name", false), new global::CData.ClassTypePropertyMd("CSName", global::CData.GlobalTypeRefMd.GetAtom(global::CData.TypeKind.String, false), "CSName", false), new global::CData.ClassTypePropertyMd("IsCSProperty", global::CData.GlobalTypeRefMd.GetAtom(global::CData.TypeKind.Boolean, false), "IsCSProperty", false)}
 
         ,null, typeof(global::CData.Compiler.MdProperty));
-        public virtual global::CData.ClassMd __Metadata {
+        public virtual global::CData.ClassTypeMd __Metadata {
             get {
                 return __ThisMetadata;
             }
@@ -112,12 +112,12 @@ namespace CData.Compiler {
             return global::CData.Serializer.TryLoad<global::CData.Compiler.MdClass>(filePath, reader, context, global::AssemblyMetadata_CData_Compiler.Instance, __ThisMetadata, out result);
         }
 
-        new public static readonly global::CData.ClassMd __ThisMetadata = new global::CData.ClassMd(new global::CData.FullName("urn:CData:Compiler", "MdClass"), false, global::CData.Compiler.MdGlobalType.__ThisMetadata, new global::CData.ClassPropertyMd[]
+        new public static readonly global::CData.ClassTypeMd __ThisMetadata = new global::CData.ClassTypeMd(new global::CData.FullName("urn:CData:Compiler", "MdClass"), false, global::CData.Compiler.MdGlobalType.__ThisMetadata, new global::CData.ClassTypePropertyMd[]
         {
-        new global::CData.ClassPropertyMd("PropertyList", new global::CData.CollectionMd(global::CData.TypeKind.List, false, new global::CData.GlobalTypeRefMd(global::CData.Compiler.MdProperty.__ThisMetadata, false), null, null, typeof (global::System.Collections.Generic.List<global::CData.Compiler.MdProperty>)), "PropertyList", false)}
+        new global::CData.ClassTypePropertyMd("PropertyList", new global::CData.CollectionTypeMd(global::CData.TypeKind.List, false, new global::CData.GlobalTypeRefMd(global::CData.Compiler.MdProperty.__ThisMetadata, false), null, null, typeof (global::System.Collections.Generic.List<global::CData.Compiler.MdProperty>)), "PropertyList", false)}
 
         ,null, typeof(global::CData.Compiler.MdClass));
-        public override global::CData.ClassMd __Metadata {
+        public override global::CData.ClassTypeMd __Metadata {
             get {
                 return __ThisMetadata;
             }

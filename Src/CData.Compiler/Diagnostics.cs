@@ -160,15 +160,13 @@ namespace CData.Compiler {
     internal sealed class DiagContextEx : DiagContext {
         [ThreadStatic]
         public static DiagContextEx Current;
-        public sealed class ContextException : Exception { }
-        private static readonly ContextException _contextException = new ContextException();
         public static void ErrorAndThrow(DiagMsgEx diagMsg, TextSpan textSpan) {
             Error(diagMsg, textSpan);
-            throw _contextException;
+            throw DiagExceptionObject;
         }
         public static void ErrorAndThrow(DiagMsg diagMsg, TextSpan textSpan) {
             Error(diagMsg, textSpan);
-            throw _contextException;
+            throw DiagExceptionObject;
         }
         private static void Error(DiagMsgEx diagMsg, TextSpan textSpan) {
             Current.AddDiag(DiagSeverity.Error, (int)diagMsg.Code, diagMsg.GetMessage(), textSpan);

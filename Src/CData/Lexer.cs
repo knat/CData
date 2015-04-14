@@ -67,9 +67,12 @@ namespace CData {
     }
     internal sealed class Lexer {
         [ThreadStatic]
-        private static readonly Lexer _instance = new Lexer();
+        private static Lexer _instance;
+        private static Lexer Instance {
+            get { return _instance ?? (_instance = new Lexer()); }
+        }
         public static Lexer Get(TextReader reader) {
-            return _instance.Set(reader);
+            return Instance.Set(reader);
         }
         private Lexer() {
             _buf = new char[_bufLength];

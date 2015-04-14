@@ -11,16 +11,16 @@
 //        CSName as String
 //    }
 
-//    class MdEnum extends MdGlobalType
+//    class MdEnumType extends MdGlobalType
 //    {
 //    }
 
-//    class MdClass extends MdGlobalType
+//    class MdClassType extends MdGlobalType
 //    {
-//        PropertyList as list<MdProperty>
+//        PropertyList as list<MdClassProperty>
 //    }
 
-//    class MdProperty
+//    class MdClassProperty
 //    {
 //        Name as String
 //        CSName as String

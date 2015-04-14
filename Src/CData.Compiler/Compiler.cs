@@ -163,7 +163,7 @@ namespace CData.Compiler {
                 }
                 return true;
             }
-            catch (DiagContextEx.ContextException) { }
+            catch (DiagContext.DiagException) { }
             return false;
         }
 

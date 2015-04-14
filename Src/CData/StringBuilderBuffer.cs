@@ -5,14 +5,17 @@ namespace CData {
     internal static class StringBuilderBuffer {
         private const int _count = 4;
         [ThreadStatic]
-        private static readonly StringBuilder[] _sbs = new StringBuilder[_count];
+        private static StringBuilder[] _buf;
+        private static StringBuilder[] Buf {
+            get { return _buf ?? (_buf = new StringBuilder[_count]); }
+        }
         internal static StringBuilder Acquire() {
-            var sbs = _sbs;
+            var buf = Buf;
             StringBuilder sb = null;
             for (var i = 0; i < _count; ++i) {
-                sb = sbs[i];
+                sb = buf[i];
                 if (sb != null) {
-                    sbs[i] = null;
+                    buf[i] = null;
                     break;
                 }
             }
@@ -24,10 +27,10 @@ namespace CData {
         }
         internal static void Release(StringBuilder sb) {
             if (sb != null && sb.Capacity <= 1024 * 8) {
-                var sbs = _sbs;
+                var buf = Buf;
                 for (var i = 0; i < _count; ++i) {
-                    if (sbs[i] == null) {
-                        sbs[i] = sb;
+                    if (buf[i] == null) {
+                        buf[i] = sb;
                         return;
                     }
                 }

@@ -51,30 +51,56 @@ namespace CData {
         DateTimeOffset = 19,
         Class = 50,
         Enum = 51,
-        List = 70,
-        SimpleSet = 71,
-        ObjectSet = 72,
-        Map = 73,
-        Enumerable = 74,
-        AnonymousClass = 75,
-        Void = 76,
+        //
+        Nullable = 70,
+        Enumerable = 71,
+        List = 72,
+        SimpleSet = 73,
+        ObjectSet = 74,
+        Map = 75,
+        AnonymousClass = 76,
+        Void = 77,
+        Null = 78,//internal use
     }
-    public abstract class TypeMd {
+    public interface ITypeProviderMd {
+        TypeMd Type { get; }
+    }
+    public interface IContainerMd : ITypeProviderMd {
+        ITypeProviderMd TryGetMember(string name);
+    }
+
+    public abstract class TypeMd : ITypeProviderMd {
         protected TypeMd(TypeKind kind) {
             Kind = kind;
         }
         public readonly TypeKind Kind;
+        TypeMd ITypeProviderMd.Type {
+            get { return this; }
+        }
     }
     public abstract class LocalTypeMd : TypeMd {
-        protected LocalTypeMd(TypeKind kind, bool isNullable)
+        protected LocalTypeMd(TypeKind kind)
             : base(kind) {
-            IsNullable = isNullable;
         }
-        public readonly bool IsNullable;
     }
-    public sealed class AnonymousClassMd : LocalTypeMd {
-        public AnonymousClassMd(bool isNullable, AnonymousClassPropertyMd[] properties)
-            : base(TypeKind.AnonymousClass, isNullable) {
+    public sealed class VoidTypeMd : LocalTypeMd {
+        public static readonly VoidTypeMd Instance = new VoidTypeMd();
+        private VoidTypeMd() : base(TypeKind.Void) { }
+    }
+    internal sealed class NullTypeMd : LocalTypeMd {
+        public static readonly NullTypeMd Instance = new NullTypeMd();
+        private NullTypeMd() : base(TypeKind.Null) { }
+    }
+    public sealed class NullableTypeMd : LocalTypeMd {
+        public NullableTypeMd(LocalTypeMd elementType)
+            : base(TypeKind.Nullable) {
+            ElementType = elementType;
+        }
+        public readonly LocalTypeMd ElementType;
+    }
+    public sealed class AnonymousClassTypeMd : LocalTypeMd {
+        public AnonymousClassTypeMd(AnonymousClassPropertyMd[] properties)
+            : base(TypeKind.AnonymousClass) {
             _properties = properties;
         }
         private readonly AnonymousClassPropertyMd[] _properties;//opt
@@ -91,42 +117,41 @@ namespace CData {
             return null;
         }
     }
-    public abstract class NamedLocalTypeMd {
-        protected NamedLocalTypeMd(string name, LocalTypeMd type) {
+    public abstract class NameTypePairMd : ITypeProviderMd {
+        protected NameTypePairMd(string name, LocalTypeMd type) {
             Name = name;
             Type = type;
         }
         public readonly string Name;
         public readonly LocalTypeMd Type;
+        TypeMd ITypeProviderMd.Type {
+            get { return Type; }
+        }
     }
-    public sealed class AnonymousClassPropertyMd : NamedLocalTypeMd {
+    public sealed class AnonymousClassPropertyMd : NameTypePairMd {
         public AnonymousClassPropertyMd(string name, LocalTypeMd type)
             : base(name, type) {
         }
     }
-    public sealed class VoidMd : LocalTypeMd {
-        public static readonly VoidMd Instance = new VoidMd();
-        private VoidMd() : base(TypeKind.Void, false) { }
-    }
-    public abstract class CollectionBaseMd : LocalTypeMd {
-        protected CollectionBaseMd(TypeKind kind, bool isNullable, LocalTypeMd itemOrValueType)
-            : base(kind, isNullable) {
-            ItemOrValueType = itemOrValueType;
+    public class EnumerableTypeMd : LocalTypeMd {
+        public EnumerableTypeMd(LocalTypeMd itemType)
+            : base(TypeKind.Enumerable) {
+            ItemType = itemType;
         }
-        public readonly LocalTypeMd ItemOrValueType;
-    }
-    public sealed class EnumerableMd : CollectionBaseMd {
-        public EnumerableMd(bool isNullable, LocalTypeMd itemOrValueType)
-            : base(TypeKind.Enumerable, isNullable, itemOrValueType) {
+        protected EnumerableTypeMd(TypeKind kind, LocalTypeMd itemType)
+            : base(kind) {
+            ItemType = itemType;
         }
+        public readonly LocalTypeMd ItemType;
     }
 
     //for List, SimpleSet, ObjectSet, Map
-    public sealed class CollectionMd : CollectionBaseMd {
-        public CollectionMd(TypeKind kind, bool isNullable,
-            LocalTypeMd itemOrValueType, GlobalTypeRefMd mapKeyType, object objectSetKeySelector, Type clrType)
-            : base(kind, isNullable, itemOrValueType) {
+    public sealed class CollectionTypeMd : EnumerableTypeMd {
+        public CollectionTypeMd(TypeKind kind, LocalTypeMd itemType,
+            GlobalTypeRefMd mapKeyType, LocalTypeMd mapValueType, object objectSetKeySelector, Type clrType)
+            : base(kind, itemType ?? new AnonymousClassTypeMd(new[] { new AnonymousClassPropertyMd("Key", mapKeyType), new AnonymousClassPropertyMd("Value", mapValueType) })) {
             MapKeyType = mapKeyType;
+            MapValueType = mapValueType;
             ObjectSetKeySelector = objectSetKeySelector;
             ClrType = clrType;
             var ti = clrType.GetTypeInfo();
@@ -141,6 +166,7 @@ namespace CData {
             }
         }
         public readonly GlobalTypeRefMd MapKeyType;//opt
+        public readonly LocalTypeMd MapValueType;//opt
         public readonly object ObjectSetKeySelector;//opt
         public readonly Type ClrType;
         public readonly ConstructorInfo ClrConstructor;
@@ -172,55 +198,58 @@ namespace CData {
         }
     }
     public sealed class GlobalTypeRefMd : LocalTypeMd {
-        public GlobalTypeRefMd(GlobalTypeMd globalType, bool isNullable)
-            : base(globalType.Kind, isNullable) {
+        public GlobalTypeRefMd(GlobalTypeMd globalType)
+            : base(globalType.Kind) {
             GlobalType = globalType;
         }
         public readonly GlobalTypeMd GlobalType;
-        public static GlobalTypeRefMd GetAtom(TypeKind kind, bool isNullable = false) {
-            return isNullable ? _nullableAtomMap[kind] : _atomMap[kind];
+        public static GlobalTypeRefMd GetAtom(TypeKind kind) {
+            return _atomMap[kind];
+        }
+        public static NullableTypeMd GetNullableAtom(TypeKind kind) {
+            return _nullableAtomMap[kind];
         }
         private static readonly Dictionary<TypeKind, GlobalTypeRefMd> _atomMap = new Dictionary<TypeKind, GlobalTypeRefMd> {
-            { TypeKind.String, new GlobalTypeRefMd(AtomMd.Get(TypeKind.String), false) },
-            { TypeKind.IgnoreCaseString, new GlobalTypeRefMd(AtomMd.Get(TypeKind.IgnoreCaseString), false) },
-            { TypeKind.Char, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Char), false) },
-            { TypeKind.Decimal, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Decimal), false) },
-            { TypeKind.Int64, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Int64), false) },
-            { TypeKind.Int32, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Int32), false) },
-            { TypeKind.Int16, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Int16), false) },
-            { TypeKind.SByte, new GlobalTypeRefMd(AtomMd.Get(TypeKind.SByte), false) },
-            { TypeKind.UInt64, new GlobalTypeRefMd(AtomMd.Get(TypeKind.UInt64), false) },
-            { TypeKind.UInt32, new GlobalTypeRefMd(AtomMd.Get(TypeKind.UInt32), false) },
-            { TypeKind.UInt16, new GlobalTypeRefMd(AtomMd.Get(TypeKind.UInt16), false) },
-            { TypeKind.Byte, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Byte), false) },
-            { TypeKind.Double, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Double), false) },
-            { TypeKind.Single, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Single), false) },
-            { TypeKind.Boolean, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Boolean), false) },
-            { TypeKind.Binary, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Binary), false) },
-            { TypeKind.Guid, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Guid), false) },
-            { TypeKind.TimeSpan, new GlobalTypeRefMd(AtomMd.Get(TypeKind.TimeSpan), false) },
-            { TypeKind.DateTimeOffset, new GlobalTypeRefMd(AtomMd.Get(TypeKind.DateTimeOffset), false) },
+            { TypeKind.String, new GlobalTypeRefMd(AtomTypeMd.Get(TypeKind.String)) },
+            { TypeKind.IgnoreCaseString, new GlobalTypeRefMd(AtomTypeMd.Get(TypeKind.IgnoreCaseString)) },
+            { TypeKind.Char, new GlobalTypeRefMd(AtomTypeMd.Get(TypeKind.Char)) },
+            { TypeKind.Decimal, new GlobalTypeRefMd(AtomTypeMd.Get(TypeKind.Decimal)) },
+            { TypeKind.Int64, new GlobalTypeRefMd(AtomTypeMd.Get(TypeKind.Int64)) },
+            { TypeKind.Int32, new GlobalTypeRefMd(AtomTypeMd.Get(TypeKind.Int32)) },
+            { TypeKind.Int16, new GlobalTypeRefMd(AtomTypeMd.Get(TypeKind.Int16)) },
+            { TypeKind.SByte, new GlobalTypeRefMd(AtomTypeMd.Get(TypeKind.SByte)) },
+            { TypeKind.UInt64, new GlobalTypeRefMd(AtomTypeMd.Get(TypeKind.UInt64)) },
+            { TypeKind.UInt32, new GlobalTypeRefMd(AtomTypeMd.Get(TypeKind.UInt32)) },
+            { TypeKind.UInt16, new GlobalTypeRefMd(AtomTypeMd.Get(TypeKind.UInt16)) },
+            { TypeKind.Byte, new GlobalTypeRefMd(AtomTypeMd.Get(TypeKind.Byte)) },
+            { TypeKind.Double, new GlobalTypeRefMd(AtomTypeMd.Get(TypeKind.Double)) },
+            { TypeKind.Single, new GlobalTypeRefMd(AtomTypeMd.Get(TypeKind.Single)) },
+            { TypeKind.Boolean, new GlobalTypeRefMd(AtomTypeMd.Get(TypeKind.Boolean)) },
+            { TypeKind.Binary, new GlobalTypeRefMd(AtomTypeMd.Get(TypeKind.Binary)) },
+            { TypeKind.Guid, new GlobalTypeRefMd(AtomTypeMd.Get(TypeKind.Guid)) },
+            { TypeKind.TimeSpan, new GlobalTypeRefMd(AtomTypeMd.Get(TypeKind.TimeSpan)) },
+            { TypeKind.DateTimeOffset, new GlobalTypeRefMd(AtomTypeMd.Get(TypeKind.DateTimeOffset)) },
         };
-        private static readonly Dictionary<TypeKind, GlobalTypeRefMd> _nullableAtomMap = new Dictionary<TypeKind, GlobalTypeRefMd> {
-            { TypeKind.String, new GlobalTypeRefMd(AtomMd.Get(TypeKind.String), true) },
-            { TypeKind.IgnoreCaseString, new GlobalTypeRefMd(AtomMd.Get(TypeKind.IgnoreCaseString), true) },
-            { TypeKind.Char, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Char), true) },
-            { TypeKind.Decimal, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Decimal), true) },
-            { TypeKind.Int64, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Int64), true) },
-            { TypeKind.Int32, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Int32), true) },
-            { TypeKind.Int16, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Int16), true) },
-            { TypeKind.SByte, new GlobalTypeRefMd(AtomMd.Get(TypeKind.SByte), true) },
-            { TypeKind.UInt64, new GlobalTypeRefMd(AtomMd.Get(TypeKind.UInt64), true) },
-            { TypeKind.UInt32, new GlobalTypeRefMd(AtomMd.Get(TypeKind.UInt32), true) },
-            { TypeKind.UInt16, new GlobalTypeRefMd(AtomMd.Get(TypeKind.UInt16), true) },
-            { TypeKind.Byte, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Byte), true) },
-            { TypeKind.Double, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Double), true) },
-            { TypeKind.Single, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Single), true) },
-            { TypeKind.Boolean, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Boolean), true) },
-            { TypeKind.Binary, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Binary), true) },
-            { TypeKind.Guid, new GlobalTypeRefMd(AtomMd.Get(TypeKind.Guid), true) },
-            { TypeKind.TimeSpan, new GlobalTypeRefMd(AtomMd.Get(TypeKind.TimeSpan), true) },
-            { TypeKind.DateTimeOffset, new GlobalTypeRefMd(AtomMd.Get(TypeKind.DateTimeOffset), true) },
+        private static readonly Dictionary<TypeKind, NullableTypeMd> _nullableAtomMap = new Dictionary<TypeKind, NullableTypeMd> {
+            { TypeKind.String, new NullableTypeMd(_atomMap[TypeKind.String]) },
+            { TypeKind.IgnoreCaseString, new NullableTypeMd(_atomMap[TypeKind.IgnoreCaseString]) },
+            { TypeKind.Char, new NullableTypeMd(_atomMap[TypeKind.Char]) },
+            { TypeKind.Decimal, new NullableTypeMd(_atomMap[TypeKind.Decimal]) },
+            { TypeKind.Int64, new NullableTypeMd(_atomMap[TypeKind.Int64]) },
+            { TypeKind.Int32, new NullableTypeMd(_atomMap[TypeKind.Int32]) },
+            { TypeKind.Int16, new NullableTypeMd(_atomMap[TypeKind.Int16]) },
+            { TypeKind.SByte, new NullableTypeMd(_atomMap[TypeKind.SByte]) },
+            { TypeKind.UInt64, new NullableTypeMd(_atomMap[TypeKind.UInt64]) },
+            { TypeKind.UInt32, new NullableTypeMd(_atomMap[TypeKind.UInt32]) },
+            { TypeKind.UInt16, new NullableTypeMd(_atomMap[TypeKind.UInt16]) },
+            { TypeKind.Byte, new NullableTypeMd(_atomMap[TypeKind.Byte]) },
+            { TypeKind.Double, new NullableTypeMd(_atomMap[TypeKind.Double]) },
+            { TypeKind.Single, new NullableTypeMd(_atomMap[TypeKind.Single]) },
+            { TypeKind.Boolean, new NullableTypeMd(_atomMap[TypeKind.Boolean]) },
+            { TypeKind.Binary, new NullableTypeMd(_atomMap[TypeKind.Binary]) },
+            { TypeKind.Guid, new NullableTypeMd(_atomMap[TypeKind.Guid]) },
+            { TypeKind.TimeSpan, new NullableTypeMd(_atomMap[TypeKind.TimeSpan]) },
+            { TypeKind.DateTimeOffset, new NullableTypeMd(_atomMap[TypeKind.DateTimeOffset]) },
         };
     }
     public abstract class GlobalTypeMd : TypeMd {
@@ -233,7 +262,6 @@ namespace CData {
         public readonly FullName FullName;
         protected PropertyMd[] _properties;//opt
         protected FunctionMd[] _functions;//opt
-
     }
 
     [Flags]
@@ -244,7 +272,7 @@ namespace CData {
         ReadOnly = 4,
         Extension = 8,
     }
-    public class PropertyMd : NamedLocalTypeMd {
+    public class PropertyMd : NameTypePairMd {
         public PropertyMd(string name, LocalTypeMd type, PropertyFlags flags, ParameterMd[] parameters = null)
             : base(name, type) {
             Flags = flags;
@@ -267,7 +295,7 @@ namespace CData {
 
     }
 
-    public sealed class ParameterMd : NamedLocalTypeMd {
+    public sealed class ParameterMd : NameTypePairMd {
         public ParameterMd(string name, LocalTypeMd type)
             : base(name, type) {
         }
@@ -305,23 +333,30 @@ namespace CData {
 
     }
 
-    public sealed class AtomMd : GlobalTypeMd {
-        public static AtomMd Get(TypeKind kind) {
+    public sealed class AtomTypeMd : GlobalTypeMd {
+        public static AtomTypeMd Get(TypeKind kind) {
             return _map[kind];
         }
-        public static AtomMd Get(string name) {
+        public static AtomTypeMd Get(string name) {
             TypeKind kind;
             if (_nameMap.TryGetValue(name, out kind)) {
                 return _map[kind];
             }
             return null;
         }
-        private AtomMd(TypeKind kind)
+        public static TypeKind GetTypeKind(string name) {
+            TypeKind kind;
+            if (_nameMap.TryGetValue(name, out kind)) {
+                return kind;
+            }
+            return TypeKind.None;
+        }
+        private AtomTypeMd(TypeKind kind)
             : base(kind, AtomExtensions.GetFullName(kind), null, null) {
         }
         private static readonly Dictionary<string, TypeKind> _nameMap;
-        private static readonly Dictionary<TypeKind, AtomMd> _map;
-        static AtomMd() {
+        private static readonly Dictionary<TypeKind, AtomTypeMd> _map;
+        static AtomTypeMd() {
             _nameMap = new Dictionary<string, TypeKind> {
                 { TypeKind.String.ToString(), TypeKind.String },
                 { TypeKind.IgnoreCaseString.ToString(), TypeKind.IgnoreCaseString },
@@ -343,26 +378,26 @@ namespace CData {
                 { TypeKind.TimeSpan.ToString(), TypeKind.TimeSpan },
                 { TypeKind.DateTimeOffset.ToString(), TypeKind.DateTimeOffset },
             };
-            var map = new Dictionary<TypeKind, AtomMd> {
-                { TypeKind.String, new AtomMd(TypeKind.String) },
-                { TypeKind.IgnoreCaseString, new AtomMd(TypeKind.IgnoreCaseString) },
-                { TypeKind.Char, new AtomMd(TypeKind.Char) },
-                { TypeKind.Decimal, new AtomMd(TypeKind.Decimal) },
-                { TypeKind.Int64, new AtomMd(TypeKind.Int64) },
-                { TypeKind.Int32, new AtomMd(TypeKind.Int32) },
-                { TypeKind.Int16, new AtomMd(TypeKind.Int16) },
-                { TypeKind.SByte, new AtomMd(TypeKind.SByte) },
-                { TypeKind.UInt64, new AtomMd(TypeKind.UInt64) },
-                { TypeKind.UInt32, new AtomMd(TypeKind.UInt32) },
-                { TypeKind.UInt16, new AtomMd(TypeKind.UInt16) },
-                { TypeKind.Byte, new AtomMd(TypeKind.Byte) },
-                { TypeKind.Double, new AtomMd(TypeKind.Double) },
-                { TypeKind.Single, new AtomMd(TypeKind.Single) },
-                { TypeKind.Boolean, new AtomMd(TypeKind.Boolean) },
-                { TypeKind.Binary, new AtomMd(TypeKind.Binary) },
-                { TypeKind.Guid, new AtomMd(TypeKind.Guid) },
-                { TypeKind.TimeSpan, new AtomMd(TypeKind.TimeSpan) },
-                { TypeKind.DateTimeOffset, new AtomMd(TypeKind.DateTimeOffset) },
+            var map = new Dictionary<TypeKind, AtomTypeMd> {
+                { TypeKind.String, new AtomTypeMd(TypeKind.String) },
+                { TypeKind.IgnoreCaseString, new AtomTypeMd(TypeKind.IgnoreCaseString) },
+                { TypeKind.Char, new AtomTypeMd(TypeKind.Char) },
+                { TypeKind.Decimal, new AtomTypeMd(TypeKind.Decimal) },
+                { TypeKind.Int64, new AtomTypeMd(TypeKind.Int64) },
+                { TypeKind.Int32, new AtomTypeMd(TypeKind.Int32) },
+                { TypeKind.Int16, new AtomTypeMd(TypeKind.Int16) },
+                { TypeKind.SByte, new AtomTypeMd(TypeKind.SByte) },
+                { TypeKind.UInt64, new AtomTypeMd(TypeKind.UInt64) },
+                { TypeKind.UInt32, new AtomTypeMd(TypeKind.UInt32) },
+                { TypeKind.UInt16, new AtomTypeMd(TypeKind.UInt16) },
+                { TypeKind.Byte, new AtomTypeMd(TypeKind.Byte) },
+                { TypeKind.Double, new AtomTypeMd(TypeKind.Double) },
+                { TypeKind.Single, new AtomTypeMd(TypeKind.Single) },
+                { TypeKind.Boolean, new AtomTypeMd(TypeKind.Boolean) },
+                { TypeKind.Binary, new AtomTypeMd(TypeKind.Binary) },
+                { TypeKind.Guid, new AtomTypeMd(TypeKind.Guid) },
+                { TypeKind.TimeSpan, new AtomTypeMd(TypeKind.TimeSpan) },
+                { TypeKind.DateTimeOffset, new AtomTypeMd(TypeKind.DateTimeOffset) },
             };
             _map = map;
             map[TypeKind.String]._properties = new PropertyMd[] {
@@ -397,31 +432,35 @@ namespace CData {
         }
 
     }
-    public interface IContainerMd {
-        object TryGetMember(string name);
-    }
-    public sealed class EnumPropertyMd : PropertyMd {
-        public EnumPropertyMd(string name, LocalTypeMd type, object value)
+    public sealed class EnumTypePropertyMd : PropertyMd {
+        public EnumTypePropertyMd(string name, LocalTypeMd type, object value)
             : base(name, type, PropertyFlags.Static | PropertyFlags.ReadOnly) {
             Value = value;
         }
         public readonly object Value;
     }
-    public sealed class EnumMd : GlobalTypeMd {
-        public EnumMd(FullName fullName, EnumPropertyMd[] properties)
+    public sealed class EnumTypeMd : GlobalTypeMd, IContainerMd {
+        public EnumTypeMd(FullName fullName, EnumTypePropertyMd[] properties)
             : base(TypeKind.Enum, fullName, properties, null) {
             _enumProperties = properties;
         }
-        private readonly EnumPropertyMd[] _enumProperties;
-        public object GetPropertyValue(string name) {
+        private readonly EnumTypePropertyMd[] _enumProperties;
+        public EnumTypePropertyMd GetProperty(string name) {
             var props = _enumProperties;
             if (props != null) {
                 var length = props.Length;
                 for (var i = 0; i < length; ++i) {
                     if (props[i].Name == name) {
-                        return props[i].Value;
+                        return props[i];
                     }
                 }
+            }
+            return null;
+        }
+        public object GetPropertyValue(string name) {
+            var prop = GetProperty(name);
+            if (prop != null) {
+                return prop.Value;
             }
             return null;
         }
@@ -437,10 +476,14 @@ namespace CData {
             }
             return null;
         }
+
+        ITypeProviderMd IContainerMd.TryGetMember(string name) {
+            return GetProperty(name);
+        }
     }
-    public sealed class ClassMd : GlobalTypeMd {
-        public ClassMd(FullName fullName, bool isAbstract, ClassMd baseClass,
-            ClassPropertyMd[] properties, FunctionMd[] functions, Type clrType)
+    public sealed class ClassTypeMd : GlobalTypeMd, IContainerMd {
+        public ClassTypeMd(FullName fullName, bool isAbstract, ClassTypeMd baseClass,
+            ClassTypePropertyMd[] properties, FunctionMd[] functions, Type clrType)
             : base(TypeKind.Class, fullName, properties, functions) {
             IsAbstract = isAbstract;
             BaseClass = baseClass;
@@ -463,15 +506,15 @@ namespace CData {
             ClrOnLoadedMethod = ti.GetDeclaredMethod(ReflectionExtensions.OnLoadedNameStr);
         }
         public readonly bool IsAbstract;
-        public readonly ClassMd BaseClass;
-        private readonly ClassPropertyMd[] _classProperties;
+        public readonly ClassTypeMd BaseClass;
+        private readonly ClassTypePropertyMd[] _classProperties;
         public readonly Type ClrType;
         public readonly ConstructorInfo ClrConstructor;//for non abstract class
         public readonly PropertyInfo ClrMetadataProperty;//for top class
         public readonly PropertyInfo ClrTextSpanProperty;//for top class
         public readonly MethodInfo ClrOnLoadingMethod;//opt
         public readonly MethodInfo ClrOnLoadedMethod;//opt
-        public bool IsEqualToOrDeriveFrom(ClassMd other) {
+        public bool IsEqualToOrDeriveFrom(ClassTypeMd other) {
             for (var cls = this; cls != null; cls = cls.BaseClass) {
                 if (cls == other) {
                     return true;
@@ -479,7 +522,7 @@ namespace CData {
             }
             return false;
         }
-        public ClassPropertyMd GetPropertyInHierarchy(string name) {
+        public ClassTypePropertyMd GetPropertyInHierarchy(string name) {
             var props = _classProperties;
             if (props != null) {
                 var length = props.Length;
@@ -494,27 +537,27 @@ namespace CData {
             }
             return null;
         }
-        public void GetPropertiesInHierarchy(ref List<ClassPropertyMd> propList) {
+        public void GetPropertiesInHierarchy(ref List<ClassTypePropertyMd> propList) {
             if (BaseClass != null) {
                 BaseClass.GetPropertiesInHierarchy(ref propList);
             }
             if (_classProperties != null) {
                 if (propList == null) {
-                    propList = new List<ClassPropertyMd>(_classProperties);
+                    propList = new List<ClassTypePropertyMd>(_classProperties);
                 }
                 else {
                     propList.AddRange(_classProperties);
                 }
             }
         }
-        public IEnumerable<ClassPropertyMd> GetPropertiesInHierarchy() {
+        public IEnumerable<ClassTypePropertyMd> GetPropertiesInHierarchy() {
             if (BaseClass == null) {
                 return _classProperties;
             }
             if (_classProperties == null) {
                 return BaseClass.GetPropertiesInHierarchy();
             }
-            List<ClassPropertyMd> propList = null;
+            List<ClassTypePropertyMd> propList = null;
             GetPropertiesInHierarchy(ref propList);
             return propList;
         }
@@ -522,10 +565,10 @@ namespace CData {
             //FormatterServices.GetUninitializedObject()
             return ClrConstructor.Invoke(null);
         }
-        public ClassMd GetMetadata(object obj) {
+        public ClassTypeMd GetMetadata(object obj) {
             var md = this;
             for (; md.BaseClass != null; md = md.BaseClass) ;
-            return (ClassMd)md.ClrMetadataProperty.GetValue(obj);
+            return (ClassTypeMd)md.ClrMetadataProperty.GetValue(obj);
         }
         public void SetTextSpan(object obj, TextSpan value) {
             var md = this;
@@ -546,9 +589,12 @@ namespace CData {
             }
             return true;
         }
+        ITypeProviderMd IContainerMd.TryGetMember(string name) {
+            return GetPropertyInHierarchy(name);
+        }
     }
-    public sealed class ClassPropertyMd : PropertyMd {
-        public ClassPropertyMd(string name, LocalTypeMd type, string clrName, bool isClrProperty)
+    public sealed class ClassTypePropertyMd : PropertyMd {
+        public ClassTypePropertyMd(string name, LocalTypeMd type, string clrName, bool isClrProperty)
             : base(name, type, PropertyFlags.None) {
             ClrName = clrName;
             IsClrProperty = isClrProperty;

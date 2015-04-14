@@ -6,32 +6,32 @@ using System.Collections;
 
 namespace CData {
     public static class Serializer {
-        public static bool TryLoad<T>(string filePath, TextReader reader, DiagContext context,
-            ProgramMd programMd, ClassMd classMd, out T result) where T : class {
+        public static bool TryLoad<T>(string filePath, TextReader reader, DiagContext diagCtx,
+            ProgramMd programMd, ClassTypeMd classMd, out T result) where T : class {
             object obj;
-            if (Parser.ParseData(filePath, reader, context, classMd, out obj)) {
+            if (Parser.ParseData(filePath, reader, diagCtx, classMd, out obj)) {
                 result = (T)obj;
                 return true;
             }
             result = null;
             return false;
         }
-        public static bool TryLoad<T>(string filePath, string text, DiagContext context,
-            ProgramMd programMd, ClassMd classMd, out T result) where T : class {
-            return TryLoad<T>(filePath, new SimpleStringReader(text), context, programMd, classMd, out result);
+        public static bool TryLoad<T>(string filePath, string text, DiagContext diagCtx,
+            ProgramMd programMd, ClassTypeMd classMd, out T result) where T : class {
+            return TryLoad<T>(filePath, new SimpleStringReader(text), diagCtx, programMd, classMd, out result);
         }
-        public static void Save(object obj, ClassMd classMd, TextWriter writer, string indent = "\t", string newLine = "\n") {
+        public static void Save(object obj, ClassTypeMd classMd, TextWriter writer, string indent = "\t", string newLine = "\n") {
             if (writer == null) throw new ArgumentNullException("writer");
             var sb = StringBuilderBuffer.Acquire();
             Save(obj, classMd, sb, indent, newLine);
             writer.Write(sb.ToStringAndRelease());
         }
-        public static void Save(object obj, ClassMd classMd, StringBuilder stringBuilder, string indent = "\t", string newLine = "\n") {
+        public static void Save(object obj, ClassTypeMd classMd, StringBuilder stringBuilder, string indent = "\t", string newLine = "\n") {
             if (obj == null) throw new ArgumentNullException("obj");
             if (classMd == null) throw new ArgumentNullException("classMd");
             SaveClassValue(true, obj, classMd, new SavingContext(stringBuilder, indent, newLine));
         }
-        private static void SaveClassValue(bool isRoot, object obj, ClassMd classMd, SavingContext context) {
+        private static void SaveClassValue(bool isRoot, object obj, ClassTypeMd classMd, SavingContext context) {
             string rootAlias = null;
             if (isRoot) {
                 rootAlias = context.AddUri(classMd.FullName.Uri);
@@ -70,10 +70,10 @@ namespace CData {
                     SaveAtomValue(value, typeKind, context.StringBuilder);
                 }
                 else if (typeKind == TypeKind.Class) {
-                    SaveClassValue(false, value, ((GlobalTypeRefMd)typeMd).GlobalType as ClassMd, context);
+                    SaveClassValue(false, value, ((GlobalTypeRefMd)typeMd).GlobalType as ClassTypeMd, context);
                 }
                 else if (typeKind == TypeKind.Enum) {
-                    var enumMd = ((GlobalTypeRefMd)typeMd).GlobalType as EnumMd;
+                    var enumMd = ((GlobalTypeRefMd)typeMd).GlobalType as EnumTypeMd;
                     var memberName = enumMd.GetPropertyName(value);
                     if (memberName == null) {
                         context.Append("null");
@@ -87,9 +87,9 @@ namespace CData {
                     }
                 }
                 else if (typeKind == TypeKind.Map) {
-                    var collMd = (CollectionMd)typeMd;
+                    var collMd = (CollectionTypeMd)typeMd;
                     var keyMd = collMd.MapKeyType;
-                    var valueMd = collMd.ItemOrValueType;
+                    var valueMd = collMd.ItemType;
                     context.Append("#[");
                     context.AppendLine();
                     context.PushIndent();
@@ -110,7 +110,7 @@ namespace CData {
                     context.Append(']');
                 }
                 else {
-                    var itemMd = ((CollectionMd)typeMd).ItemOrValueType;
+                    var itemMd = ((CollectionTypeMd)typeMd).ItemType;
                     context.Append('[');
                     context.AppendLine();
                     context.PushIndent();

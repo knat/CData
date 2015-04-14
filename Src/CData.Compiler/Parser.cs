@@ -34,11 +34,10 @@ namespace CData.Compiler {
     internal sealed class Parser : ParserBase {
         [ThreadStatic]
         private static readonly Parser _instance = new Parser();
-        public static bool Parse(string filePath, TextReader reader, DiagContext context, out CompilationUnitNode result) {
-            return _instance.CompilationUnit(filePath, reader, context, out result);
+        public static bool Parse(string filePath, TextReader reader, DiagContext diagCtx, out CompilationUnitNode result) {
+            return _instance.CompilationUnit(filePath, reader, diagCtx, out result);
         }
-        private Parser() {
-        }
+        private Parser() { }
         private void ErrorAndThrow(DiagMsgEx diagMsg, TextSpan textSpan) {
             Error((int)diagMsg.Code, diagMsg.GetMessage(), textSpan);
             Throw();
@@ -46,9 +45,9 @@ namespace CData.Compiler {
         private void ErrorAndThrow(DiagMsgEx diagMsg) {
             ErrorAndThrow(diagMsg, GetTextSpan());
         }
-        private bool CompilationUnit(string filePath, TextReader reader, DiagContext context, out CompilationUnitNode result) {
+        private bool CompilationUnit(string filePath, TextReader reader, DiagContext diagCtx, out CompilationUnitNode result) {
             try {
-                Set(filePath, reader, context);
+                Set(filePath, reader, diagCtx);
                 var cu = new CompilationUnitNode();
                 while (Namespace(cu)) ;
                 EndOfFileExpected();
@@ -91,7 +90,7 @@ namespace CData.Compiler {
                         }
                     }
                 }
-                ns.ImportList.Add(new ImportNode(uriNode.Value, uriNode.TextSpan, alias));
+                ns.ImportList.Add(new ImportNode(uriNode.Text, uriNode.TextSpan, alias));
                 return true;
             }
             return false;
@@ -201,28 +200,28 @@ namespace CData.Compiler {
         private bool LocalType(NamespaceNode ns, LocalTypeFlags flags, out LocalTypeNode result) {
             if ((flags & LocalTypeFlags.Nullable) != 0) {
                 NullableNode r;
-                if (Nullable(ns, out r)) {
+                if (NullableType(ns, out r)) {
                     result = r;
                     return true;
                 }
             }
             if ((flags & LocalTypeFlags.List) != 0) {
                 ListNode r;
-                if (List(ns, out r)) {
+                if (ListType(ns, out r)) {
                     result = r;
                     return true;
                 }
             }
             if ((flags & LocalTypeFlags.Set) != 0) {
                 SetNode r;
-                if (Set(ns, out r)) {
+                if (SetType(ns, out r)) {
                     result = r;
                     return true;
                 }
             }
             if ((flags & LocalTypeFlags.Map) != 0) {
                 MapNode r;
-                if (Map(ns, out r)) {
+                if (MapType(ns, out r)) {
                     result = r;
                     return true;
                 }
@@ -246,7 +245,7 @@ namespace CData.Compiler {
             result = null;
             return false;
         }
-        private bool Nullable(NamespaceNode ns, out NullableNode result) {
+        private bool NullableType(NamespaceNode ns, out NullableNode result) {
             TextSpan ts;
             if (Keyword(ParserKeywordsEx.NullableKeyword, out ts)) {
                 TokenExpected('<');
@@ -258,7 +257,7 @@ namespace CData.Compiler {
             result = null;
             return false;
         }
-        private bool List(NamespaceNode ns, out ListNode result) {
+        private bool ListType(NamespaceNode ns, out ListNode result) {
             TextSpan ts;
             if (Keyword(ParserKeywordsEx.ListKeyword, out ts)) {
                 TokenExpected('<');
@@ -270,7 +269,7 @@ namespace CData.Compiler {
             result = null;
             return false;
         }
-        private bool Map(NamespaceNode ns, out MapNode result) {
+        private bool MapType(NamespaceNode ns, out MapNode result) {
             TextSpan ts;
             if (Keyword(ParserKeywordsEx.MapKeyword, out ts)) {
                 TokenExpected('<');
@@ -284,7 +283,7 @@ namespace CData.Compiler {
             result = null;
             return false;
         }
-        private bool Set(NamespaceNode ns, out SetNode result) {
+        private bool SetType(NamespaceNode ns, out SetNode result) {
             TextSpan ts;
             if (Keyword(ParserKeywordsEx.SetKeyword, out ts)) {
                 TokenExpected('<');

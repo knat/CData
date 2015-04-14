@@ -52,7 +52,7 @@ namespace CData.Compiler {
         public readonly AtomValueNode Uri;
         public string UriValue {
             get {
-                return Uri.Value;
+                return Uri.Text;
             }
         }
         public readonly List<ImportNode> ImportList;
@@ -259,9 +259,9 @@ namespace CData.Compiler {
         public readonly AtomValueNode Value;
         public NameValuePair CreateInfo(TypeKind typeKind) {
             var avNode = Value;
-            var value = AtomExtensions.TryParse(typeKind, avNode.Value, true);
+            var value = AtomExtensions.TryParse(typeKind, avNode.Text, true);
             if (value == null) {
-                DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidAtomValue, typeKind.ToString(), avNode.Value),
+                DiagContextEx.ErrorAndThrow(new DiagMsgEx(DiagCodeEx.InvalidAtomValue, typeKind.ToString(), avNode.Text),
                     avNode.TextSpan);
             }
             return new NameValuePair(Name.Value, value);
