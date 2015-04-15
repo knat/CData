@@ -6,7 +6,7 @@ namespace CData {
         None = 0,
         Atom = 1,
         List = 2,
-        Class = 3
+        Object = 3
     }
     public abstract class ExpressionValue {
         internal ExpressionValue(ExpressionValueKind kind, TextSpan textSpan) {
@@ -37,9 +37,9 @@ namespace CData {
         }
         public readonly List<ExpressionValue> Items;//opt
     }
-    public sealed class ClassExpressionValue : ExpressionValue {
-        internal ClassExpressionValue(TextSpan textSpan, List<NamedExpressionValue> members)
-            : base(ExpressionValueKind.Class, textSpan) {
+    public sealed class ObjectExpressionValue : ExpressionValue {
+        internal ObjectExpressionValue(TextSpan textSpan, List<NamedExpressionValue> members)
+            : base(ExpressionValueKind.Object, textSpan) {
             Members = members;
         }
         public readonly List<NamedExpressionValue> Members;//opt

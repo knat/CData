@@ -559,7 +559,7 @@ namespace CData {
                     }
                 }
                 TokenExpected('}');
-                result = new ClassExpressionValue(ts, members);
+                result = new ObjectExpressionValue(ts, members);
                 return true;
             }
             result = null;
@@ -1030,7 +1030,7 @@ namespace CData {
             }
             else if (Keyword(ParserKeywords.NewKeyword, out ts)) {
                 TokenExpected('{');
-                List<AnonymousObjectMemberNode> members = null;
+                List<NamedExpressionNode> members = null;
                 while (true) {
                     if (members != null) {
                         if (!Token(',')) {
@@ -1039,25 +1039,26 @@ namespace CData {
                     }
                     NameNode nameNode;
                     if (Name(out nameNode)) {
+                        var name = nameNode.Value;
                         if (members != null) {
                             foreach (var item in members) {
-                                if (item.Name == nameNode) {
+                                if (item.Name == name) {
                                     ErrorAndThrow("fdsf");
                                 }
                             }
                         }
                         TokenExpected('=');
                         if (members == null) {
-                            members = new List<AnonymousObjectMemberNode>();
+                            members = new List<NamedExpressionNode>();
                         }
-                        members.Add(new AnonymousObjectMemberNode(nameNode, ExpressionExpected(ctx)));
+                        members.Add(new NamedExpressionNode(name, ExpressionExpected(ctx)));
                     }
                     else {
                         break;
                     }
                 }
                 TokenExpected('}');
-                expr = new AnonymousObjectCreationExpressionNode(ts, null, members);
+                expr = new ObjectExpressionNode(ts, null, members);
             }
             else {
                 QNameNode qName;

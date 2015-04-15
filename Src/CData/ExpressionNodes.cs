@@ -24,7 +24,7 @@ namespace CData {
                     return false;
                 }
             }
-
+            Expression
 
             _currentContext = diagCtx;
             sr.SetString(exprText);
@@ -273,7 +273,7 @@ namespace CData {
         QualifiableName = 1000,
         ArgumentRef,
         Literal,
-        AnonymousObjectCreation,
+        Object,
         //Parenthesized,
 
     }
@@ -366,19 +366,19 @@ namespace CData {
         }
         public readonly object Value;
     }
-    public sealed class AnonymousObjectCreationExpressionNode : ExpressionNode {
-        internal AnonymousObjectCreationExpressionNode(TextSpan textSpan, TypeMd typeMd, List<AnonymousObjectMemberNode> memberList)
-            : base(textSpan, ExpressionKind.AnonymousObjectCreation, typeMd) {
-            MemberList = memberList;
+    public sealed class ObjectExpressionNode : ExpressionNode {
+        internal ObjectExpressionNode(TextSpan textSpan, TypeMd typeMd, List<NamedExpressionNode> members)
+            : base(textSpan, ExpressionKind.Object, typeMd) {
+            Members = members;
         }
-        internal readonly List<AnonymousObjectMemberNode> MemberList;//opt
+        public readonly List<NamedExpressionNode> Members;//opt
     }
-    internal sealed class AnonymousObjectMemberNode {
-        internal AnonymousObjectMemberNode(NameNode name, ExpressionNode value) {
+    public sealed class NamedExpressionNode {
+        internal NamedExpressionNode(string name, ExpressionNode value) {
             Name = name;
             Value = value;
         }
-        public readonly NameNode Name;
+        public readonly string Name;
         public readonly ExpressionNode Value;
     }
     public sealed class MemberAccessExpressionNode : ExpressionNode {
